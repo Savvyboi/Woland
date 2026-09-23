@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<title>Woland — Search the archive</title>
+<!-- include:head -->
+</head>
+<body>
+<!-- include:masthead -->
+<main id="main" class="page">
+  <section class="chapter-head">
+    <p class="chapter-no"><span data-i18n="chapter">Chapter</span> III</p>
+    <h1 data-i18n="archive.title">Manuscripts Don't Burn</h1>
+    <span class="fleuron" aria-hidden="true">✦ ☾ ✦</span>
+    <blockquote class="epigraph">
+      <p lang="ru">Рукописи не горят.</p>
+      <p class="tr" data-i18n="archive.epigraph">Manuscripts don't burn.</p>
+      <cite data-i18n="epigraph.cite">— M. Bulgakov, The Master and Margarita</cite>
+    </blockquote>
+  </section>
+  <form id="search-form" role="search" autocomplete="off">
+    <div class="searchbox">
+      <label class="sr-only" for="q" data-i18n="archive.go">Search</label>
+      <input id="q" name="q" type="search" data-i18n-attr="placeholder:archive.placeholder" placeholder="Search headlines and leads">
+      <button class="btn btn-gilt" type="submit" data-i18n="archive.go">Search</button>
+    </div>
+    <p class="syntax" data-i18n="archive.syntax"></p>
+    <div class="filters" id="filters">
+      <label class="field"><span data-i18n="archive.from">From</span><input type="date" id="from" name="from"></label>
+      <label class="field"><span data-i18n="archive.to">To</span><input type="date" id="to" name="to"></label>
+      <label class="field"><span data-i18n="archive.outlets">Outlets</span><select id="outlet" name="o"></select></label>
+      <label class="field"><span data-i18n="archive.language">Language</span><select id="lang-f" name="l"></select></label>
+      <label class="field"><span data-i18n="archive.narrative">Framing or topic</span><select id="narr" name="k"></select></label>
+      <label class="field"><span data-i18n="archive.sort">Order</span><select id="order" name="order"></select></label>
+      <button class="btn btn-quiet" type="button" id="clear" data-i18n="archive.clear">Clear</button>
+    </div>
+  </form>
+  <p class="status-line" id="status" aria-live="polite"></p>
+  <div id="results-area" hidden>
+    <div class="grid-2">
+      <figure class="plate" id="timeline-plate">
+        <figcaption><span class="plate-no" id="pl1"></span><span class="plate-title" data-i18n="archive.timeline">When it was said</span>
+          <span class="plate-tools"><span class="seg" id="norm"></span></span>
+          <span class="plate-sub" data-i18n="archive.timeline.sub">Matching articles per day</span></figcaption>
+        <div id="timeline"></div>
+      </figure>
+      <figure class="plate">
+        <figcaption><span class="plate-no" id="pl2"></span><span class="plate-title" data-i18n="archive.byoutlet">Where it was said</span></figcaption>
+        <div id="byoutlet"></div>
+      </figure>
+    </div>
+    <div class="section">
+      <div class="section-head"><h2 id="count"></h2><span class="hint"><button class="linkish" id="export" type="button"></button></span></div>
+      <ul class="articles" id="results"></ul>
+      <div class="pager"><button class="btn" id="more" type="button" hidden data-i18n="archive.more">Show more</button></div>
+    </div>
+  </div>
+</main>
+<!-- include:footer -->
+<script type="module" src="assets/js/archive.js"></script>
+</body>
+</html>

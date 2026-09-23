@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<title>Woland — Method, data and citation</title>
+<!-- include:head -->
+</head>
+<body>
+<!-- include:masthead -->
+<main id="main" class="page">
+  <section class="chapter-head">
+    <p class="chapter-no">❦</p>
+    <h1 data-i18n="method.title">Epilogue</h1>
+    <span class="fleuron" aria-hidden="true">✦ ☾ ✦</span>
+    <blockquote class="epigraph">
+      <p lang="ru">Нет документа, нет и человека.</p>
+      <p class="tr" data-i18n="method.epigraph">No document, no person.</p>
+      <cite data-i18n="epigraph.cite">— M. Bulgakov, The Master and Margarita</cite>
+    </blockquote>
+  </section>
+
+  <article class="prose" data-lang="en" lang="en">
+    <p class="dropcap">Woland reads the Russian state and pro-Kremlin press every day, from 1 September 2026 onwards, and keeps a record of what it published: every headline, its lead, when it appeared, and which of a documented set of propaganda framings it invokes. The aim is simple: to let researchers, journalists and activists see, search and cite what the Russian government's media are telling their audiences at home and abroad.</p>
+
+    <h2>What is collected</h2>
+    <p>The outlets are listed, with their owners, in <a href="outlets.html">Chapter IV</a>. They fall into five groups: the <em>state core</em> (TASS, RIA Novosti, RT, Rossiyskaya Gazeta, Izvestia, Vesti, Zvezda), the <em>official line</em> (the Kremlin's own website and the parliament's newspaper), the <em>mass press</em> (Komsomolskaya Pravda, Argumenty i Fakty, MK, Lenta.ru, Gazeta.ru, Life.ru), the <em>foreign-facing</em> English services (RT, TASS, Sputnik, the Kremlin in English) and a <em>hardline</em> fringe (Tsargrad, Ukraina.ru, InoSMI).</p>
+    <p>A collection run starts every night at about 04:20 Moscow time and gathers the previous day and anything missed before it. Feeds that only hold a few hours of news are also read every hour. The website is rebuilt after each nightly run.</p>
+
+    <h3>How articles are found and read</h3>
+    <p>Woland discovers articles through the outlets' own sitemaps, feeds and date archives, which list everything published on a given day. It then opens each article page to read the headline, the outlet's own summary (the "lead"), the publication time, section, tags and author. It identifies itself honestly as <code>WolandMonitor</code>, follows each site's <code>robots.txt</code>, and keeps a polite pause between requests.</p>
+    <p>Some sites refuse automated readers on their article pages: <strong>TASS (Russian service)</strong> and <strong>Gazeta.ru</strong> use JavaScript bot checks, and the <strong>Kremlin's website</strong> answers with an error. Woland does not try to get around such barriers. For these outlets it records what their own public feeds carry and marks them <em>feed only</em>. The Kremlin's feed contains the full texts, so nothing is lost there; for TASS and Gazeta.ru only the headline, lead and time are available and coverage is partial. TASS's Russian feed could not be read retroactively, so TASS appears from the start of hourly reading. Regnum refuses automated access altogether and is not collected.</p>
+
+    <h3>What is stored and published</h3>
+    <p>For every article Woland keeps the headline, the lead (at most 240 characters), metadata, an English machine translation of Russian headlines, and — when a propaganda framing appears only in the body of the text — a snippet of up to about 170 characters around it as evidence. The full text is read in memory to look for framings and then discarded: Woland does not republish articles. Every entry links to the original and to the Internet Archive, and carries a content fingerprint (the first 16 hex digits of a SHA-256 hash of the text) that lets you check later whether an article was changed.</p>
+
+    <h2>Framings and topics</h2>
+    <p>The lexicon distinguishes <em>framings</em> — loaded narratives such as "Nazis and denazification", "the Kyiv regime" or "Russophobia" — from neutral <em>topics</em> such as NATO, sanctions or Finland, tracked for context. Each is defined by Russian and English word patterns; the full list is at the bottom of this page and in <code>config/lexicon.yaml</code>. Patterns are matched in the headline and lead of every article, and — for framings — in the full text where Woland can read it.</p>
+    <p>This is lexical matching, not understanding. An article may mention "Nazis" to report or rebut the claim; a quotation from a Ukrainian official may contain a word the lexicon tracks. The measures are therefore best read as trends and comparisons, and every number leads back to the articles behind it so that you can check.</p>
+
+    <h3>Measures</h3>
+    <ul>
+      <li><strong>Share</strong>: the proportion of all articles published that day (by the outlets in view) that invoke a framing or topic. Shares, not counts, make days and outlets comparable.</li>
+      <li><strong>Change</strong>: the day's share against its average over the previous 28 days.</li>
+      <li><strong>Rising words</strong>: headline words whose share of headlines is at least twice their average over the previous 14 days, with a minimum number of headlines (6 in Russian, 3 in English). Word forms are grouped by stem.</li>
+      <li><strong>Days</strong> run from midnight to midnight Moscow time (UTC+3). All times are shown in Moscow time.</li>
+    </ul>
+
+    <h2>Searching</h2>
+    <p>The archive searches headlines, leads and the English machine translations. Words are matched in all their grammatical forms. Add <code>*</code> to match any ending (<code>нацист*</code>), put <code>-</code> before a word to exclude it, and write <code>OR</code> between alternatives. English queries also find Russian articles through their machine-translated headlines. Search results can be exported as CSV.</p>
+
+    <h2>Citing</h2>
+    <p>Each article has a <em>Cite</em> button with APA, Chicago and BibTeX references, including the archive link, the date Woland retrieved it and its fingerprint. Many of these sites are blocked in the EU; the Internet Archive link opens the nearest archived copy, or offers to create one. To cite Woland itself:</p>
+    <p><code>Woland: a chronicle of the Russian state press (2026–). <span class="site-url"></span>. Data retrieved [date].</code></p>
+
+    <h2>Data</h2>
+    <p>Everything Woland collects is published in its GitHub repository under <code>data/articles/YYYY/MM/DD/&lt;outlet&gt;.jsonl</code>, one JSON object per line. The fields are documented in the README. Woland's own data — the structure, the translations, the tagging — is released under CC BY 4.0; headlines and excerpts remain the property of their publishers.</p>
+
+    <h2>Legal and ethical notes</h2>
+    <p>Several of these outlets are subject to the EU's broadcasting ban (Council Regulation 833/2014, article 2f). Woland is a research and monitoring tool: it quotes headlines and short excerpts in order to analyse and document them, and it does not relay these outlets' content as such. This page is not legal advice; users in the EU should consider the rules that apply to their own use.</p>
+    <p>Machine translations are produced offline by an open-source model and can be wrong. Quote the original Russian where it matters.</p>
+  </article>
+
+  <article class="prose" data-lang="fi" lang="fi" hidden>
+    <p class="dropcap">Woland lukee Venäjän valtiollista ja Kremlin-myönteistä lehdistöä joka päivä 1. syyskuuta 2026 alkaen ja tallentaa, mitä se julkaisi: jokaisen otsikon, ingressin, julkaisuajan ja sen, mihin dokumentoiduista propagandanarratiiveista artikkeli vetoaa. Tavoite on yksinkertainen: tutkijat, toimittajat ja aktivistit voivat nähdä, hakea ja lainata sitä, mitä Venäjän hallituksen mediat kertovat yleisöilleen kotimaassa ja ulkomailla.</p>
+
+    <h2>Mitä kerätään</h2>
+    <p>Mediat omistajineen on lueteltu <a href="outlets.html">luvussa IV</a>. Ne jakautuvat viiteen ryhmään: <em>valtiollinen ydin</em> (TASS, RIA Novosti, RT, Rossijskaja Gazeta, Izvestija, Vesti, Zvezda), <em>virallinen linja</em> (Kremlin oma verkkosivusto ja parlamentin lehti), <em>joukkolehdistö</em> (Komsomolskaja Pravda, Argumenty i Fakty, MK, Lenta.ru, Gazeta.ru, Life.ru), <em>ulkomaille suunnatut</em> englanninkieliset palvelut (RT, TASS, Sputnik, Kreml englanniksi) sekä <em>kovan linjan</em> reuna (Tsargrad, Ukraina.ru, InoSMI).</p>
+    <p>Keruuajo käynnistyy joka yö noin kello 4.20 Moskovan aikaa ja kerää edellisen päivän sekä kaiken aiemmin puuttumaan jääneen. Syötteet, joissa on vain muutaman tunnin uutiset, luetaan lisäksi tunneittain. Sivusto rakennetaan uudelleen jokaisen yöajon jälkeen.</p>
+
+    <h3>Miten artikkelit löydetään ja luetaan</h3>
+    <p>Woland löytää artikkelit medioiden omista sivukartoista, syötteistä ja päiväkohtaisista arkistoista, joissa luetellaan kaikki tiettynä päivänä julkaistu. Sen jälkeen se avaa jokaisen artikkelisivun ja lukee otsikon, median oman tiivistelmän (ingressin), julkaisuajan, osaston, avainsanat ja kirjoittajan. Se esittäytyy rehellisesti nimellä <code>WolandMonitor</code>, noudattaa kunkin sivuston <code>robots.txt</code>-ohjeita ja pitää pyyntöjen välissä kohteliaan tauon.</p>
+    <p>Jotkin sivustot torjuvat automaattiset lukijat artikkelisivuillaan: <strong>TASS (venäjänkielinen palvelu)</strong> ja <strong>Gazeta.ru</strong> käyttävät JavaScript-pohjaisia bottitarkistuksia, ja <strong>Kremlin sivusto</strong> vastaa virheellä. Woland ei yritä kiertää tällaisia esteitä. Näistä medioista se tallentaa sen, mitä niiden omat julkiset syötteet sisältävät, ja merkitsee ne <em>vain syöte</em>. Kremlin syötteessä on koko teksti, joten siitä ei menetetä mitään; TASSista ja Gazeta.ru:sta saadaan vain otsikko, ingressi ja aika, ja kattavuus on osittainen. TASSin venäjänkielistä syötettä ei voitu lukea takautuvasti, joten TASS on mukana tunneittaisen lukemisen alkamisesta. Regnum estää automaattisen pääsyn kokonaan eikä sitä kerätä.</p>
+
+    <h3>Mitä tallennetaan ja julkaistaan</h3>
+    <p>Jokaisesta artikkelista Woland tallentaa otsikon, ingressin (enintään 240 merkkiä), metatiedot, venäjänkielisten otsikoiden englanninkielisen konekäännöksen sekä – kun propagandanarratiivi esiintyy vain leipätekstissä – noin 170 merkin otteen sen ympäriltä todisteeksi. Koko teksti luetaan muistissa narratiivien etsimistä varten ja hylätään sitten: Woland ei julkaise artikkeleita uudelleen. Jokaisesta merkinnästä on linkki alkuperäiseen ja Internet Archiveen, ja siihen liittyy sisällön tunniste (tekstin SHA-256-tiivisteen 16 ensimmäistä heksanumeroa), jolla voi myöhemmin tarkistaa, onko artikkelia muutettu.</p>
+
+    <h2>Narratiivit ja aiheet</h2>
+    <p>Sanastossa erotetaan <em>narratiivit</em> – latautuneet kehykset kuten ”natsit ja denatsifikaatio”, ”Kiovan hallinto” tai ”russofobia” – neutraaleista <em>aiheista</em> kuten Nato, pakotteet tai Suomi, joita seurataan taustaksi. Kukin määritellään venäjän- ja englanninkielisillä sanamalleilla; koko luettelo on tämän sivun lopussa ja tiedostossa <code>config/lexicon.yaml</code>. Malleja haetaan jokaisen artikkelin otsikosta ja ingressistä sekä – narratiivien osalta – koko tekstistä, kun Woland voi lukea sen.</p>
+    <p>Kyse on sanatason tunnistamisesta, ei ymmärtämisestä. Artikkeli voi mainita ”natsit” raportoidakseen väitteestä tai kiistääkseen sen, ja ukrainalaisen virkamiehen sitaatti voi sisältää seurattavan sanan. Lukuja kannattaa siksi lukea trendeinä ja vertailuina, ja jokaisesta luvusta pääsee sen takana oleviin artikkeleihin tarkistamaan.</p>
+
+    <h3>Mittarit</h3>
+    <ul>
+      <li><strong>Osuus</strong>: kuinka suuri osa päivän kaikista (tarkasteltavien medioiden) artikkeleista vetoaa narratiiviin tai aiheeseen. Osuudet tekevät päivistä ja medioista vertailukelpoisia.</li>
+      <li><strong>Muutos</strong>: päivän osuus verrattuna edellisten 28 päivän keskiarvoon.</li>
+      <li><strong>Nousevat sanat</strong>: otsikoiden sanat, joiden osuus otsikoista on vähintään kaksinkertainen edellisten 14 päivän keskiarvoon verrattuna ja joita on vähimmäismäärä (6 venäjäksi, 3 englanniksi). Taivutusmuodot yhdistetään vartalon mukaan.</li>
+      <li><strong>Päivät</strong> kestävät keskiyöstä keskiyöhön Moskovan aikaa (UTC+3). Kaikki ajat näytetään Moskovan aikaa.</li>
+    </ul>
+
+    <h2>Haku</h2>
+    <p>Arkistohaku kattaa otsikot, ingressit ja englanninkieliset konekäännökset. Sanat löytyvät kaikissa taivutusmuodoissaan. Lisää <code>*</code> mille tahansa päätteelle (<code>нацист*</code>), kirjoita <code>-</code> sanan eteen sen poissulkemiseksi ja <code>OR</code> vaihtoehtojen väliin. Englanninkieliset haut löytävät myös venäjänkieliset artikkelit niiden konekäännettyjen otsikoiden kautta. Hakutulokset voi viedä CSV-tiedostoon.</p>
+
+    <h2>Viittaaminen</h2>
+    <p>Jokaisessa artikkelissa on <em>Viittaa</em>-painike, josta saa APA-, Chicago- ja BibTeX-viitteet arkistolinkkeineen, Wolandin tallennuspäivineen ja sisällön tunnisteineen. Monet näistä sivustoista on estetty EU:ssa; Internet Archiven linkki avaa lähimmän arkistoidun kopion tai tarjoutuu luomaan sellaisen. Viittaus Wolandiin:</p>
+    <p><code>Woland: a chronicle of the Russian state press (2026–). <span class="site-url"></span>. Data haettu [päivämäärä].</code></p>
+
+    <h2>Data</h2>
+    <p>Kaikki Wolandin keräämä julkaistaan sen GitHub-repositoriossa hakemistossa <code>data/articles/VVVV/KK/PP/&lt;media&gt;.jsonl</code>, yksi JSON-objekti riviä kohden. Kentät on kuvattu README-tiedostossa. Wolandin oma data – rakenne, käännökset ja luokittelu – on julkaistu CC BY 4.0 -lisenssillä; otsikot ja otteet kuuluvat julkaisijoilleen.</p>
+
+    <h2>Oikeudelliset ja eettiset huomiot</h2>
+    <p>Useat näistä medioista kuuluvat EU:n lähetyskiellon piiriin (neuvoston asetus 833/2014, 2 f artikla). Woland on tutkimus- ja seurantatyökalu: se lainaa otsikoita ja lyhyitä otteita analysoidakseen ja dokumentoidakseen niitä eikä välitä näiden medioiden sisältöä sellaisenaan. Tämä ei ole oikeudellinen neuvo; EU:ssa toimivien käyttäjien kannattaa arvioida omaan käyttöönsä sovellettavat säännöt.</p>
+    <p>Konekäännökset tehdään paikallisesti avoimen lähdekoodin mallilla, ja niissä voi olla virheitä. Lainaa alkuperäistä venäjänkielistä tekstiä, kun sillä on merkitystä.</p>
+  </article>
+
+  <article class="prose" data-lang="sv" lang="sv" hidden>
+    <p class="dropcap">Woland läser den ryska statliga och Kremlvänliga pressen varje dag från och med den 1 september 2026 och dokumenterar vad den publicerade: varje rubrik, ingressen, publiceringstiden och vilka av en dokumenterad uppsättning propagandanarrativ artikeln använder. Syftet är enkelt: att låta forskare, journalister och aktivister se, söka i och citera det som den ryska regeringens medier berättar för sin publik hemma och utomlands.</p>
+
+    <h2>Vad som samlas in</h2>
+    <p>Medierna listas med sina ägare i <a href="outlets.html">kapitel IV</a>. De delas in i fem grupper: den <em>statliga kärnan</em> (TASS, RIA Novosti, RT, Rossijskaja Gazeta, Izvestija, Vesti, Zvezda), den <em>officiella linjen</em> (Kremls egen webbplats och parlamentets tidning), <em>masspressen</em> (Komsomolskaja Pravda, Argumenty i Fakty, MK, Lenta.ru, Gazeta.ru, Life.ru), de <em>utlandsriktade</em> engelskspråkiga tjänsterna (RT, TASS, Sputnik, Kreml på engelska) och en <em>hårdför</em> utkant (Tsargrad, Ukraina.ru, InoSMI).</p>
+    <p>En insamling startar varje natt omkring klockan 04.20 Moskvatid och samlar in föregående dag och allt som tidigare missats. Flöden som bara rymmer några timmars nyheter läses dessutom varje timme. Webbplatsen byggs om efter varje nattlig körning.</p>
+
+    <h3>Hur artiklar hittas och läses</h3>
+    <p>Woland hittar artiklar genom mediernas egna webbplatskartor, flöden och datumarkiv, som listar allt som publicerats en viss dag. Därefter öppnas varje artikelsida för att läsa rubriken, mediets egen sammanfattning (ingressen), publiceringstid, avdelning, taggar och skribent. Woland presenterar sig ärligt som <code>WolandMonitor</code>, följer varje webbplats <code>robots.txt</code> och håller en artig paus mellan förfrågningarna.</p>
+    <p>Vissa webbplatser avvisar automatiserade läsare på sina artikelsidor: <strong>TASS (ryskspråkig tjänst)</strong> och <strong>Gazeta.ru</strong> använder JavaScript-baserade robotkontroller, och <strong>Kremls webbplats</strong> svarar med ett felmeddelande. Woland försöker inte kringgå sådana hinder. För dessa medier sparas det som deras egna offentliga flöden innehåller, och de märks <em>endast flöde</em>. Kremls flöde innehåller hela texterna, så där går inget förlorat; från TASS och Gazeta.ru finns bara rubrik, ingress och tid, och täckningen är ofullständig. TASS ryska flöde kunde inte läsas i efterhand, så TASS finns med från det att läsningen varje timme började. Regnum nekar all automatiserad åtkomst och samlas inte in.</p>
+
+    <h3>Vad som sparas och publiceras</h3>
+    <p>För varje artikel sparar Woland rubriken, ingressen (högst 240 tecken), metadata, en engelsk maskinöversättning av ryska rubriker och – när ett propagandanarrativ bara förekommer i brödtexten – ett utdrag på omkring 170 tecken runt det som belägg. Hela texten läses i minnet för att leta efter narrativ och kastas sedan: Woland återpublicerar inte artiklar. Varje post länkar till originalet och till Internet Archive och har ett fingeravtryck av innehållet (de 16 första hexsiffrorna i en SHA-256-hash av texten) som gör det möjligt att senare kontrollera om en artikel har ändrats.</p>
+
+    <h2>Narrativ och ämnen</h2>
+    <p>Lexikonet skiljer mellan <em>narrativ</em> – laddade inramningar som ”nazister och denazifiering”, ”Kievregimen” eller ”russofobi” – och neutrala <em>ämnen</em> som Nato, sanktioner eller Finland, som följs som bakgrund. Vart och ett definieras av ryska och engelska ordmönster; hela listan finns längst ned på denna sida och i <code>config/lexicon.yaml</code>. Mönstren söks i rubriken och ingressen till varje artikel och – för narrativen – i hela texten där Woland kan läsa den.</p>
+    <p>Det här är matchning på ordnivå, inte förståelse. En artikel kan nämna ”nazister” för att rapportera om påståendet eller bemöta det, och ett citat från en ukrainsk tjänsteman kan innehålla ett ord som lexikonet följer. Siffrorna läses därför bäst som trender och jämförelser, och varje siffra leder tillbaka till artiklarna bakom den så att du kan kontrollera.</p>
+
+    <h3>Mått</h3>
+    <ul>
+      <li><strong>Andel</strong>: hur stor del av alla artiklar som publicerades den dagen (av de medier som visas) som använder ett narrativ eller ämne. Andelar gör dagar och medier jämförbara.</li>
+      <li><strong>Förändring</strong>: dagens andel jämfört med genomsnittet under de föregående 28 dagarna.</li>
+      <li><strong>Ord på frammarsch</strong>: rubrikord vars andel av rubrikerna är minst dubbelt så stor som genomsnittet under de föregående 14 dagarna, med ett minsta antal rubriker (6 på ryska, 3 på engelska). Böjningsformer grupperas efter ordstam.</li>
+      <li><strong>Dagar</strong> räknas från midnatt till midnatt Moskvatid (UTC+3). Alla tider visas i Moskvatid.</li>
+    </ul>
+
+    <h2>Sökning</h2>
+    <p>Arkivet söker i rubriker, ingresser och de engelska maskinöversättningarna. Ord hittas i alla sina böjningsformer. Lägg till <code>*</code> för valfri ändelse (<code>нацист*</code>), sätt <code>-</code> framför ett ord för att utesluta det och skriv <code>OR</code> mellan alternativ. Engelska sökningar hittar även ryska artiklar via deras maskinöversatta rubriker. Sökresultat kan exporteras som CSV.</p>
+
+    <h2>Att citera</h2>
+    <p>Varje artikel har en <em>Citera</em>-knapp med referenser i APA, Chicago och BibTeX, inklusive arkivlänk, datumet då Woland hämtade den och dess fingeravtryck. Många av dessa webbplatser är blockerade i EU; länken till Internet Archive öppnar närmaste arkiverade kopia eller erbjuder att skapa en. För att citera Woland:</p>
+    <p><code>Woland: a chronicle of the Russian state press (2026–). <span class="site-url"></span>. Data hämtad [datum].</code></p>
+
+    <h2>Data</h2>
+    <p>Allt som Woland samlar in publiceras i dess GitHub-arkiv under <code>data/articles/ÅÅÅÅ/MM/DD/&lt;medium&gt;.jsonl</code>, ett JSON-objekt per rad. Fälten beskrivs i README-filen. Wolands egna data – strukturen, översättningarna och taggningen – ges ut under CC BY 4.0; rubriker och utdrag tillhör respektive utgivare.</p>
+
+    <h2>Juridiska och etiska anmärkningar</h2>
+    <p>Flera av dessa medier omfattas av EU:s sändningsförbud (rådets förordning 833/2014, artikel 2f). Woland är ett verktyg för forskning och bevakning: det citerar rubriker och korta utdrag för att analysera och dokumentera dem och vidarebefordrar inte dessa mediers innehåll som sådant. Detta är ingen juridisk rådgivning; användare i EU bör själva bedöma vilka regler som gäller för deras användning.</p>
+    <p>Maskinöversättningarna görs lokalt med en öppen modell och kan vara felaktiga. Citera den ryska originaltexten när det spelar roll.</p>
+  </article>
+
+  <section class="section prose" id="lexicon-section">
+    <div class="section-head"><h2 id="lexicon-h">Lexicon</h2></div>
+    <div id="lexicon"></div>
+  </section>
+</main>
+<!-- include:footer -->
+<script type="module" src="assets/js/method.js"></script>
+</body>
+</html>

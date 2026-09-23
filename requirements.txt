@@ -1,0 +1,9 @@
+requests>=2.32
+certifi>=2025.1.1
+lxml>=5.2
+PyYAML>=6.0
+protego>=0.3
+trafilatura>=2.0
+snowballstemmer>=2.2
+ctranslate2>=4.4
+sentencepiece>=0.2

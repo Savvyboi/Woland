@@ -1,0 +1,432 @@
+# Woland: the outlets under observation.
+#
+# Every outlet has:
+#   id          short stable identifier (used in file names; never change it once data exists)
+#   name/name_ru display names
+#   lang        language of the content: ru | en
+#   group       state | mass | foreign | hardline | official
+#   home        homepage
+#   eu_blocked  true if the site is blocked in the EU under the sanctions broadcasting ban
+#               (observed via ISP-level DNS blocking in Finland, 24 Sept 2026)
+#   about       one-sentence description in en / fi / sv
+#   fetch       true  = open every article page (headline, lead, full text for narrative tagging)
+#               false = feed-only: the article pages refuse automated readers (JavaScript bot checks or
+#                       errors, which Woland does not try to get around), so only the outlet's own feed is used
+#   rate        minimum seconds between two requests to this outlet (politeness)
+#   article     regular expression an article URL must match
+#   sources     where article URLs are discovered. Types:
+#                 sitemap        url template, expanded per day | month | year | once
+#                 sitemap_index  walk the children of a sitemap index (newest first) until older than the range
+#                 rss            one or more feeds
+#                 html_list      listing pages (per day, or numbered pages)
+#                 wayback        Internet Archive CDX lookup (backfill only)
+#               Placeholders: {y} {m} {mm} {d} {dd} {ymd} {msk_start} {msk_end} {n}
+#               A source marked backfill_only is only read when collecting days older than three days.
+#   poll        true = also polled hourly by the light "poll" workflow (feeds that only hold a few hours)
+#   feed_fulltext  feed-only, but the feed carries the complete texts (so framings are found in the body)
+#   tz_fix      the site writes Moscow wall-clock time but declares another UTC offset; trust the clock
+#   parallel    how many article pages to fetch at once (default 2; the per-host pause still applies)
+#   coverage_sitemap  a sitemap used only to count how many articles the outlet published per day
+#   enabled     false = skipped (kept for documentation)
+
+defaults:
+  rate: 0.6
+  fetch: true
+  enabled: true
+
+outlets:
+
+  # ── State core ──────────────────────────────────────────────────────────────
+  - id: ria
+    name: RIA Novosti
+    name_ru: РИА Новости
+    lang: ru
+    group: state
+    home: https://ria.ru
+    eu_blocked: true
+    about:
+      en: State news agency, part of the Rossiya Segodnya media group created by presidential decree in 2013.
+      fi: Valtiollinen uutistoimisto, osa presidentin asetuksella vuonna 2013 perustettua Rossija Segodnja -mediakonsernia.
+      sv: Statlig nyhetsbyrå, del av mediekoncernen Rossija Segodnja som skapades genom presidentdekret 2013.
+    article: '^https://ria\.ru/\d{8}/[^/]+\.html$'
+    sources:
+      - {type: sitemap, per: day, url: 'https://ria.ru/sitemap_article.xml?date_start={ymd}&date_end={ymd}'}
+
+  - id: tass
+    name: TASS
+    name_ru: ТАСС
+    lang: ru
+    group: state
+    home: https://tass.ru
+    eu_blocked: false
+    about:
+      en: Russia's central state news agency (Russian-language service).
+      fi: Venäjän keskeinen valtiollinen uutistoimisto (venäjänkielinen palvelu).
+      sv: Rysslands centrala statliga nyhetsbyrå (ryskspråkig tjänst).
+    fetch: false
+    poll: true
+    article: '^https?://tass\.ru/[a-z0-9_-]+/\d+$'
+    sources:
+      - {type: rss, url: 'https://tass.ru/rss/v2.xml'}
+    coverage_sitemap: 'https://tass.ru/sitemap/sitemap_news0.xml'
+
+  - id: rt-ru
+    name: RT (Russian)
+    name_ru: RT на русском
+    lang: ru
+    group: state
+    home: https://russian.rt.com
+    eu_blocked: true
+    about:
+      en: Russian-language service of the state-funded RT network.
+      fi: Valtion rahoittaman RT-verkon venäjänkielinen palvelu.
+      sv: Den ryskspråkiga tjänsten inom det statligt finansierade nätverket RT.
+    article: '^https://russian\.rt\.com/[a-z_]+/(news|article)/\d+-[^/]+$'
+    sources:
+      - {type: sitemap_index, url: 'https://russian.rt.com/sitemap.xml', child: 'sitemap_{y}(_\d+)?\.xml$', order: lastmod, max_children: 4}
+
+  - id: rg
+    name: Rossiyskaya Gazeta
+    name_ru: Российская газета
+    lang: ru
+    group: state
+    home: https://rg.ru
+    eu_blocked: true
+    about:
+      en: Official newspaper of the Russian government, in which laws are promulgated.
+      fi: Venäjän hallituksen virallinen sanomalehti, jossa lait julkaistaan.
+      sv: Den ryska regeringens officiella tidning, där lagar kungörs.
+    tz_fix: true   # rg.ru labels Moscow time as UTC
+    article: '^https://rg\.ru/\d{4}/\d{2}/\d{2}/[^?#]+\.html$'
+    sources:
+      - {type: sitemap, per: day, url: 'https://rg.ru/sitemaps/index.xml?date_start={msk_start}&date_end={msk_end}'}
+
+  - id: iz
+    name: Izvestia
+    name_ru: Известия
+    lang: ru
+    group: state
+    home: https://iz.ru
+    eu_blocked: true
+    about:
+      en: Daily newspaper and news site owned by the National Media Group.
+      fi: Päivälehti ja uutissivusto, jonka omistaa National Media Group.
+      sv: Dagstidning och nyhetssajt som ägs av National Media Group.
+    article: '^https://iz\.ru/\d+/[^?#]+$'
+    sources:
+      - {type: sitemap_index, url: 'https://iz.ru/sitemap.xml', child: '/export/sitemap/(last|\d+)/xml$', order: desc, max_children: 4}
+
+  - id: vesti
+    name: Vesti
+    name_ru: Вести
+    lang: ru
+    group: state
+    home: https://www.vesti.ru
+    eu_blocked: true
+    about:
+      en: News site of VGTRK, the state broadcaster behind the Rossiya-1 and Rossiya-24 channels.
+      fi: Valtiollisen VGTRK-yhtiön uutissivusto; yhtiö lähettää Rossija-1- ja Rossija-24-kanavia.
+      sv: Nyhetssajt för det statliga VGTRK, som står bakom kanalerna Rossija-1 och Rossija-24.
+    article: '^https://www\.vesti\.ru/(ns|article)/[^?#]+$'
+    sources:
+      - {type: sitemap, per: once, url: 'https://www.vesti.ru/sitemap-news.xml'}
+      - {type: wayback, prefix: 'www.vesti.ru/ns/'}
+
+  - id: zvezda
+    name: Zvezda
+    name_ru: Звезда
+    lang: ru
+    group: state
+    home: https://tvzvezda.ru
+    eu_blocked: true
+    about:
+      en: TV channel and news site of the Russian Ministry of Defence.
+      fi: Venäjän puolustusministeriön televisiokanava ja uutissivusto.
+      sv: Det ryska försvarsministeriets tv-kanal och nyhetssajt.
+    poll: true
+    article: '^https?://(www\.)?tvzvezda\.ru/news/[^?#]+\.html$'
+    sources:
+      - {type: rss, url: 'https://tvzvezda.ru/export/rss.xml'}
+      - {type: wayback, prefix: 'tvzvezda.ru/news/'}
+
+  # ── Official line ───────────────────────────────────────────────────────────
+  - id: kremlin
+    name: Kremlin.ru
+    name_ru: Кремль
+    lang: ru
+    group: official
+    home: http://kremlin.ru
+    eu_blocked: false
+    about:
+      en: Official website of the President of Russia; the reference point for the Kremlin's own line.
+      fi: Venäjän presidentin virallinen verkkosivusto – vertailukohta Kremlin omalle linjalle.
+      sv: Rysslands presidents officiella webbplats – referenspunkt för Kremls egen linje.
+    poll: true
+    fetch: false   # article pages answer 403 to automated readers; the Atom feed carries the full text
+    feed_fulltext: true
+    tz_fix: true   # the feed labels Moscow time "+04:00" (the pre-2014 offset)
+    rate: 2
+    article: '^https?://kremlin\.ru/events/[a-z_/-]+/\d+$'
+    sources:
+      - {type: rss, url: 'http://kremlin.ru/events/all/feed'}
+      - type: rss
+        backfill_only: true
+        url: ['http://kremlin.ru/events/all/feed/page/2', 'http://kremlin.ru/events/all/feed/page/3', 'http://kremlin.ru/events/all/feed/page/4',
+              'http://kremlin.ru/events/all/feed/page/5', 'http://kremlin.ru/events/all/feed/page/6', 'http://kremlin.ru/events/all/feed/page/7',
+              'http://kremlin.ru/events/all/feed/page/8', 'http://kremlin.ru/events/all/feed/page/9', 'http://kremlin.ru/events/all/feed/page/10']
+
+  - id: kremlin-en
+    name: Kremlin.ru (English)
+    name_ru: Кремль (англ.)
+    lang: en
+    group: official
+    home: http://en.kremlin.ru
+    eu_blocked: false
+    about:
+      en: English version of the Russian President's website.
+      fi: Venäjän presidentin verkkosivuston englanninkielinen versio.
+      sv: Den engelska versionen av den ryska presidentens webbplats.
+    poll: true
+    fetch: false   # as for kremlin.ru: the Atom feed carries the full text
+    feed_fulltext: true
+    tz_fix: true
+    rate: 2
+    article: '^https?://en\.kremlin\.ru/events/[a-z_/-]+/\d+$'
+    sources:
+      - {type: rss, url: 'http://en.kremlin.ru/events/all/feed'}
+      - type: rss
+        backfill_only: true
+        url: ['http://en.kremlin.ru/events/all/feed/page/2', 'http://en.kremlin.ru/events/all/feed/page/3', 'http://en.kremlin.ru/events/all/feed/page/4',
+              'http://en.kremlin.ru/events/all/feed/page/5', 'http://en.kremlin.ru/events/all/feed/page/6', 'http://en.kremlin.ru/events/all/feed/page/7']
+
+  - id: pnp
+    name: Parlamentskaya Gazeta
+    name_ru: Парламентская газета
+    lang: ru
+    group: official
+    home: https://www.pnp.ru
+    eu_blocked: false
+    about:
+      en: Official newspaper of Russia's Federal Assembly (parliament).
+      fi: Venäjän liittokokouksen (parlamentin) virallinen sanomalehti.
+      sv: Den officiella tidningen för Rysslands federala församling (parlamentet).
+    article: '^https://www\.pnp\.ru/[a-z0-9-]+/[^/?#]+\.html$'
+    sources:
+      - {type: sitemap_index, url: 'https://www.pnp.ru/site-map/sitemap_index.xml', child: 'sitemap_\d+\.xml$', order: asc, max_children: 2}
+
+  # ── Pro-Kremlin mass press ──────────────────────────────────────────────────
+  - id: kp
+    name: Komsomolskaya Pravda
+    name_ru: Комсомольская правда
+    lang: ru
+    group: mass
+    home: https://www.kp.ru
+    eu_blocked: false
+    about:
+      en: Mass-circulation tabloid with one of Russia's largest online audiences.
+      fi: Laajalevikkinen iltapäivälehti, jolla on yksi Venäjän suurimmista verkkoyleisöistä.
+      sv: Kvällstidning med en av Rysslands största publiker på nätet.
+    article: '^https://www\.kp\.ru/(online/news|daily/\d+)/\d+/$'
+    sources:
+      - {type: sitemap, per: once, url: 'https://www.kp.ru/sitemap/news_01.xml'}
+      - {type: sitemap, per: once, url: 'https://www.kp.ru/sitemap/news_02.xml'}
+      - {type: sitemap, per: once, url: 'https://www.kp.ru/sitemap/main_01.xml'}
+      - {type: wayback, prefix: 'www.kp.ru/online/news/'}
+
+  - id: aif
+    name: Argumenty i Fakty
+    name_ru: Аргументы и факты
+    lang: ru
+    group: mass
+    home: https://aif.ru
+    eu_blocked: false
+    about:
+      en: Weekly newspaper and news site, owned by the Moscow city government since 2014.
+      fi: Viikkolehti ja uutissivusto, jonka omistaa Moskovan kaupunki vuodesta 2014.
+      sv: Veckotidning och nyhetssajt som sedan 2014 ägs av Moskvas stadsförvaltning.
+    article: '^https://aif\.ru/[a-z_]+(/[a-z_]+)*/[^/?#]+$'
+    sources:
+      - {type: rss, url: 'https://aif.ru/rss/news.php'}
+      - {type: sitemap_index, url: 'https://aif.ru/sitemap.xml', child: 'sitemap_(news|articles)(_\d+)?\.xml$', order: lastmod, max_children: 4}
+
+  - id: mk
+    name: Moskovsky Komsomolets
+    name_ru: Московский комсомолец
+    lang: ru
+    group: mass
+    home: https://www.mk.ru
+    eu_blocked: false
+    about:
+      en: Popular Moscow tabloid and national news site.
+      fi: Suosittu moskovalainen iltapäivälehti ja valtakunnallinen uutissivusto.
+      sv: Populär Moskvatabloid och rikstäckande nyhetssajt.
+    article: '^https://www\.mk\.ru/[a-z0-9/-]+/\d{4}/\d{2}/\d{2}/[^/?#]+\.html$'
+    sources:
+      - {type: html_list, per: day, url: 'https://www.mk.ru/news/{y}/{m}/{d}/', pages: 1, link: 'https://www\.mk\.ru/[a-z0-9/-]+/{y}/{mm}/{dd}/[^/"?#]+\.html'}
+      - {type: sitemap_index, url: 'https://www.mk.ru/sitemap/index.xml', child: '(delta/)?articles_sitemap_\d+_map\.xml$', order: lastmod, max_children: 3}
+
+  - id: lenta
+    name: Lenta.ru
+    name_ru: Лента.ру
+    lang: ru
+    group: mass
+    home: https://lenta.ru
+    eu_blocked: true
+    about:
+      en: One of Russia's most-read news sites, owned by the Sberbank-controlled Rambler group.
+      fi: Yksi Venäjän luetuimmista uutissivustoista; omistaja on Sberbankin hallitsema Rambler-konserni.
+      sv: En av Rysslands mest lästa nyhetssajter, ägd av den Sberbankkontrollerade Ramblergruppen.
+    article: '^https://lenta\.ru/(news|articles)/\d{4}/\d{2}/\d{2}/[^/?#]+/$'
+    sources:
+      - {type: rss, url: 'https://lenta.ru/rss/news'}
+      - {type: html_list, per: day, url: 'https://lenta.ru/news/{y}/{mm}/{dd}/', next: 'https://lenta.ru/news/{y}/{mm}/{dd}/page/{n}/', pages: 25, link: '/news/{y}/{mm}/{dd}/[^/"?#]+/'}
+
+  - id: gazeta
+    name: Gazeta.ru
+    name_ru: Газета.ру
+    lang: ru
+    group: mass
+    home: https://www.gazeta.ru
+    eu_blocked: false
+    about:
+      en: News site of the Sberbank-controlled Rambler group.
+      fi: Sberbankin hallitseman Rambler-konsernin uutissivusto.
+      sv: Nyhetssajt inom den Sberbankkontrollerade Ramblergruppen.
+    fetch: false
+    poll: true
+    article: '^https://www\.gazeta\.ru/[a-z_]+/(news/)?\d{4}/\d{2}/\d{2}/\d+\.shtml$'
+    sources:
+      - type: rss
+        url:
+          - 'https://www.gazeta.ru/export/rss/first.xml'
+          - 'https://www.gazeta.ru/export/rss/politics.xml'
+          - 'https://www.gazeta.ru/export/rss/army.xml'
+          - 'https://www.gazeta.ru/export/rss/business.xml'
+          - 'https://www.gazeta.ru/export/rss/social.xml'
+          - 'https://www.gazeta.ru/export/rss/culture.xml'
+          - 'https://www.gazeta.ru/export/rss/science.xml'
+
+  - id: life
+    name: Life.ru
+    name_ru: Life.ru
+    lang: ru
+    group: mass
+    home: https://life.ru
+    eu_blocked: false
+    about:
+      en: Pro-Kremlin tabloid news site known for fast, sensational coverage.
+      fi: Kremlin-myönteinen iltapäiväuutissivusto, joka tunnetaan nopeasta ja sensaatiohakuisesta uutisoinnista.
+      sv: Kremlvänlig nyhetssajt i tabloidstil, känd för snabb och sensationell bevakning.
+    article: '^https://life\.ru/p/[^/?#]+$'
+    sources:
+      - {type: sitemap, per: month, url: 'https://life.ru/lifesitemap/{y}-{mm}/lifesitemap.xml'}
+
+  # ── English, foreign-facing ─────────────────────────────────────────────────
+  - id: rt
+    name: RT
+    name_ru: RT (англ.)
+    lang: en
+    group: foreign
+    home: https://www.rt.com
+    eu_blocked: true
+    about:
+      en: English-language flagship of the state-funded RT network, aimed at foreign audiences.
+      fi: Valtion rahoittaman RT-verkon englanninkielinen lippulaiva, suunnattu ulkomaiselle yleisölle.
+      sv: Det statligt finansierade RT-nätverkets engelskspråkiga flaggskepp, riktat till utländsk publik.
+    article: '^https://www\.rt\.com/[a-z-]+/\d+-[^/?#]+/?$'
+    sources:
+      - {type: sitemap, per: year, url: 'https://www.rt.com/sitemap_{y}.xml'}
+
+  - id: tass-en
+    name: TASS (English)
+    name_ru: ТАСС (англ.)
+    lang: en
+    group: foreign
+    home: https://tass.com
+    eu_blocked: false
+    about:
+      en: English-language service of the TASS state news agency.
+      fi: Valtiollisen TASS-uutistoimiston englanninkielinen palvelu.
+      sv: Den engelskspråkiga tjänsten från den statliga nyhetsbyrån TASS.
+    article: '^https://tass\.com/[a-z-]+/\d+$'
+    sources:
+      - {type: sitemap, per: once, url: 'https://tass.com/sitemap/sitemap_hot.xml'}   # the last ~24 hours
+      - {type: rss, url: 'https://tass.com/rss/v2.xml'}
+      - {type: sitemap_index, url: 'https://tass.com/sitemap.xml', child: 'sitemap_news\d+\.xml$', order: asc, max_children: 2}
+
+  - id: sputnik
+    name: Sputnik Globe
+    name_ru: Sputnik (англ.)
+    lang: en
+    group: foreign
+    home: https://sputnikglobe.com
+    eu_blocked: true
+    about:
+      en: International English-language brand of Rossiya Segodnya (formerly Sputnik News).
+      fi: Rossija Segodnjan kansainvälinen englanninkielinen brändi (aiemmin Sputnik News).
+      sv: Rossija Segodnjas internationella engelskspråkiga varumärke (tidigare Sputnik News).
+    article: '^https://sputnikglobe\.com/\d{8}/[^/]+\.html$'
+    sources:
+      - {type: sitemap, per: day, url: 'https://sputnikglobe.com/sitemap_article.xml?date_start={ymd}&date_end={ymd}'}
+
+  # ── Hardline and war-focused ────────────────────────────────────────────────
+  - id: tsargrad
+    name: Tsargrad
+    name_ru: Царьград
+    lang: ru
+    group: hardline
+    home: https://tsargrad.tv
+    eu_blocked: true
+    about:
+      en: Orthodox-nationalist outlet founded by the sanctioned businessman Konstantin Malofeev.
+      fi: Ortodoksis-nationalistinen media, jonka perusti pakotteiden alainen liikemies Konstantin Malofejev.
+      sv: Ortodox-nationalistisk kanal grundad av den sanktionerade affärsmannen Konstantin Malofejev.
+    article: '^https://tsargrad\.tv/(news|articles|materials|investigations)/[^?#]+$'
+    sources:
+      - {type: sitemap, per: month, url: 'https://tsargrad.tv/xml/sitemap-{y}-{m}.xml.gz'}
+
+  - id: ukraina
+    name: Ukraina.ru
+    name_ru: Украина.ру
+    lang: ru
+    group: hardline
+    home: https://ukraina.ru
+    eu_blocked: true
+    about:
+      en: Rossiya Segodnya site devoted to Ukraine and the war.
+      fi: Rossija Segodnjan sivusto, joka keskittyy Ukrainaan ja sotaan.
+      sv: Rossija Segodnjas sajt om Ukraina och kriget.
+    article: '^https://ukraina\.ru/\d{8}/[^/]+\.html$'
+    sources:
+      - {type: sitemap, per: day, url: 'https://ukraina.ru/sitemap_article.xml?date_start={ymd}&date_end={ymd}'}
+
+  - id: inosmi
+    name: InoSMI
+    name_ru: ИноСМИ
+    lang: ru
+    group: hardline
+    home: https://inosmi.ru
+    eu_blocked: true
+    about:
+      en: Rossiya Segodnya site republishing selectively chosen, translated foreign press.
+      fi: Rossija Segodnjan sivusto, joka julkaisee valikoituja käännöksiä ulkomaisesta lehdistöstä.
+      sv: Rossija Segodnjas sajt som återpublicerar selektivt utvalda översättningar ur utländsk press.
+    article: '^https://inosmi\.ru/\d{8}/[^/]+\.html$'
+    sources:
+      - {type: sitemap, per: day, url: 'https://inosmi.ru/sitemap_article.xml?date_start={ymd}&date_end={ymd}'}
+
+  - id: regnum
+    name: Regnum
+    name_ru: Регнум
+    lang: ru
+    group: hardline
+    home: https://regnum.ru
+    eu_blocked: false
+    enabled: false   # answered HTTP 403 to every automated request when Woland was built
+    about:
+      en: News agency with a nationalist editorial line. Currently refuses automated access.
+      fi: Nationalistisen linjan uutistoimisto. Estää tällä hetkellä automaattisen pääsyn.
+      sv: Nyhetsbyrå med nationalistisk linje. Nekar för närvarande automatiserad åtkomst.
+    article: '^https://regnum\.ru/(news|article)/\d+$'
+    sources:
+      - {type: rss, url: 'https://regnum.ru/rss'}
