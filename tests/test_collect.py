@@ -89,6 +89,20 @@ def test_an_outlet_that_only_fails_is_abandoned(fake_site):
     assert run.aborted.startswith("unreachable") and run.stats["fail_403"] < 100
 
 
+def test_an_outlet_that_starts_refusing_mid_run_is_abandoned_too(fake_site):
+    fake_site["cands"] = [Candidate(url=f"https://t.ru/a/{i}") for i in range(200)]
+    fake_site["pages"] = {f"https://t.ru/a/{i}": page_info(D, i) if i < 32 else 401 for i in range(200)}
+    run = collect.collect_outlet(outlet(), D, D, LEX, set(), {})
+    assert run.aborted.startswith("refused after 32 pages") and run.stats["fail_401"] <= 16
+
+
+def test_missing_pages_are_not_mistaken_for_a_block(fake_site):
+    fake_site["cands"] = [Candidate(url=f"https://t.ru/a/{i}") for i in range(60)]
+    fake_site["pages"] = {f"https://t.ru/a/{i}": page_info(D, i) if i % 4 == 0 else 404 for i in range(60)}
+    run = collect.collect_outlet(outlet(), D, D, LEX, set(), {})
+    assert not run.aborted and run.stats["fail_404"] == 45 and len(run.records) == 15
+
+
 def test_feed_only_outlets_store_what_the_feed_says(fake_site):
     fake_site["cands"] = [Candidate(url="https://t.ru/a/1", hint=datetime(2026, 9, 10, 9, tzinfo=MSK),
                                     title="Киевский режим готовит провокацию", lead="Коротко.", via="rss")]

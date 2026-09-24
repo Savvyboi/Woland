@@ -163,7 +163,7 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: set, 
     run.stats["to_fetch"] = len(todo)
     log.info("%-10s %s..%s: %d candidates, %d new", o.id, start, end, len(urls), len(todo))
 
-    ok = failed = 0
+    ok = streak = 0  # pages read; pages refused in a row (a site that starts blocking mid-run)
     step = o.parallel * 8
     for i in range(0, len(todo), step):
         if budget.exceeded():
@@ -180,10 +180,11 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: set, 
                 run.stats[f"fail_{fail}"] += 1
                 if status in (404, 410) or error == "disallowed by robots.txt":
                     run.rejected[c.url] = today
-                if fail != "unparsable":
-                    failed += 1
+                elif fail != "unparsable":
+                    streak += 1
                 continue
             ok += 1
+            streak = 0
             built = build_record(o, c, info)
             if built is None:
                 run.stats["incomplete"] += 1
@@ -203,8 +204,9 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: set, 
                 rec["kb"] = kb
             keep(rec)
             run.stats["stored"] += 1
-        if ok == 0 and failed >= 15:  # nothing but failures: the site is blocking us or down
-            run.aborted = f"unreachable ({', '.join(k[5:] for k in run.stats if k.startswith('fail_'))})"
+        if streak >= 15:  # the site is refusing us (or down): stop asking; a later run tries again
+            reasons = ", ".join(k[5:] for k in run.stats if k.startswith("fail_"))
+            run.aborted = f"unreachable ({reasons})" if not ok else f"refused after {ok} pages ({reasons})"
             break
         if (i // step) % 20 == 19:
             log.info("%-10s %d/%d fetched", o.id, min(i + step, len(todo)), len(todo))
