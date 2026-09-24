@@ -126,9 +126,8 @@ def test_pages_refused_by_the_site_are_kept_as_what_the_listing_says(fake_site):
 
 def test_when_time_runs_out_the_rest_are_kept_from_the_listing(fake_site):
     fake_site["cands"] = [listed(i) for i in range(5)] + [Candidate(url="https://t.ru/a/99", hint=None, title="?")]
-    budget = collect.Budget(0.0001)
-    import time as _t
-    _t.sleep(0.01)
+    budget = collect.Budget(1)
+    budget.deadline -= 3600                                   # already spent
     run = collect.collect_outlet(outlet(), D, D, LEX, set(), {}, budget=budget)
     assert run.aborted == "time budget exhausted"
     assert sorted(r["u"] for r in run.records) == [f"https://t.ru/a/{i}" for i in range(5)]   # not the undated one
@@ -222,6 +221,19 @@ def test_plan_revisits_the_last_week_and_reaches_back_to_the_oldest_gap(monkeypa
     assert collect.plan([outlet()], cov, catch_up_days=45)["t"] == (date(2026, 10, 14), date(2026, 10, 20))
     # feed-only outlets cannot go back: only the rolling window
     assert collect.plan([outlet(fetch=False)], {}, catch_up_days=45)["t"] == (date(2026, 10, 14), date(2026, 10, 20))
+
+
+def test_a_day_far_quieter_than_usual_is_looked_at_again(monkeypatch):
+    monkeypatch.setattr(collect, "today_msk", lambda: date(2026, 10, 20))
+    days = [START_DATE + timedelta(days=k) for k in range((date(2026, 10, 20) - START_DATE).days)]
+    cov = {"t": {d.isoformat(): {"status": "complete", "n": 80} for d in days}}
+    cov["t"]["2026-10-02"]["n"] = 0        # a listing that lagged: nothing was found that day
+    assert collect.plan([outlet()], cov, catch_up_days=45)["t"][0] == date(2026, 10, 2)
+    cov["t"]["2026-10-02"]["n"] = 35       # a quiet Sunday is not a hole
+    assert collect.plan([outlet()], cov, catch_up_days=45)["t"][0] == date(2026, 10, 14)
+    small = {"t": {d.isoformat(): {"status": "complete", "n": 4} for d in days}}
+    small["t"]["2026-10-02"]["n"] = 0      # outlets that publish a few items a day may have none
+    assert collect.plan([outlet()], small, catch_up_days=45)["t"][0] == date(2026, 10, 14)
 
 
 def test_a_day_is_complete_once_it_is_over_in_moscow():

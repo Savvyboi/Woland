@@ -277,8 +277,16 @@ def _day_complete(day: date, run_started_msk: datetime) -> bool:
 WINDOW = 6
 
 
+def typical_day(cov: dict, before: date, days: int = 28) -> float:
+    """An outlet's usual number of articles a day: the median over its recent days (0 without history)."""
+    counts = sorted(v.get("n", 0) for k, v in cov.items()
+                    if (before - timedelta(days=days)).isoformat() <= k < before.isoformat())
+    return counts[len(counts) // 2] if len(counts) >= 5 else 0
+
+
 def plan(outlets: list[Outlet], coverage: dict, catch_up_days: int, window: int = WINDOW) -> dict[str, tuple[date, date]]:
-    """Date range per outlet: the rolling window plus the oldest day that is not yet complete."""
+    """Date range per outlet: the rolling window plus the oldest day that is not yet complete — or that
+    holds far fewer articles than the outlet usually publishes."""
     today = today_msk()
     oldest = max(START_DATE, today - timedelta(days=catch_up_days))
     ranges = {}
@@ -286,9 +294,11 @@ def plan(outlets: list[Outlet], coverage: dict, catch_up_days: int, window: int 
         start = today - timedelta(days=window)
         if o.can_backfill:
             cov = coverage.get(o.id, {})
+            typical = typical_day(cov, today)
             d = oldest
             while d < start:
-                if cov.get(d.isoformat(), {}).get("status") != "complete":
+                e = cov.get(d.isoformat(), {})
+                if e.get("status") != "complete" or (typical >= 20 and e.get("n", 0) < 0.25 * typical):
                     start = d
                     break
                 d += timedelta(days=1)
@@ -363,6 +373,7 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
                          and passing <= max(5, 0.01 * run.stats.get("to_fetch", 0))
                          and not run.stats.get("listed")
                          and run.stats.get("upgraded", 0) >= run.stats.get("to_upgrade", 0))
+            typical = typical_day(cov, run.start)
             d = run.start
             while d <= run.end:
                 key = d.isoformat()
@@ -374,7 +385,9 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
                 if not o.can_backfill:  # coverage limited to what the feed held at the time
                     entry["status"] = "feed"
                 elif entry.get("status") != "complete":
-                    entry["status"] = "complete" if clean_run and _day_complete(d, started_msk) else "partial"
+                    # a day far quieter than usual has a hole in it (a listing that lags, say): keep it open
+                    thin = typical >= 20 and entry["n"] < 0.25 * typical
+                    entry["status"] = "complete" if clean_run and not thin and _day_complete(d, started_msk) else "partial"
                 entry["at"] = iso_utc()
                 d += timedelta(days=1)
             seen.setdefault(o.id, {}).update(run.rejected)
