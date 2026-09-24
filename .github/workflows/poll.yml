@@ -36,7 +36,9 @@ jobs:
           path: ~/.cache/woland/models
           key: mt-ru-en-1.9
 
-      - run: python -m woland poll
+      # The budget keeps a site that refuses pages from holding the job past its timeout (the pages
+      # not read by then are kept from the feeds as headline-only records).
+      - run: python -m woland poll --budget 20
 
       - name: Commit
         run: |

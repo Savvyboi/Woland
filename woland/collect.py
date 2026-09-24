@@ -13,8 +13,8 @@ from .config import START_DATE, Outlet, load_lexicon, load_outlets
 from .discover import Candidate, discover, parse_sitemap
 from .extract import clean_lead, clean_title, extract, published_from_url
 from .lexicon import Lexicon
-from .store import (append_run, known_urls, load_coverage, load_seen, merge_day, read_day, save_coverage,
-                    save_seen)
+from .store import (append_run, drop_urls, known_urls, load_coverage, load_seen, merge_day, read_day,
+                    save_coverage, save_seen)
 from .translate import get_translator
 from .util import (MSK, canonical_url, fingerprint, iso_msk, iso_utc, msk_day, now_utc, short_hash, today_msk,
                    truncate)
@@ -106,14 +106,18 @@ def _fetch_page(o: Outlet, c: Candidate, fetchers: list, local: threading.local)
     return (info, None, r.status, None) if info else (None, "unparsable", r.status, None)
 
 
-def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: set, rejected_before: dict, *,
+def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict, rejected_before: dict, *,
                    feeds_only: bool = False, backfill: bool = False, limit: int | None = None,
                    budget: Budget | None = None, sink=None, flush_every: int = 300) -> OutletRun:
     """Discover and read one outlet's articles for [start, end].
 
-    Records go to `sink` in batches as they are read (so an interrupted run keeps its work), or, without
-    a sink, to run.records. An article that turns out to belong to another day of the chronicle is kept
-    too: its page has been read already, and it may be the only chance to catch it."""
+    known: URLs already stored → "page" or "feed" (headline only). Records go to `sink` in batches as they
+    are read (so an interrupted run keeps its work), or, without a sink, to run.records.
+
+    Nothing Woland has found is thrown away. An article that turns out to belong to another day of the
+    chronicle is kept under that day. An article whose page could not be read — the site refused, asked
+    us to slow down, or the time ran out — is kept as what the outlet's own listing or feed says about it
+    (headline, lead if any, time; via "feed"), and later runs try its page again to complete the record."""
     run = OutletRun(o, start, end)
     t0 = time.monotonic()
     budget = budget or Budget(None)
@@ -131,7 +135,8 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: set, 
             pending.clear()
 
     cands, run.errors = discover(fetcher, o, start, end, feeds_only=feeds_only, backfill=backfill)
-    todo, urls = [], set()
+    todo, upgrades, urls = [], [], set()
+    unread = []  # new candidates whose pages were refused or not reached
     for c in cands:
         c.url = canonical_url(c.url)
         if c.url.startswith("http://") and o.home.startswith("https://"):
@@ -143,7 +148,10 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: set, 
         if c.hint and start <= msk_day(c.hint) <= end:
             run.found_by_day[msk_day(c.hint).isoformat()] += 1
         if c.url in known:
-            run.stats["known"] += 1
+            if o.fetch and not feeds_only and known[c.url] == "feed":
+                upgrades.append(c)  # stored from a listing only: try the page again
+            else:
+                run.stats["known"] += 1
         elif c.url in rejected_before:
             run.stats["skipped"] += 1
         else:
@@ -154,16 +162,23 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: set, 
     todo.sort(key=priority)
     if limit:
         todo = todo[:limit]
+    new = set(id(c) for c in todo)
+    todo += sorted(upgrades, key=priority)  # new articles first, then completing headline-only ones
     run.stats["to_fetch"] = len(todo)
-    log.info("%-10s %s..%s: %d candidates, %d new", o.id, start, end, len(urls), len(todo))
+    if upgrades:
+        run.stats["to_upgrade"] = len(upgrades)
+    log.info("%-10s %s..%s: %d candidates, %d new%s", o.id, start, end, len(urls), len(new),
+             f", {len(upgrades)} to complete" if upgrades else "")
 
     ok = streak = 0  # pages read; pages refused in a row (a site that starts blocking mid-run)
     step = o.parallel * 8
+    reached = 0  # candidates attempted so far
     for i in range(0, len(todo), step):
         if budget.exceeded():
             run.aborted = "time budget exhausted"
             break
         chunk = todo[i:i + step]
+        reached = i + len(chunk)
         if o.fetch:
             with ThreadPoolExecutor(max_workers=o.parallel) as pool:
                 pages = list(pool.map(lambda c: _fetch_page(o, c, fetchers, local), chunk))
@@ -176,6 +191,8 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: set, 
                     run.rejected[c.url] = today
                 elif fail != "unparsable":
                     streak += 1
+                    if id(c) in new:
+                        unread.append(c)
                 continue
             ok += 1
             streak = 0
@@ -196,14 +213,28 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: set, 
                   if nid not in head and lex.by_id[nid].family in BODY_FAMILIES}
             if kb:
                 rec["kb"] = kb
+            if id(c) not in new:
+                rec["_up"] = True  # completes a headline-only record (which may sit under a neighbouring day)
+                run.stats["upgraded"] += 1
             keep(rec)
             run.stats["stored"] += 1
-        if streak >= 15:  # the site is refusing us (or down): stop asking; a later run tries again
+        if streak >= (5 if feeds_only else 15):  # the site is refusing us (or down): stop; a later run tries again
             reasons = ", ".join(k[5:] for k in run.stats if k.startswith("fail_"))
             run.aborted = f"unreachable ({reasons})" if not ok else f"refused after {ok} pages ({reasons})"
             break
         if (i // step) % 20 == 19:
             log.info("%-10s %d/%d fetched", o.id, min(i + step, len(todo)), len(todo))
+    unread += [c for c in todo[reached:] if id(c) in new]  # not reached: time ran out, or the site refused
+    # Keep what the listing or feed says about pages that could not be read.
+    if o.fetch and not limit:
+        for c in unread:
+            if not (c.title and c.hint and start <= msk_day(c.hint) <= end):
+                continue
+            built = build_record(o, c, None)
+            if built is None:
+                continue
+            keep(built[0])
+            run.stats["listed"] += 1
     if sink and pending:
         sink(pending[:])
 
@@ -288,10 +319,17 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
             if dry_run:
                 return
             by_day: dict[str, list] = {}
+            moved: dict[str, set] = {}
             for r in records:
+                if r.pop("_up", False):  # a completed headline-only record may have sat under a neighbouring day
+                    d = date.fromisoformat(r["p"][:10])
+                    for other in (d - timedelta(days=1), d + timedelta(days=1)):
+                        moved.setdefault(other.isoformat(), set()).add(r["u"])
                 by_day.setdefault(r["p"][:10], []).append(r)
             for key, recs in by_day.items():
                 merge_day(date.fromisoformat(key), o.id, recs)
+            for key, gone in moved.items():
+                drop_urls(date.fromisoformat(key), o.id, gone)
         return sink
 
     def job(o):
@@ -320,8 +358,11 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
             # run only if their days are not marked complete, so more than a few such failures keep them open.
             passing = sum(v for k, v in run.stats.items()
                           if k.startswith("fail_") and k not in ("fail_404", "fail_410", "fail_unparsable"))
+            # Days holding headline-only records stay open too, so that their pages are tried again.
             clean_run = (not run.errors and not run.aborted and not limit and not feeds_only
-                         and passing <= max(5, 0.01 * run.stats.get("to_fetch", 0)))
+                         and passing <= max(5, 0.01 * run.stats.get("to_fetch", 0))
+                         and not run.stats.get("listed")
+                         and run.stats.get("upgraded", 0) >= run.stats.get("to_upgrade", 0))
             d = run.start
             while d <= run.end:
                 key = d.isoformat()
@@ -337,7 +378,7 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
                 entry["at"] = iso_utc()
                 d += timedelta(days=1)
             seen.setdefault(o.id, {}).update(run.rejected)
-            new = run.stats.get("stored", 0)
+            new = run.stats.get("stored", 0) - run.stats.get("upgraded", 0) + run.stats.get("listed", 0)
             summary["outlets"][o.id] = {
                 "range": [run.start.isoformat(), run.end.isoformat()], "new": new,
                 "translated": translated[o.id], "requests": run.requests, "seconds": run.seconds,

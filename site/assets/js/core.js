@@ -194,14 +194,14 @@ export function showError(container, err) {
 /** Normalise a search-index document array. */
 export function fromIndex(a) {
   return { o: outletAt(a[0])?.id, ts: a[1], t: a[2], te: a[3], d: a[4], u: a[5], ks: a[6] || [],
-           sn: a[7] || {}, h: a[8], r: a[9], a: a[10] };
+           sn: a[7] || {}, h: a[8], r: a[9], a: a[10], f: a[11] || 0 };
 }
 /** Normalise a digest example. */
 export function fromExample(ex, dayIso, narrId) {
   const ts = Math.floor(new Date(`${dayIso}T${ex.p || "12:00"}:00+03:00`).getTime() / 1000);
   const k = narrId ? narrative(narrId)?.idx : undefined;
   return { o: ex.o, ts, t: ex.t, te: ex.te, u: ex.u, id: ex.id, ks: k !== undefined ? [k] : [],
-           sn: ex.s && k !== undefined ? { [k]: ex.s } : {} };
+           sn: ex.s && k !== undefined ? { [k]: ex.s } : {}, f: ex.f || 0 };
 }
 
 function highlight(text, terms) {
@@ -230,6 +230,7 @@ export function articleCard(doc, opts = {}) {
     doc.a ? el("span", {}, doc.a) : null,
     blocked ? el("span", { class: "badge eu", title: t("article.eu") }, "EU ⊘") : null,
     o.method === "feed" ? el("span", { class: "badge feed" }, t("article.feed")) : null,
+    doc.f ? el("span", { class: "badge feed", title: t("article.listed.title") }, t("article.listed")) : null,
   );
   const title = el("h3", {}, el("a", { href: doc.u, rel: "noopener noreferrer nofollow", target: "_blank", lang: o.lang },
     ...highlight(doc.t, opts.terms)));

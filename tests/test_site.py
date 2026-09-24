@@ -45,6 +45,8 @@ def built_site(tmp_path_factory):
                 host = "https://ria.ru/{:%Y%m%d}/a-{}.html" if o == "ria" else "https://www.rt.com/news/{1}-a{0:%d}/"
                 rec = {"id": f"{o}:{i}{j}", "o": o, "u": host.format(d, 1000 + j), "p": f"{d}T1{j}:00:00+03:00",
                        "t": t, "w": 100, "h": "0" * 16, "r": "2026-09-24T00:00:00Z", "via": "page"}
+                if "погоду" in t:  # a headline-only record: the page could not be read
+                    rec.update(w=0, via="feed")
                 if te:
                     rec["te"] = te
                 recs.append(rec)
@@ -89,6 +91,7 @@ def test_search_prefix_negation_or_and_filters(built_site):
 def test_english_queries_also_search_machine_translations(built_site):
     (r,) = search(built_site, {"q": "weather"})
     assert r["total"] == 8 and all(h["o"] == "ria" for h in r["hits"])
+    assert all(h["f"] == 1 for h in r["hits"])            # shown as "headline only"
 
 
 @needs_node

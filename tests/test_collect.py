@@ -67,7 +67,7 @@ def test_articles_from_other_days_are_kept_and_unwanted_ones_rejected(fake_site)
 def test_known_and_previously_rejected_urls_are_not_fetched_again(fake_site):
     fake_site["cands"] = [Candidate(url=f"https://t.ru/a/{i}") for i in range(3)]
     fake_site["pages"] = {"https://t.ru/a/2": page_info(D, 2)}
-    run = collect.collect_outlet(outlet(), D, D, LEX, known={"https://t.ru/a/0"},
+    run = collect.collect_outlet(outlet(), D, D, LEX, known={"https://t.ru/a/0": "page"},
                                  rejected_before={"https://t.ru/a/1": "2026-09-20"})
     assert [r["u"] for r in run.records] == ["https://t.ru/a/2"]
     assert run.stats["known"] == 1 and run.stats["skipped"] == 1
@@ -101,6 +101,58 @@ def test_missing_pages_are_not_mistaken_for_a_block(fake_site):
     fake_site["pages"] = {f"https://t.ru/a/{i}": page_info(D, i) if i % 4 == 0 else 404 for i in range(60)}
     run = collect.collect_outlet(outlet(), D, D, LEX, set(), {})
     assert not run.aborted and run.stats["fail_404"] == 45 and len(run.records) == 15
+
+
+# ── nothing found is thrown away: headline-only records, completed later ───────
+def listed(i, day=D, hour=9):
+    """A candidate as a sitemap or feed announces it: URL, time and headline."""
+    return Candidate(url=f"https://t.ru/a/{i}", hint=datetime(day.year, day.month, day.day, hour, i % 60, tzinfo=MSK),
+                     title=f"Заголовок из ленты {i}", lead="Лид из ленты." if i % 2 else "", via="sitemap")
+
+
+def test_pages_refused_by_the_site_are_kept_as_what_the_listing_says(fake_site):
+    # pages are tried newest first: the ten newest can be read, then the site starts refusing
+    fake_site["cands"] = [listed(i) for i in range(40)]
+    fake_site["pages"] = {**{f"https://t.ru/a/{i}": 429 for i in range(30)},
+                          **{f"https://t.ru/a/{i}": page_info(D, i) for i in range(30, 40)}, "https://t.ru/a/20": 404}
+    run = collect.collect_outlet(outlet(), D, D, LEX, set(), {})
+    by_url = {r["u"]: r for r in run.records}
+    assert run.aborted.startswith("refused after 10 pages") and len(by_url) == 39   # all but the 404
+    assert by_url["https://t.ru/a/35"]["via"] == "page"
+    headline_only = by_url["https://t.ru/a/3"]
+    assert headline_only["via"] == "feed" and headline_only["w"] == 0 and headline_only["t"] == "Заголовок из ленты 3"
+    assert headline_only["d"] == "Лид из ленты." and run.stats["listed"] == 29
+
+
+def test_when_time_runs_out_the_rest_are_kept_from_the_listing(fake_site):
+    fake_site["cands"] = [listed(i) for i in range(5)] + [Candidate(url="https://t.ru/a/99", hint=None, title="?")]
+    budget = collect.Budget(0.0001)
+    import time as _t
+    _t.sleep(0.01)
+    run = collect.collect_outlet(outlet(), D, D, LEX, set(), {}, budget=budget)
+    assert run.aborted == "time budget exhausted"
+    assert sorted(r["u"] for r in run.records) == [f"https://t.ru/a/{i}" for i in range(5)]   # not the undated one
+    assert all(r["via"] == "feed" for r in run.records)
+
+
+def test_headline_only_records_are_completed_and_their_days_stay_open_until_then(fake_site, archive, monkeypatch):
+    monkeypatch.setattr(collect, "today_msk", lambda: date(2026, 9, 24))
+    fake_site["cands"] = [listed(1), listed(2)]
+    fake_site["pages"] = {"https://t.ru/a/1": 429, "https://t.ru/a/2": 429}
+    collect.run_collection({"t": (D, D)}, [outlet()], mode="backfill", translate=False)
+    assert [r["via"] for r in store.read_day(D, "t")] == ["feed", "feed"]
+    assert store.load_coverage()["t"]["2026-09-10"]["status"] == "partial"
+    # the next night the pages can be read; one of them was in fact published just after midnight
+    later = page_info(D + timedelta(days=1), 2)
+    later["published"] = datetime(2026, 9, 11, 0, 5, tzinfo=MSK)
+    fake_site["pages"] = {"https://t.ru/a/1": page_info(D, 1), "https://t.ru/a/2": later}
+    summary = collect.run_collection({"t": (D, D)}, [outlet()], mode="backfill", translate=False)
+    assert summary["outlets"]["t"]["new"] == 0 and summary["outlets"]["t"]["stats"]["upgraded"] == 2
+    today, tomorrow = store.read_day(D, "t"), store.read_day(D + timedelta(days=1), "t")
+    assert [(r["u"], r["via"]) for r in today] == [("https://t.ru/a/1", "page")]
+    assert [(r["u"], r["via"]) for r in tomorrow] == [("https://t.ru/a/2", "page")]   # moved, not duplicated
+    assert all("_up" not in r for r in today + tomorrow)
+    assert store.load_coverage()["t"]["2026-09-10"]["status"] == "complete"
 
 
 def test_feed_only_outlets_store_what_the_feed_says(fake_site):

@@ -109,11 +109,15 @@ outlets:
       fi: Venäjän hallituksen virallinen sanomalehti, jossa lait julkaistaan.
       sv: Den ryska regeringens officiella tidning, där lagar kungörs.
     tz_fix: true   # rg.ru labels Moscow time as UTC
-    # Behind Qrator, which answers bursts of requests with a CAPTCHA page (HTTP 401): read it gently.
+    # Behind Qrator, which answers bursts of requests with a CAPTCHA page (HTTP 401) for a while: read it
+    # gently. Its feed (~6 hours, headlines and leads) is not challenged and is read every hour, so that
+    # headlines and leads are kept even while the pages are refused.
     rate: 1.0
     parallel: 1
+    poll: true
     article: '^https://rg\.ru/\d{4}/\d{2}/\d{2}/[^?#]+\.html$'
     sources:
+      - {type: rss, url: 'https://rg.ru/xml/index.xml'}
       - {type: sitemap, per: day, url: 'https://rg.ru/sitemaps/index.xml?date_start={msk_start}&date_end={msk_end}'}
 
   - id: iz

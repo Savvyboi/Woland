@@ -151,7 +151,7 @@ own situation.
 | `h` | content fingerprint: first 16 hex digits of SHA-256 over the normalised text |
 | `r` | when Woland retrieved it (UTC) |
 | `kb` | framings found **only** in the body text, each with a snippet of ≤ ~170 characters |
-| `via` | `page` (article page read) or `feed` (outlet's own feed) |
+| `via` | `page` (article page read) or `feed` (from the outlet's own feed, sitemap or listing only: for feed-only outlets always; for the others a *headline-only* record, kept when the page could not be read and completed by a later run) |
 
 `data/state/coverage.json` records, for every outlet and day, how many articles were stored, how many the
 outlet's own listings announced, and whether the day is complete. `data/state/runs.json` keeps the latest
@@ -172,6 +172,11 @@ consider moving older years to a release archive.
 * Zvezda and Komsomolskaya Pravda keep only a day or two in their own listings, so early September 2026 was
   filled in from the Internet Archive's captures (about 70% of Zvezda's and 60% of KP's online news).
   AiF's sitemaps are regenerated only now and then; its paged news list covers the days in between.
+* Nothing found is thrown away: when a page cannot be read (the site refuses, asks Woland to slow down, or the
+  night's time runs out), the article is kept as its listing or feed describes it — headline, lead if any, time —
+  marked *headline only* on the site, and its day stays open so that later runs read the page and complete it.
+  MK (which allows about 15 pages a minute) and Rossiyskaya Gazeta (whose Qrator shield answers bursts with a
+  CAPTCHA, which Woland never solves; it only slows down) are completed this way over several nights.
 * Regnum answers 403 to every automated request (robots.txt and feed included) and the Internet Archive only
   has error pages for its news, so it is disabled. Sputnik is blocked from Finnish networks and is collected
   by GitHub's servers only. Other sites may start blocking; `check.yml` and the Outlets page show it.

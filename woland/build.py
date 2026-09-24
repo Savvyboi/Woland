@@ -31,7 +31,7 @@ from .util import iso_utc, parse_dt, truncate
 
 log = logging.getLogger("woland.build")
 
-BUILD_VERSION = "2"
+BUILD_VERSION = "3"
 NB = 128          # index buckets per month
 BLOCK = 100       # documents per block file
 BASELINE_DAYS = 28
@@ -119,6 +119,7 @@ class Builder:
         self.outlets = load_outlets(include_disabled=True)
         self.oidx = {o.id: i for i, o in enumerate(self.outlets)}
         self.olang = {o.id: o.lang for o in self.outlets}
+        self.ofetch = {o.id: o.fetch for o in self.outlets}
         self.narratives = load_lexicon()
         self.nidx = {n.id: i for i, n in enumerate(self.narratives)}
         self.lex = Lexicon(self.narratives)
@@ -195,7 +196,8 @@ class Builder:
             ts = int(parse_dt(r["p"]).timestamp())
             lead = r.get("d", "")
             doc = [self.oidx[o], ts, r["t"], r.get("te", ""), truncate(lead, SEARCH_LEAD), r["u"], ks,
-                   {str(k): v for k, v in snips.items()}, r.get("h", ""), (r.get("r") or "")[:10], r.get("a", "")]
+                   {str(k): v for k, v in snips.items()}, r.get("h", ""), (r.get("r") or "")[:10], r.get("a", ""),
+                   self.headline_only(r)]
             text = " ".join(x for x in (r["t"], r.get("d", ""), r.get("te", "")) if x)
             idx.add(doc, self.oidx[o], index_terms(text))
             # rising words: document frequency of stems in headlines
@@ -231,10 +233,16 @@ class Builder:
                 "df": {lang: dict(c) for lang, c in df.items()}, "forms": forms,
                 "examples": chosen, "stem_ex": stem_ex}
 
+    def headline_only(self, r: dict) -> int:
+        """1 for an outlet whose pages Woland reads, when this article's page has not been read (yet)."""
+        return int(r.get("via") == "feed" and self.ofetch.get(r["o"], False))
+
     def example(self, r: dict, snippet: str | None) -> dict:
         ex = {"o": r["o"], "t": r["t"], "u": r["u"], "p": r["p"][11:16], "id": r["id"]}
         if r.get("te"):
             ex["te"] = r["te"]
+        if self.headline_only(r):
+            ex["f"] = 1
         if snippet:
             ex["s"] = snippet
         return ex

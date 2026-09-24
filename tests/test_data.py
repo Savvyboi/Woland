@@ -111,14 +111,16 @@ def test_no_article_is_filed_twice():
 
 
 def test_bodies_were_read_for_page_outlets():
-    """Outlets whose pages Woland reads should mostly have body texts (w > 0): if not, extraction broke."""
+    """Articles whose pages Woland read should mostly have body texts (w > 0): if not, extraction broke.
+    (Headline-only records, via "feed", have none by definition.)"""
     words = defaultdict(lambda: [0, 0])
     for f in FILES:
         if OUTLETS[f.stem].fetch:
             for line in f.read_text(encoding="utf-8").splitlines():
                 r = json.loads(line)
-                words[f.stem][0] += 1
-                words[f.stem][1] += r["w"] > 0
+                if r["via"] == "page":
+                    words[f.stem][0] += 1
+                    words[f.stem][1] += r["w"] > 0
     empty = {o: f"{have}/{n}" for o, (n, have) in words.items() if n >= 50 and have < 0.8 * n}
     assert not empty, f"too few body texts: {empty}"
 

@@ -217,7 +217,7 @@ class Fetcher:
             return Response(None, url, error="disallowed by robots.txt")
         r = self._get(url, gap, timeout)
         host = urlsplit(url).netloc
-        for _ in range(4):  # asked to slow down: widen the pause for this host, wait, try again
+        for _ in range(2):  # asked to slow down: widen the pause for this host, wait, try again
             if not r.slow_down():
                 break
             pause = THROTTLE.penalise(host, r.headers.get("retry-after"))

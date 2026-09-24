@@ -29,7 +29,7 @@ for (const q of JSON.parse(queries)) {
   try {
     const res = await search({ order: "new", ...q, outlets: q.outlets ? new Set(q.outlets) : null });
     const docs = await loadDocs(res.hits.slice(0, 100));
-    out.push({ total: res.total, hits: docs.map((d) => ({ o: d.o, t: d.t, te: d.te, u: d.u, ks: d.ks })),
+    out.push({ total: res.total, hits: docs.map((d) => ({ o: d.o, t: d.t, te: d.te, u: d.u, ks: d.ks, f: d.f })),
                days: Object.fromEntries(res.byDay), forms: [...res.forms].sort() });
   } catch (e) {
     out.push({ error: e.code || String(e) });

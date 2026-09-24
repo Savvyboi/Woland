@@ -50,7 +50,7 @@ def write_day(day: date, outlet: str, records: list[dict]) -> None:
     p = day_path(day, outlet)
     uniq = {}
     for r in records:
-        uniq[r["u"]] = r
+        uniq[r["u"]] = {k: v for k, v in r.items() if not k.startswith("_")}  # "_…": run-time markers only
     rows = sorted(uniq.values(), key=lambda r: (r["p"], r["u"]))
     if not rows:
         return
@@ -63,11 +63,17 @@ def write_day(day: date, outlet: str, records: list[dict]) -> None:
 
 
 def merge_day(day: date, outlet: str, new: list[dict]) -> int:
-    """Add records to a day file. Existing records win; missing fields are filled from the new ones."""
+    """Add records to a day file. Existing records win and missing fields are filled from the new ones,
+    except that a record read from the article page replaces a headline-only one (via "feed") for the
+    same URL: the translation is kept if the headline did not change."""
     existing = {r["u"]: r for r in read_day(day, outlet)}
     for r in new:
         old = existing.get(r["u"])
         if old is None:
+            existing[r["u"]] = r
+        elif old.get("via") == "feed" and r.get("via") == "page":
+            if not r.get("te") and old.get("te") and old.get("t") == r.get("t"):
+                r = {**r, "te": old["te"]}
             existing[r["u"]] = r
         else:
             for k, v in r.items():
@@ -77,11 +83,24 @@ def merge_day(day: date, outlet: str, new: list[dict]) -> int:
     return len(existing)
 
 
-def known_urls(outlet: str, start: date, end: date) -> set[str]:
-    urls = set()
+def drop_urls(day: date, outlet: str, urls: set[str]) -> int:
+    """Remove records from a day file (an upgraded article that moved to a neighbouring day)."""
+    recs = read_day(day, outlet)
+    keep = [r for r in recs if r["u"] not in urls]
+    if len(keep) != len(recs):
+        if keep:
+            write_day(day, outlet, keep)
+        else:
+            day_path(day, outlet).unlink()
+    return len(recs) - len(keep)
+
+
+def known_urls(outlet: str, start: date, end: date) -> dict[str, str]:
+    """URL → how the stored record was read ("page", or "feed" for a headline-only record)."""
+    urls: dict[str, str] = {}
     d = start
     while d <= end:
-        urls.update(r["u"] for r in read_day(d, outlet))
+        urls.update((r["u"], r.get("via", "page")) for r in read_day(d, outlet))
         d += timedelta(days=1)
     return urls
 
