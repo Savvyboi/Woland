@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -54,7 +55,7 @@ def write_day(day: date, outlet: str, records: list[dict]) -> None:
     if not rows:
         return
     p.parent.mkdir(parents=True, exist_ok=True)
-    tmp = p.with_suffix(".tmp")
+    tmp = p.with_name(f"{p.name}.{os.getpid()}.tmp")
     with open(tmp, "w", encoding="utf-8", newline="\n") as fh:
         for r in rows:
             fh.write(json.dumps(r, ensure_ascii=False, separators=(",", ":")) + "\n")
@@ -113,27 +114,46 @@ def _load(name: str, default):
 def _save(name: str, data) -> None:
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     p = STATE_DIR / name
-    tmp = p.with_suffix(".tmp")
+    tmp = p.with_name(f"{p.name}.{os.getpid()}.tmp")
     with open(tmp, "w", encoding="utf-8", newline="\n") as fh:
         json.dump(data, fh, ensure_ascii=False, indent=1, sort_keys=True)
         fh.write("\n")
+    for attempt in range(5):
+        try:
+            os.replace(tmp, p)
+            return
+        except PermissionError:  # Windows: another process is reading the file right now
+            time.sleep(0.2 * (attempt + 1))
     os.replace(tmp, p)
+
+
+def _merged(name: str, data: dict, only) -> dict:
+    """With `only`, replace just those outlets' entries in what is on disk: several collection runs
+    (the hourly feeds and a long backfill, say) can then work side by side without undoing each other."""
+    if only is None:
+        return data
+    merged = _load(name, {})
+    for oid in only:
+        if oid in data:
+            merged[oid] = data[oid]
+    return merged
 
 
 def load_coverage() -> dict:
     return _load("coverage.json", {})
 
 
-def save_coverage(cov: dict) -> None:
-    _save("coverage.json", cov)
+def save_coverage(cov: dict, only=None) -> None:
+    _save("coverage.json", _merged("coverage.json", cov, only))
 
 
 def load_seen() -> dict:
     return _load("seen.json", {})
 
 
-def save_seen(seen: dict, today: date, keep_days: int = 14) -> None:
+def save_seen(seen: dict, today: date, keep_days: int = 14, only=None) -> None:
     cutoff = (today - timedelta(days=keep_days)).isoformat()
+    seen = _merged("seen.json", seen, only)
     pruned = {o: {u: d for u, d in urls.items() if d >= cutoff} for o, urls in seen.items()}
     _save("seen.json", {o: u for o, u in pruned.items() if u})
 

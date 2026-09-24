@@ -60,7 +60,7 @@ function card(o, series, cov) {
       el("span", {}, el("b", {}, fmtInt(perDay)), ` ${t("outlets.perday")}`),
       o.first ? el("span", {}, `${t("outlets.since")} ${fmtDay(o.first)}`) : null) : null,
     last30.length > 1 ? sparkline(last30, { width: 220, height: 30, label: `${o.name}: ${t("outlets.articles")}` }) : null,
-    el("div", { class: "facts" }, t(`outlets.method.${o.method}`), " · ",
+    el("div", { class: "facts" }, o.enabled ? [t(`outlets.method.${o.method}`), " · "] : null,
       el("a", { href: o.home, rel: "noopener noreferrer nofollow", target: "_blank" }, o.home.replace(/^https?:\/\//, ""))),
     leans.length ? el("div", { class: "facts" }, el("span", { title: t("outlets.top.hint") }, `${t("outlets.top")}:`),
       ...leans.map((x) => el("a", { class: "tag framing", href: `narratives.html#${x.n.id}` }, `${tl(x.n.label)} ×${x.r.toFixed(1)}`))) : null,

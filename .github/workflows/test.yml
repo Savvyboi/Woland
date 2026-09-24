@@ -21,10 +21,6 @@ jobs:
         with:
           node-version: "22"
       - run: pip install -r requirements.txt pytest
+      # Python units, the website's search code run in Node against a freshly built site, the interface
+      # strings in all three languages, and the collected archive in data/.
       - run: python -m pytest -q
-      - name: JavaScript syntax (ES modules)
-        run: |
-          for f in site/assets/js/*.js; do
-            cp "$f" "$RUNNER_TEMP/$(basename "$f" .js).mjs"
-            node --check "$RUNNER_TEMP/$(basename "$f" .js).mjs"
-          done

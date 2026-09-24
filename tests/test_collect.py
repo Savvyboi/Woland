@@ -1,0 +1,156 @@
+"""Collecting: what is kept, what is rejected, how progress is saved, and which days are planned."""
+from __future__ import annotations
+
+import re
+from datetime import date, datetime, timedelta
+
+import pytest
+
+from woland import collect, store
+from woland.config import START_DATE, Outlet, load_lexicon
+from woland.discover import Candidate
+from woland.lexicon import Lexicon
+from woland.util import MSK
+
+LEX = Lexicon(load_lexicon())
+
+
+def outlet(oid="t", fetch=True, sources=None):
+    return Outlet(id=oid, name="T", name_ru="T", lang="ru", group="state", home="https://t.ru", about={},
+                  article=re.compile(r"^https://t\.ru/a/\d+$"), sources=sources or [{"type": "rss", "url": "x"}],
+                  fetch=fetch)
+
+
+def page_info(day: date, n: int, title="Заголовок"):
+    return {"title": f"{title} {n}", "lead": f"Лид статьи номер {n}, достаточно длинный.",
+            "published": datetime(day.year, day.month, day.day, 10, n % 60, tzinfo=MSK), "modified": None,
+            "section": "Политика", "tags": ["Россия"], "author": "", "body": "Текст статьи. " * 20}
+
+
+@pytest.fixture
+def fake_site(monkeypatch):
+    """Discovery returns the given candidates; each page fetch looks its URL up in `pages`."""
+    state = {"cands": [], "pages": {}, "errors": []}
+
+    def discover(fetcher, o, start, end, **kw):
+        return list(state["cands"]), list(state["errors"])
+
+    def fetch_page(o, c, fetchers, local):
+        v = state["pages"].get(c.url)
+        if isinstance(v, int):
+            return None, str(v), v, None
+        return (v, None, 200, None) if v else (None, "unparsable", 200, None)
+
+    monkeypatch.setattr(collect, "discover", discover)
+    monkeypatch.setattr(collect, "_fetch_page", fetch_page)
+    return state
+
+
+D = date(2026, 9, 10)
+
+
+def test_articles_from_other_days_are_kept_and_unwanted_ones_rejected(fake_site):
+    fake_site["cands"] = [Candidate(url=f"https://t.ru/a/{i}", hint=datetime(2026, 9, 10, 12, tzinfo=MSK)) for i in range(5)]
+    fake_site["pages"] = {
+        "https://t.ru/a/0": page_info(D, 0),                            # the day asked for
+        "https://t.ru/a/1": page_info(D + timedelta(days=1), 1),        # another day of the chronicle: kept
+        "https://t.ru/a/2": page_info(START_DATE - timedelta(days=5), 2),  # before the chronicle: rejected
+        "https://t.ru/a/3": 404,                                        # gone: remembered, not retried
+        "https://t.ru/a/4": 503,                                        # failed: will be retried
+    }
+    run = collect.collect_outlet(outlet(), D, D, LEX, known=set(), rejected_before={})
+    assert sorted(r["u"] for r in run.records) == ["https://t.ru/a/0", "https://t.ru/a/1"]
+    assert run.stats["other_day"] == 1 and run.stats["out_of_range"] == 1
+    assert set(run.rejected) == {"https://t.ru/a/2", "https://t.ru/a/3"}
+
+
+def test_known_and_previously_rejected_urls_are_not_fetched_again(fake_site):
+    fake_site["cands"] = [Candidate(url=f"https://t.ru/a/{i}") for i in range(3)]
+    fake_site["pages"] = {"https://t.ru/a/2": page_info(D, 2)}
+    run = collect.collect_outlet(outlet(), D, D, LEX, known={"https://t.ru/a/0"},
+                                 rejected_before={"https://t.ru/a/1": "2026-09-20"})
+    assert [r["u"] for r in run.records] == ["https://t.ru/a/2"]
+    assert run.stats["known"] == 1 and run.stats["skipped"] == 1
+
+
+def test_records_reach_the_sink_in_batches(fake_site):
+    fake_site["cands"] = [Candidate(url=f"https://t.ru/a/{i}") for i in range(25)]
+    fake_site["pages"] = {f"https://t.ru/a/{i}": page_info(D, i) for i in range(25)}
+    batches = []
+    run = collect.collect_outlet(outlet(), D, D, LEX, set(), {}, sink=batches.append, flush_every=10)
+    assert [len(b) for b in batches] == [10, 10, 5] and run.records == []
+    assert run.stats["stored"] == 25
+
+
+def test_an_outlet_that_only_fails_is_abandoned(fake_site):
+    fake_site["cands"] = [Candidate(url=f"https://t.ru/a/{i}") for i in range(100)]
+    fake_site["pages"] = {f"https://t.ru/a/{i}": 403 for i in range(100)}
+    run = collect.collect_outlet(outlet(), D, D, LEX, set(), {})
+    assert run.aborted.startswith("unreachable") and run.stats["fail_403"] < 100
+
+
+def test_feed_only_outlets_store_what_the_feed_says(fake_site):
+    fake_site["cands"] = [Candidate(url="https://t.ru/a/1", hint=datetime(2026, 9, 10, 9, tzinfo=MSK),
+                                    title="Киевский режим готовит провокацию", lead="Коротко.", via="rss")]
+    run = collect.collect_outlet(outlet(fetch=False), D, D, LEX, set(), {})
+    rec = run.records[0]
+    assert rec["via"] == "feed" and rec["w"] == 0 and rec["p"] == "2026-09-10T09:00:00+03:00"
+
+
+def test_body_only_framings_carry_a_snippet(fake_site):
+    info = page_info(D, 1)
+    info["body"] = "Обычный текст. " * 30 + "Западные кураторы Киева снова молчат. " + "Ещё текст. " * 30
+    fake_site["cands"] = [Candidate(url="https://t.ru/a/1")]
+    fake_site["pages"] = {"https://t.ru/a/1": info}
+    rec = collect.collect_outlet(outlet(), D, D, LEX, set(), {}).records[0]
+    assert "кураторы" in rec["kb"]["collective-west"] and len(rec["kb"]["collective-west"]) <= 175
+
+
+# ── a whole run: files, coverage, and state shared with other runs ─────────────
+def test_run_collection_writes_days_and_coverage_and_keeps_other_runs_state(fake_site, archive, monkeypatch):
+    monkeypatch.setattr(collect, "today_msk", lambda: date(2026, 9, 24))
+    fake_site["cands"] = [Candidate(url=f"https://t.ru/a/{i}") for i in range(4)]
+    fake_site["pages"] = {"https://t.ru/a/0": page_info(D, 0), "https://t.ru/a/1": page_info(D, 1),
+                          "https://t.ru/a/2": page_info(D + timedelta(days=1), 2), "https://t.ru/a/3": 404}
+    # another run (the hourly feeds, say) has recorded coverage for another outlet meanwhile
+    store.save_coverage({"other": {"2026-09-10": {"n": 7, "status": "feed"}}})
+    summary = collect.run_collection({"t": (D, D)}, [outlet()], mode="backfill", translate=False)
+    assert summary["outlets"]["t"]["new"] == 3
+    assert len(store.read_day(D, "t")) == 2 and len(store.read_day(D + timedelta(days=1), "t")) == 1
+    cov = store.load_coverage()
+    assert cov["other"]["2026-09-10"]["n"] == 7                        # not overwritten
+    assert cov["t"]["2026-09-10"]["n"] == 2 and cov["t"]["2026-09-10"]["status"] == "complete"
+    assert "https://t.ru/a/3" in store.load_seen()["t"]
+    # a second run adds nothing and fetches nothing new
+    summary = collect.run_collection({"t": (D, D)}, [outlet()], mode="backfill", translate=False)
+    stats = summary["outlets"]["t"]["stats"]
+    assert summary["outlets"]["t"]["new"] == 0 and stats["known"] == 3 and stats["skipped"] == 1
+
+
+def test_merge_day_keeps_existing_records_and_fills_missing_fields(archive):
+    store.write_day(D, "t", [{"id": "t:1", "u": "https://t.ru/a/1", "p": "2026-09-10T10:00:00+03:00", "t": "A"}])
+    n = store.merge_day(D, "t", [{"id": "t:1", "u": "https://t.ru/a/1", "p": "2026-09-10T10:00:00+03:00", "t": "B", "te": "A!"},
+                                 {"id": "t:2", "u": "https://t.ru/a/2", "p": "2026-09-10T09:00:00+03:00", "t": "C"}])
+    recs = store.read_day(D, "t")
+    assert n == 2 and [r["t"] for r in recs] == ["C", "A"] and recs[1]["te"] == "A!"
+
+
+# ── planning which days to collect ────────────────────────────────────────────
+def test_plan_revisits_the_last_week_and_reaches_back_to_the_oldest_gap(monkeypatch):
+    monkeypatch.setattr(collect, "today_msk", lambda: date(2026, 10, 20))
+    days = [START_DATE + timedelta(days=k) for k in range((date(2026, 10, 20) - START_DATE).days)]
+    cov = {"t": {d.isoformat(): {"status": "complete"} for d in days}}
+    cov["t"]["2026-10-03"]["status"] = "partial"
+    ranges = collect.plan([outlet()], cov, catch_up_days=45)
+    assert ranges["t"] == (date(2026, 10, 3), date(2026, 10, 20))
+    cov["t"]["2026-10-03"]["status"] = "complete"
+    assert collect.plan([outlet()], cov, catch_up_days=45)["t"] == (date(2026, 10, 14), date(2026, 10, 20))
+    # feed-only outlets cannot go back: only the rolling window
+    assert collect.plan([outlet(fetch=False)], {}, catch_up_days=45)["t"] == (date(2026, 10, 14), date(2026, 10, 20))
+
+
+def test_a_day_is_complete_once_it_is_over_in_moscow():
+    at = datetime(2026, 9, 11, 4, 17, tzinfo=MSK)
+    assert collect._day_complete(date(2026, 9, 10), at)
+    assert not collect._day_complete(date(2026, 9, 11), at)
+    assert not collect._day_complete(date(2026, 9, 10), datetime(2026, 9, 11, 1, 0, tzinfo=MSK))

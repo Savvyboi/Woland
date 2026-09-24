@@ -39,10 +39,21 @@ class Outlet:
     tz_fix: bool = False  # the site writes Moscow wall-clock time under a wrong UTC offset
     parallel: int = 2     # article pages fetched at once (the per-host pause still applies)
     feed_fulltext: bool = False  # feed-only, but the feed carries complete texts
+    cookies: dict = field(default_factory=dict)  # cookies an anonymous visitor's browser holds for this site
+    headline: str = "meta"  # where the headline is read: meta (og:title …) or h1
 
     @property
     def host(self) -> str:
         return re.sub(r"^https?://", "", self.home).split("/")[0]
+
+    @property
+    def domain(self) -> str:
+        """The site's domain without "www.", e.g. gazeta.ru (cookies are scoped to it)."""
+        return re.sub(r"^www\.", "", self.host)
+
+    def fetcher(self, **kw):
+        from .net import Fetcher
+        return Fetcher(gap=self.rate, cookies=self.cookies, cookie_domain=self.domain, **kw)
 
     @property
     def can_backfill(self) -> bool:
@@ -84,7 +95,8 @@ def load_outlets(path: Path | None = None, include_disabled: bool = False) -> li
             poll=bool(o.get("poll", False)), enabled=bool(o.get("enabled", True)),
             eu_blocked=bool(o.get("eu_blocked", False)), coverage_sitemap=o.get("coverage_sitemap"),
             tz_fix=bool(o.get("tz_fix", False)), parallel=max(1, int(o.get("parallel", 2))),
-            feed_fulltext=bool(o.get("feed_fulltext", False)),
+            feed_fulltext=bool(o.get("feed_fulltext", False)), cookies=dict(o.get("cookies") or {}),
+            headline=o.get("headline", "meta"),
         )
         if outlet.enabled or include_disabled:
             outlets.append(outlet)

@@ -13,8 +13,8 @@ from .config import START_DATE, Outlet, load_lexicon, load_outlets
 from .discover import Candidate, discover, parse_sitemap
 from .extract import clean_lead, clean_title, extract, published_from_url
 from .lexicon import Lexicon
-from .net import Fetcher
-from .store import (append_run, known_urls, load_coverage, load_seen, merge_day, save_coverage, save_seen)
+from .store import (append_run, known_urls, load_coverage, load_seen, merge_day, read_day, save_coverage,
+                    save_seen)
 from .translate import get_translator
 from .util import (MSK, canonical_url, fingerprint, iso_msk, iso_utc, msk_day, now_utc, short_hash, today_msk,
                    truncate)
@@ -22,6 +22,7 @@ from .util import (MSK, canonical_url, fingerprint, iso_msk, iso_utc, msk_day, n
 log = logging.getLogger("woland.collect")
 
 BODY_FAMILIES = ("framing",)  # topics are matched on headline and lead only
+RATE_LIMIT_WAITS = (15, 60)   # seconds to wait before retrying a page refused as "too many requests"
 
 
 @dataclass
@@ -97,25 +98,43 @@ def build_record(o: Outlet, c: Candidate, info: dict | None) -> tuple[dict, str]
 def _fetch_page(o: Outlet, c: Candidate, fetchers: list, local: threading.local):
     """Fetch and read one article page. Returns (info or None, failure reason or None, HTTP status, error)."""
     if not hasattr(local, "fetcher"):
-        local.fetcher = Fetcher(gap=o.rate)
+        local.fetcher = o.fetcher()
         fetchers.append(local.fetcher)
     r = local.fetcher.get(c.url)
+    for wait in RATE_LIMIT_WAITS:  # DDoS shields (Qrator, …) answer bursts with 401/429/503: slow down
+        if r.status not in (401, 429, 503):
+            break
+        time.sleep(wait)
+        r = local.fetcher.get(c.url)
     if not r.ok or r.challenged():
         return None, ("bot-check" if r.ok else (str(r.status) if r.status else "network")), r.status, r.error
-    info = extract(r.text, c.url)
+    info = extract(r.text, c.url, o.headline)
     return (info, None, r.status, None) if info else (None, "unparsable", r.status, None)
 
 
 def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: set, rejected_before: dict, *,
                    feeds_only: bool = False, backfill: bool = False, limit: int | None = None,
-                   budget: Budget | None = None) -> OutletRun:
+                   budget: Budget | None = None, sink=None, flush_every: int = 300) -> OutletRun:
+    """Discover and read one outlet's articles for [start, end].
+
+    Records go to `sink` in batches as they are read (so an interrupted run keeps its work), or, without
+    a sink, to run.records. An article that turns out to belong to another day of the chronicle is kept
+    too: its page has been read already, and it may be the only chance to catch it."""
     run = OutletRun(o, start, end)
     t0 = time.monotonic()
     budget = budget or Budget(None)
-    fetcher = Fetcher(gap=o.rate)
+    fetcher = o.fetcher()
     fetchers = [fetcher]
     local = threading.local()
-    today = today_msk().isoformat()
+    today_d = today_msk()
+    today = today_d.isoformat()
+    pending: list[dict] = []
+
+    def keep(rec):
+        (pending if sink else run.records).append(rec)
+        if sink and len(pending) >= flush_every:
+            sink(pending[:])
+            pending.clear()
 
     cands, run.errors = discover(fetcher, o, start, end, feeds_only=feeds_only, backfill=backfill)
     todo, urls = [], set()
@@ -171,22 +190,26 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: set, 
                 continue
             rec, body = built
             day = date.fromisoformat(rec["p"][:10])
-            if not start <= day <= end:
+            if not START_DATE <= day <= today_d:
                 run.rejected[c.url] = today
                 run.stats["out_of_range"] += 1
                 continue
+            if not start <= day <= end:
+                run.stats["other_day"] += 1
             head, body_hits = lex.tag(rec["t"], rec.get("d", ""), body, o.lang)
             kb = {nid: snip for nid, snip in body_hits.items()
                   if nid not in head and lex.by_id[nid].family in BODY_FAMILIES}
             if kb:
                 rec["kb"] = kb
-            run.records.append(rec)
+            keep(rec)
             run.stats["stored"] += 1
         if ok == 0 and failed >= 15:  # nothing but failures: the site is blocking us or down
             run.aborted = f"unreachable ({', '.join(k[5:] for k in run.stats if k.startswith('fail_'))})"
             break
         if (i // step) % 20 == 19:
             log.info("%-10s %d/%d fetched", o.id, min(i + step, len(todo)), len(todo))
+    if sink and pending:
+        sink(pending[:])
 
     if o.coverage_sitemap and not feeds_only:
         r = fetcher.get(o.coverage_sitemap)
@@ -222,7 +245,12 @@ def _day_complete(day: date, run_started_msk: datetime) -> bool:
     return day <= today - timedelta(days=2) or (day == today - timedelta(days=1) and run_started_msk.hour >= 3)
 
 
-def plan(outlets: list[Outlet], coverage: dict, catch_up_days: int, window: int = 2) -> dict[str, tuple[date, date]]:
+# Every night the last WINDOW + 1 days are looked at again. Discovery is cheap (articles already stored
+# are skipped), and several sources only list an article a day or two after it appeared.
+WINDOW = 6
+
+
+def plan(outlets: list[Outlet], coverage: dict, catch_up_days: int, window: int = WINDOW) -> dict[str, tuple[date, date]]:
     """Date range per outlet: the rolling window plus the oldest day that is not yet complete."""
     today = today_msk()
     oldest = max(START_DATE, today - timedelta(days=catch_up_days))
@@ -252,15 +280,35 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
     started_msk = started.astimezone(MSK)
     budget = Budget(budget_minutes)
     summary = {"at": iso_utc(started), "mode": mode, "lexicon": lex.fingerprint(), "outlets": {}}
+    translated: Counter = Counter()
+    tr_lock = threading.Lock()  # one translation model, shared by the outlets' threads
+
+    def sink_for(o: Outlet):
+        def sink(records: list[dict]):
+            # Translation is skipped once the time budget is spent; `woland translate` fills gaps later.
+            if translate and o.lang == "ru" and not budget.exceeded():
+                with tr_lock:
+                    translated[o.id] += translate_records(records)
+            if dry_run:
+                return
+            by_day: dict[str, list] = {}
+            for r in records:
+                by_day.setdefault(r["p"][:10], []).append(r)
+            for key, recs in by_day.items():
+                merge_day(date.fromisoformat(key), o.id, recs)
+        return sink
 
     def job(o):
         start, end = ranges[o.id]
         known = known_urls(o.id, start - timedelta(days=3), end + timedelta(days=1))
-        deep = backfill if backfill is not None else (start < today_msk() - timedelta(days=3))
+        # Backfill-only sources (the Internet Archive, deep feed pages, full sitemaps) are read only
+        # when the range reaches back beyond the rolling window.
+        deep = backfill if backfill is not None else (start < today_msk() - timedelta(days=WINDOW + 1))
         return collect_outlet(o, start, end, lex, known, seen.get(o.id, {}), feeds_only=feeds_only,
-                              backfill=deep, limit=limit, budget=budget)
+                              backfill=deep, limit=limit, budget=budget, sink=sink_for(o))
 
     active = [o for o in outlets if o.id in ranges]
+    done: set[str] = set()  # outlets whose state this run has updated (other runs may update the rest)
     with ThreadPoolExecutor(max_workers=max(1, workers)) as ex:
         futures = {ex.submit(job, o): o for o in active}
         for fut in as_completed(futures):
@@ -271,18 +319,12 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
                 log.exception("%s failed", o.id)
                 summary["outlets"][o.id] = {"error": f"{type(exc).__name__}: {exc}"[:300]}
                 continue
-            # Translation is skipped once the time budget is spent; `woland translate` fills gaps later.
-            translated = translate_records(run.records) if translate and o.lang == "ru" and not budget.exceeded() else 0
-            by_day: dict[str, list] = {}
-            for r in run.records:
-                by_day.setdefault(r["p"][:10], []).append(r)
             cov = coverage.setdefault(o.id, {})
             d = run.start
             while d <= run.end:
                 key = d.isoformat()
-                total = merge_day(d, o.id, by_day.get(key, [])) if not dry_run else len(by_day.get(key, []))
                 entry = cov.setdefault(key, {})
-                entry["n"] = total
+                entry["n"] = len(read_day(d, o.id)) if not dry_run else entry.get("n", 0)
                 entry["found"] = max(entry.get("found", 0), run.found_by_day.get(key, 0))
                 if key in run.published_by_day:
                     entry["published"] = run.published_by_day[key]
@@ -294,21 +336,23 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
                 entry["at"] = iso_utc()
                 d += timedelta(days=1)
             seen.setdefault(o.id, {}).update(run.rejected)
+            new = run.stats.get("stored", 0)
             summary["outlets"][o.id] = {
-                "range": [run.start.isoformat(), run.end.isoformat()], "new": len(run.records),
-                "translated": translated, "requests": run.requests, "seconds": run.seconds,
+                "range": [run.start.isoformat(), run.end.isoformat()], "new": new,
+                "translated": translated[o.id], "requests": run.requests, "seconds": run.seconds,
                 "stats": dict(run.stats), "errors": run.errors[:5], "aborted": run.aborted,
             }
-            log.info("%-10s done: %d new, %d requests, %.0fs%s%s", o.id, len(run.records), run.requests,
+            log.info("%-10s done: %d new, %d requests, %.0fs%s%s", o.id, new, run.requests,
                      run.seconds, f", errors: {run.errors}" if run.errors else "",
                      f", aborted: {run.aborted}" if run.aborted else "")
+            done.add(o.id)
             if not dry_run:  # persist progress as we go: a long run may be cut short
-                save_coverage(coverage)
-                save_seen(seen, today_msk())
+                save_coverage(coverage, only=done)
+                save_seen(seen, today_msk(), only=done)
     summary["seconds"] = round((now_utc() - started).total_seconds())
     if not dry_run:
-        save_coverage(coverage)
-        save_seen(seen, today_msk())
+        save_coverage(coverage, only=done)
+        save_seen(seen, today_msk(), only=done)
         append_run(summary)
     return summary
 

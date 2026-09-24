@@ -6,6 +6,7 @@
   translate add missing English headline translations
   build     build the static website into _site/
   probe     try one outlet on one day and print what Woland would store
+  check     can every outlet still be read? (discovery + a few article pages per outlet)
 """
 from __future__ import annotations
 
@@ -63,12 +64,15 @@ def main(argv=None):
     p.add_argument("outlet")
     p.add_argument("--date", type=date.fromisoformat)
     p.add_argument("-n", type=int, default=3)
+    p = sub.add_parser("check")
+    p.add_argument("--outlets", help="comma-separated outlet ids (default: all, including disabled ones)")
+    p.add_argument("--date", type=date.fromisoformat, help="day to look at (default: yesterday)")
 
     a = ap.parse_args(argv)
     logging.basicConfig(level=logging.DEBUG if a.verbose else logging.INFO,
                         format="%(asctime)s %(levelname)-7s %(name)s: %(message)s", datefmt="%H:%M:%S")
     for noisy in ("urllib3", "trafilatura", "htmldate", "charset_normalizer"):
-        logging.getLogger(noisy).setLevel(logging.WARNING)
+        logging.getLogger(noisy).setLevel(logging.ERROR)  # "discarding data" on every non-article page
 
     if a.cmd in ("collect", "poll", "backfill"):
         from . import collect
@@ -115,16 +119,19 @@ def main(argv=None):
         build(out_dir=a.out, base_url=a.base_url)
         return 0
 
+    if a.cmd == "check":
+        from .check import main as check_main
+        return check_main(_outlets(a.outlets, include_disabled=True), a.date or today_msk() - timedelta(days=1))
+
     if a.cmd == "probe":
         from .collect import build_record
         from .config import load_lexicon
         from .discover import discover
         from .extract import extract
         from .lexicon import Lexicon
-        from .net import Fetcher
         o = _outlets(a.outlet, include_disabled=True)[0]
         day = a.date or today_msk() - timedelta(days=1)
-        f = Fetcher(gap=o.rate)
+        f = o.fetcher()
         cands, errors = discover(f, o, day, day)
         arts = [c for c in cands if o.is_article(c.url)]
         print(f"{o.id}: {len(cands)} candidates, {len(arts)} look like articles; errors: {errors or 'none'}")
@@ -136,7 +143,7 @@ def main(argv=None):
                 print(f"\n{c.url}\n  HTTP {r.status} {len(r.content)} bytes{' (bot check!)' if r.challenged() else ''}")
                 if not r.ok:
                     continue
-                info = extract(r.text, c.url)
+                info = extract(r.text, c.url, o.headline)
             built = build_record(o, c, info)
             if not built:
                 print("  (incomplete)")

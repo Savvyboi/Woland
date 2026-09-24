@@ -128,8 +128,11 @@ def body_text(html: str, url: str, ld: dict) -> str:
     return text
 
 
-def extract(html: str, url: str) -> dict:
-    """Metadata and body text from an article page."""
+def extract(html: str, url: str, headline: str = "meta") -> dict:
+    """Metadata and body text from an article page.
+
+    headline: "meta" takes the headline from og:title / twitter:title / JSON-LD (the usual case);
+    "h1" takes the page's visible <h1>, for sites whose meta titles are written for search engines."""
     try:
         doc = lxml.html.document_fromstring(html)
     except (lxml.etree.ParserError, ValueError):
@@ -138,6 +141,9 @@ def extract(html: str, url: str) -> dict:
     ld = _jsonld(doc)
 
     title = meta.get("og:title") or meta.get("twitter:title") or ld.get("headline") or ""
+    if headline == "h1":
+        h1 = [clean(h.text_content()) for h in doc.xpath("//h1")]
+        title = next((h for h in h1 if h), title)
     if not title:
         h1 = doc.xpath("//h1")
         title = h1[0].text_content() if h1 else (doc.findtext(".//title") or "")

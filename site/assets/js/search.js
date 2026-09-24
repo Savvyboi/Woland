@@ -66,10 +66,13 @@ export function parseQuery(q) {
 
 async function shard(month, b) { return (await getGz(`search/${month}/i/${b}.json.gz`)) || { f: {}, p: {} }; }
 
+/** What a word the corpus has never seen in this exact form might be, most likely first: the word,
+ *  the word without a grammatical ending, then shorter cuts (index stems are words minus 0–4 letters). */
 function guesses(w) {
   const out = [w];
   const ends = /[а-я]/.test(w) ? RU_ENDINGS : EN_ENDINGS;
   for (const e of ends) if (w.length - e.length >= 3 && w.endsWith(e)) out.push(w.slice(0, -e.length));
+  for (let k = 1; k <= 4 && w.length - k >= 4; k++) out.push(w.slice(0, -k));
   return [...new Set(out)];
 }
 
@@ -91,8 +94,11 @@ async function tokenPostings(month, tok, forms) {
   }
   const sh = await shard(month, bucket(w));
   const candidates = [];
-  if (sh.f[w]) candidates.push(sh.f[w]);
-  candidates.push(...guesses(w));
+  for (const g of guesses(w)) {  // each guess may be a known word form (→ its stem) or itself a stem
+    const gs = bucket(g) === bucket(w) ? sh : await shard(month, bucket(g));
+    if (gs.f[g]) candidates.push(gs.f[g]);
+    candidates.push(g);
+  }
   for (const st of candidates) {
     const home = bucket(st) === bucket(w) ? sh : await shard(month, bucket(st));
     if (home.p[st]) {

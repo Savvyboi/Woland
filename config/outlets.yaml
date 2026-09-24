@@ -17,15 +17,25 @@
 #   sources     where article URLs are discovered. Types:
 #                 sitemap        url template, expanded per day | month | year | once
 #                 sitemap_index  walk the children of a sitemap index (newest first) until older than the range
-#                 rss            one or more feeds
-#                 html_list      listing pages (per day, or numbered pages)
-#                 wayback        Internet Archive CDX lookup (backfill only)
-#               Placeholders: {y} {m} {mm} {d} {dd} {ymd} {msk_start} {msk_end} {n}
-#               A source marked backfill_only is only read when collecting days older than three days.
+#                 rss            one or more feeds; a url with {n} is a paged feed, read from page `first`
+#                                up to `pages` until the pages are older than the range
+#                 html_list      listing pages: per day (…/2026/09/03/, continued by `next`), numbered
+#                                ({n}) or continued from the oldest item seen so far ({cursor}, Unix time).
+#                                `item` is a pattern with the named groups url, title, ts or date; dated
+#                                listings are read back until they pass the start of the range
+#                 wayback        article URLs the Internet Archive captured (backfill only); the pages
+#                                themselves are still read from the outlet. `prefix` may carry date
+#                                placeholders (one query per `per` period); `walk` steps down through
+#                                sequential numeric ids, starting below the oldest id listed on that page
+#               Placeholders: {y} {m} {mm} {d} {dd} {ymd} {msk_start} {msk_end} {n} {cursor}
+#               A source marked backfill_only is only read when collecting days older than the rolling
+#               week that every nightly run looks at again.
 #   poll        true = also polled hourly by the light "poll" workflow (feeds that only hold a few hours)
 #   feed_fulltext  feed-only, but the feed carries the complete texts (so framings are found in the body)
 #   tz_fix      the site writes Moscow wall-clock time but declares another UTC offset; trust the clock
 #   parallel    how many article pages to fetch at once (default 2; the per-host pause still applies)
+#   cookies     cookies that an anonymous visitor's browser would hold for the site (see Gazeta.ru)
+#   headline    meta (default: og:title and the like) | h1 (the visible headline, when meta titles are SEO text)
 #   coverage_sitemap  a sitemap used only to count how many articles the outlet published per day
 #   enabled     false = skipped (kept for documentation)
 
@@ -63,12 +73,14 @@ outlets:
       en: Russia's central state news agency (Russian-language service).
       fi: Venäjän keskeinen valtiollinen uutistoimisto (venäjänkielinen palvelu).
       sv: Rysslands centrala statliga nyhetsbyrå (ryskspråkig tjänst).
+    # Article pages, sitemaps and robots.txt answer 403 ("if you are not a bot…"), and the Internet
+    # Archive's copies are the same 403 page. The feed holds about three hours of news and cannot be read
+    # backwards, so it is read every hour and TASS's Russian service starts with the first hourly run.
     fetch: false
     poll: true
     article: '^https?://tass\.ru/[a-z0-9_-]+/\d+$'
     sources:
       - {type: rss, url: 'https://tass.ru/rss/v2.xml'}
-    coverage_sitemap: 'https://tass.ru/sitemap/sitemap_news0.xml'
 
   - id: rt-ru
     name: RT (Russian)
@@ -129,8 +141,9 @@ outlets:
       sv: Nyhetssajt för det statliga VGTRK, som står bakom kanalerna Rossija-1 och Rossija-24.
     article: '^https://www\.vesti\.ru/(ns|article)/[^?#]+$'
     sources:
-      - {type: sitemap, per: once, url: 'https://www.vesti.ru/sitemap-news.xml'}
-      - {type: wayback, prefix: 'www.vesti.ru/ns/'}
+      - {type: sitemap, per: once, url: 'https://www.vesti.ru/sitemap-news.xml'}   # the newest 1,000
+      # The full archive, spread over ~32 files of ~5 MB (not in date order): read only to fill older gaps.
+      - {type: sitemap_index, url: 'https://www.vesti.ru/sitemap.xml', child: 'sitemap-article-\d+\.xml$', order: lastmod, max_children: 40, backfill_only: true}
 
   - id: zvezda
     name: Zvezda
@@ -146,8 +159,10 @@ outlets:
     poll: true
     article: '^https?://(www\.)?tvzvezda\.ru/news/[^?#]+\.html$'
     sources:
-      - {type: rss, url: 'https://tvzvezda.ru/export/rss.xml'}
-      - {type: wayback, prefix: 'tvzvezda.ru/news/'}
+      - {type: rss, url: ['https://tvzvezda.ru/export/rss.xml', 'https://tvzvezda.ru/export/yandex.xml']}   # the second: ~24 hours
+      # The news listing is drawn by JavaScript from /api, which robots.txt closes, and there is no sitemap.
+      # Older days come from the Internet Archive; URLs carry the date (…/news/2026924…), so one query a month.
+      - {type: wayback, prefix: 'tvzvezda.ru/news/{y}{m}', per: month}
 
   # ── Official line ───────────────────────────────────────────────────────────
   - id: kremlin
@@ -169,11 +184,7 @@ outlets:
     article: '^https?://kremlin\.ru/events/[a-z_/-]+/\d+$'
     sources:
       - {type: rss, url: 'http://kremlin.ru/events/all/feed'}
-      - type: rss
-        backfill_only: true
-        url: ['http://kremlin.ru/events/all/feed/page/2', 'http://kremlin.ru/events/all/feed/page/3', 'http://kremlin.ru/events/all/feed/page/4',
-              'http://kremlin.ru/events/all/feed/page/5', 'http://kremlin.ru/events/all/feed/page/6', 'http://kremlin.ru/events/all/feed/page/7',
-              'http://kremlin.ru/events/all/feed/page/8', 'http://kremlin.ru/events/all/feed/page/9', 'http://kremlin.ru/events/all/feed/page/10']
+      - {type: rss, url: 'http://kremlin.ru/events/all/feed/page/{n}', first: 2, pages: 80, backfill_only: true}
 
   - id: kremlin-en
     name: Kremlin.ru (English)
@@ -194,10 +205,7 @@ outlets:
     article: '^https?://en\.kremlin\.ru/events/[a-z_/-]+/\d+$'
     sources:
       - {type: rss, url: 'http://en.kremlin.ru/events/all/feed'}
-      - type: rss
-        backfill_only: true
-        url: ['http://en.kremlin.ru/events/all/feed/page/2', 'http://en.kremlin.ru/events/all/feed/page/3', 'http://en.kremlin.ru/events/all/feed/page/4',
-              'http://en.kremlin.ru/events/all/feed/page/5', 'http://en.kremlin.ru/events/all/feed/page/6', 'http://en.kremlin.ru/events/all/feed/page/7']
+      - {type: rss, url: 'http://en.kremlin.ru/events/all/feed/page/{n}', first: 2, pages: 60, backfill_only: true}
 
   - id: pnp
     name: Parlamentskaya Gazeta
@@ -228,10 +236,11 @@ outlets:
       sv: Kvällstidning med en av Rysslands största publiker på nätet.
     article: '^https://www\.kp\.ru/(online/news|daily/\d+)/\d+/$'
     sources:
-      - {type: sitemap, per: once, url: 'https://www.kp.ru/sitemap/news_01.xml'}
-      - {type: sitemap, per: once, url: 'https://www.kp.ru/sitemap/news_02.xml'}
-      - {type: sitemap, per: once, url: 'https://www.kp.ru/sitemap/main_01.xml'}
-      - {type: wayback, prefix: 'www.kp.ru/online/news/'}
+      # news_*: the newest 1,000 online news (about two days); main_*: newspaper articles (about two weeks)
+      - {type: sitemap_index, url: 'https://www.kp.ru/sitemap.xml.gz', child: '/sitemap/(news|main)_\d+\.xml$', order: lastmod, max_children: 6}
+      # Older online news: the ids are sequential, so walk down from the oldest id in the sitemap through
+      # the Internet Archive's captures (about 60% of KP's news were captured in September 2026).
+      - {type: wayback, prefix: 'www.kp.ru/online/news/', walk: 'https://www.kp.ru/sitemap/news_02.xml', block: 1000}
 
   - id: aif
     name: Argumenty i Fakty
@@ -246,8 +255,14 @@ outlets:
       sv: Veckotidning och nyhetssajt som sedan 2014 ägs av Moskvas stadsförvaltning.
     article: '^https://aif\.ru/[a-z_]+(/[a-z_]+)*/[^/?#]+$'
     sources:
-      - {type: rss, url: 'https://aif.ru/rss/news.php'}
+      - {type: rss, url: 'https://aif.ru/rss/news.php'}   # the last ~300, about a day
+      # The sitemaps are regenerated only now and then (last on 20 September 2026) …
       - {type: sitemap_index, url: 'https://aif.ru/sitemap.xml', child: 'sitemap_(news|articles)(_\d+)?\.xml$', order: lastmod, max_children: 4}
+      # … so the paged news list ("load more", 15 a page) covers the days in between.
+      - type: html_list
+        url: 'https://aif.ru/news?page={n}'
+        pages: 400
+        item: '<a href="(?P<url>https://aif\.ru/[^"]+)"><span class="item_text__title">(?P<title>[^<]+)</span></a>\s*<span class="text_box__date">(?P<date>\d\d\.\d\d\.\d{4} \d\d:\d\d)</span>'
 
   - id: mk
     name: Moskovsky Komsomolets
@@ -292,19 +307,27 @@ outlets:
       en: News site of the Sberbank-controlled Rambler group.
       fi: Sberbankin hallitseman Rambler-konsernin uutissivusto.
       sv: Nyhetssajt inom den Sberbankkontrollerade Ramblergruppen.
-    fetch: false
-    poll: true
-    article: '^https://www\.gazeta\.ru/[a-z_]+/(news/)?\d{4}/\d{2}/\d{2}/\d+\.shtml$'
+    # Every page first sends the browser to an optional Sber ID sign-in. For anyone not signed in, the
+    # page's own script sets this cookie ("pause the sign-in for four hours") and returns to the article.
+    # Woland holds the same cookie, i.e. it simply declines to sign in; it is not a bot check.
+    cookies: {unity_pause_sso: '1'}
+    headline: h1   # its <title> is keyword-stuffed for search engines and there is no og:title
+    article: '^https://www\.gazeta\.ru/[a-z_]+/((news/)?\d{4}/\d{2}/\d{2}/\d+|\d+/[a-z0-9_-]+)\.shtml$'   # the second: explainers
     sources:
-      - type: rss
-        url:
-          - 'https://www.gazeta.ru/export/rss/first.xml'
-          - 'https://www.gazeta.ru/export/rss/politics.xml'
-          - 'https://www.gazeta.ru/export/rss/army.xml'
-          - 'https://www.gazeta.ru/export/rss/business.xml'
-          - 'https://www.gazeta.ru/export/rss/social.xml'
-          - 'https://www.gazeta.ru/export/rss/culture.xml'
-          - 'https://www.gazeta.ru/export/rss/science.xml'
+      - {type: rss, url: 'https://www.gazeta.ru/export/rss/first.xml'}
+      # "Show more" on the news page: 50 news items at a time, continuing from the oldest time shown.
+      - type: html_list
+        url: 'https://www.gazeta.ru/news/?p=page&pub_time={cursor}'
+        pages: 400
+        item: &gazeta_item 'data-pub_time="(?P<ts>\d+)"[^>]*>\s*<div class="b_ear-textblock">\s*<a href="(?P<url>/[a-z_]+/(?:(?:news/)?\d{4}/\d{2}/\d{2}/\d+|\d+/[a-z0-9_-]+)\.shtml)" class="b_ear-title">(?P<title>[^<]+)'
+      # Analysis and opinion pieces, listed per section in the same way.
+      - {type: html_list, url: 'https://www.gazeta.ru/politics/?p=page&pub_time={cursor}', pages: 60, item: *gazeta_item}
+      - {type: html_list, url: 'https://www.gazeta.ru/army/?p=page&pub_time={cursor}', pages: 60, item: *gazeta_item}
+      - {type: html_list, url: 'https://www.gazeta.ru/business/?p=page&pub_time={cursor}', pages: 60, item: *gazeta_item}
+      - {type: html_list, url: 'https://www.gazeta.ru/social/?p=page&pub_time={cursor}', pages: 60, item: *gazeta_item}
+      - {type: html_list, url: 'https://www.gazeta.ru/culture/?p=page&pub_time={cursor}', pages: 60, item: *gazeta_item}
+      - {type: html_list, url: 'https://www.gazeta.ru/science/?p=page&pub_time={cursor}', pages: 60, item: *gazeta_item}
+      - {type: html_list, url: 'https://www.gazeta.ru/tech/?p=page&pub_time={cursor}', pages: 60, item: *gazeta_item}
 
   - id: life
     name: Life.ru
@@ -348,6 +371,7 @@ outlets:
       en: English-language service of the TASS state news agency.
       fi: Valtiollisen TASS-uutistoimiston englanninkielinen palvelu.
       sv: Den engelskspråkiga tjänsten från den statliga nyhetsbyrån TASS.
+    poll: true   # the "hot" sitemap and the feed hold about a day; the archive sitemaps lag a day or two
     article: '^https://tass\.com/[a-z-]+/\d+$'
     sources:
       - {type: sitemap, per: once, url: 'https://tass.com/sitemap/sitemap_hot.xml'}   # the last ~24 hours
@@ -381,7 +405,7 @@ outlets:
       en: Orthodox-nationalist outlet founded by the sanctioned businessman Konstantin Malofeev.
       fi: Ortodoksis-nationalistinen media, jonka perusti pakotteiden alainen liikemies Konstantin Malofejev.
       sv: Ortodox-nationalistisk kanal grundad av den sanktionerade affärsmannen Konstantin Malofejev.
-    article: '^https://tsargrad\.tv/(news|articles|materials|investigations)/[^?#]+$'
+    article: '^https://tsargrad\.tv/(news|articles|materials|investigations)/(?!rubric/)[^?#]+$'
     sources:
       - {type: sitemap, per: month, url: 'https://tsargrad.tv/xml/sitemap-{y}-{m}.xml.gz'}
 
@@ -422,7 +446,9 @@ outlets:
     group: hardline
     home: https://regnum.ru
     eu_blocked: false
-    enabled: false   # answered HTTP 403 to every automated request when Woland was built
+    # Answers 403 to every automated request, robots.txt and feed included (September 2026). The Internet
+    # Archive's copies of its news are 403 pages too; only a few long reads per day were archived.
+    enabled: false
     about:
       en: News agency with a nationalist editorial line. Currently refuses automated access.
       fi: Nationalistisen linjan uutistoimisto. Estää tällä hetkellä automaattisen pääsyn.

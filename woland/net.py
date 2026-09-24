@@ -133,14 +133,17 @@ class Response:
 
 
 class Fetcher:
-    def __init__(self, gap: float = 0.6, timeout: tuple = (15, 45)):
+    def __init__(self, gap: float = 0.6, timeout: tuple = (15, 45), cookies: dict | None = None,
+                 cookie_domain: str | None = None):
         self.gap = gap
         self.timeout = timeout
+        # Cookies an ordinary visitor's browser would hold (see `cookies` in outlets.yaml), scoped to one site.
+        self.cookies = dict(cookies or {})
+        self.cookie_domain = cookie_domain
         self.session = self._new_session()
         self.requests = 0
 
-    @staticmethod
-    def _new_session() -> requests.Session:
+    def _new_session(self) -> requests.Session:
         s = requests.Session()
         s.verify = certifi.where()
         s.headers.update({
@@ -148,6 +151,8 @@ class Fetcher:
             "Accept-Language": "ru,en;q=0.8",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         })
+        for name, value in self.cookies.items():
+            s.cookies.set(name, str(value), domain=f".{self.cookie_domain}" if self.cookie_domain else "", path="/")
         retry = Retry(total=3, connect=3, read=2, backoff_factor=1.5,
                       status_forcelist=(429, 500, 502, 503, 504), respect_retry_after_header=True,
                       allowed_methods=("GET", "HEAD"))
@@ -176,10 +181,10 @@ class Fetcher:
         return True if rp is None else rp.can_fetch(url, "WolandMonitor")
 
     def get(self, url: str, *, check_robots: bool = True, gap: float | None = None,
-            retry_403: int = 0) -> Response:
+            retry_403: int = 0, timeout: tuple | None = None) -> Response:
         if check_robots and not self.allowed(url):
             return Response(None, url, error="disallowed by robots.txt")
-        r = self._get(url, gap)
+        r = self._get(url, gap, timeout)
         for attempt in range(retry_403):
             # Some feeds (TASS) intermittently refuse a connection; reconnect after a pause.
             if r.status != 403:
@@ -187,15 +192,15 @@ class Fetcher:
             time.sleep(5 * (attempt + 1))
             self.session.close()
             self.session = self._new_session()
-            r = self._get(url, gap)
+            r = self._get(url, gap, timeout)
         return r
 
-    def _get(self, url: str, gap: float | None) -> Response:
+    def _get(self, url: str, gap: float | None, timeout: tuple | None = None) -> Response:
         host = urlsplit(url).netloc
         THROTTLE.wait(host, self.gap if gap is None else gap)
         self.requests += 1
         try:
-            with self.session.get(url, timeout=self.timeout, stream=True) as r:
+            with self.session.get(url, timeout=timeout or self.timeout, stream=True) as r:
                 chunks, size = [], 0
                 for chunk in r.iter_content(65536):
                     chunks.append(chunk)

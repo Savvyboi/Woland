@@ -321,6 +321,8 @@ const S = {
   },
 };
 
+export const STRINGS = S;  // for the test-suite: every language must have every key
+
 function detect() {
   const q = new URLSearchParams(location.search).get("lang");
   if (q && S[q]) return q;

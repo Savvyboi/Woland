@@ -73,6 +73,11 @@ jobs:
           done
           exit 1
 
+      # Every stored record well-formed and filed under its day (after committing, so a problem is
+      # reported without holding back the day's collection).
+      - name: Check the archive
+        run: pip install -q pytest && python -m pytest -q tests/test_data.py
+
   deploy:
     needs: collect
     if: ${{ !cancelled() }}

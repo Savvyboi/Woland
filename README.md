@@ -41,10 +41,11 @@ From then on everything is automatic:
 
 | Workflow | When | What |
 |---|---|---|
-| `collect.yml` — Nightly collection | 04:17 Moscow time | collects the previous day, repairs any gap back to the start date, commits `data/`, rebuilds and publishes the site |
-| `poll.yml` — Hourly feeds | every hour | reads the feeds that only hold a few hours of news (TASS, Gazeta.ru, Zvezda, the Kremlin) |
+| `collect.yml` — Nightly collection | 04:17 Moscow time | collects the previous day, looks again at the past week, repairs any older gap back to the start date, commits `data/`, checks it, rebuilds and publishes the site |
+| `poll.yml` — Hourly feeds | every hour | reads the feeds that only hold a few hours of news (TASS, TASS English, Zvezda, the Kremlin) |
 | `deploy.yml` — Build and publish | after the nightly run, and when code changes | builds `_site/` and deploys it to Pages |
-| `test.yml` — Tests | on every push | unit tests, including checks that the browser and the indexer tokenise identically |
+| `test.yml` — Tests | on every push | the test-suite (see *Tests* below) |
+| `check.yml` — Check outlets | Mondays, or by hand | can every outlet still be read from GitHub's servers? A table in the run summary; the run fails if an outlet is broken |
 
 > GitHub suspends scheduled workflows in repositories with no activity for 60 days. Woland commits data every
 > day, which counts as activity, but if collection ever stops, re-enable the workflows from the Actions tab.
@@ -65,10 +66,12 @@ From then on everything is automatic:
 ```
 
 * **Collection** (`woland/collect.py`, `discover.py`, `extract.py`) — per outlet, URLs come from date-based
-  sitemaps, sitemap indexes, date archive pages or feeds (`config/outlets.yaml`). Each article page is read
-  for its metadata and body. Woland identifies itself as `WolandMonitor`, obeys `robots.txt`, pauses between
-  requests, and **never** tries to get around JavaScript bot checks or CAPTCHAs: outlets that use them (TASS's
-  Russian service, Gazeta.ru, and the Kremlin's article pages) are read through their own public feeds only.
+  sitemaps, sitemap indexes, date archive and "show more" listing pages or feeds (`config/outlets.yaml`); for
+  older gaps also from the Internet Archive's list of captured pages. Each article page is then read from the
+  outlet for its metadata and body. Woland identifies itself as `WolandMonitor`, obeys `robots.txt`, pauses
+  between requests, backs off when a site says it is being asked too often, and **never** tries to get around
+  bot checks or CAPTCHAs: TASS's Russian service, which refuses automated readers, is read through its own
+  public feed only, and so is the Kremlin, whose feed carries the full texts.
 * **Framings** (`config/lexicon.yaml`, `woland/lexicon.py`) — 24 propaganda framings and 21 neutral topics, each
   a list of Russian and English word patterns (`нацист*`, `киевск* режим*`, `сво`). Headlines and leads are
   matched at build time, so lexicon edits apply to the whole archive; full-text matches are recorded when an
@@ -89,8 +92,27 @@ python -m venv .venv
 python -m http.server 8000 --directory _site         # open http://localhost:8000
 ```
 
-Other commands: `backfill 2026-09-01 2026-09-10` (a date range), `poll`, `translate`, `probe ria --date 2026-09-23`
-(tries one outlet and prints what would be stored). `--outlets ria,tass --limit 20` narrows any run.
+Other commands: `backfill 2026-09-01 2026-09-10` (a date range; add `--wayback` for the Internet Archive sources),
+`poll`, `translate`, `probe ria --date 2026-09-23` (tries one outlet and prints what would be stored) and `check`
+(discovers yesterday's articles for every outlet and reads a few: a health table). `--outlets ria,tass --limit 20`
+narrows any run. Collection runs may work side by side on different outlets (state files are merged, not overwritten).
+
+### Tests
+
+```bash
+.venv/bin/pip install pytest
+.venv/bin/python -m pytest -q                       # everything offline; Node.js is needed for the site tests
+WOLAND_LIVE=1 .venv/bin/python -m pytest -m live -q # also read every outlet for real
+```
+
+* `tests/test_discovery.py` — listings, paged feeds, sitemap indexes and Internet Archive lookups, against canned pages
+* `tests/test_collect.py` — what is kept or rejected, saving progress, merging state, which days are planned
+* `tests/test_site.py` — builds a small site and runs the website's own search code on it in Node (word forms,
+  `*`, `-`, `OR`, filters, English queries over translations); checks that every interface string exists in
+  English, Finnish and Swedish and that every JavaScript module parses
+* `tests/test_data.py` — every record in `data/` is well-formed, filed under the right day and outlet, and unique
+* `tests/test_woland.py` — dates, lexicon, extraction, tokeniser parity between Python and the browser, a build
+* `tests/test_live.py` — the real outlets (off unless `WOLAND_LIVE=1`)
 
 **In the EU:** internet providers block many of these domains at the DNS level under the sanctions broadcasting
 ban. For local testing you can set `WOLAND_DOH=1`, which resolves names through Cloudflare's DNS-over-HTTPS.
@@ -101,7 +123,7 @@ own situation.
 
 * **Outlets** — `config/outlets.yaml`. Every source type and option is explained at the top of the file.
   To add an outlet, copy an entry with a similar site structure, then check it with
-  `python -m woland probe <id> --date <yesterday>`.
+  `python -m woland probe <id> --date <yesterday>` and `python -m woland check --outlets <id>`.
 * **Lexicon** — `config/lexicon.yaml`. Headline and lead matches are recomputed for the whole archive at the
   next build. Body-text matches cannot be recomputed for new patterns (the text is not stored); removed or
   narrowed patterns are dropped automatically because stored snippets are re-checked.
@@ -130,17 +152,26 @@ own situation.
 
 `data/state/coverage.json` records, for every outlet and day, how many articles were stored, how many the
 outlet's own listings announced, and whether the day is complete. `data/state/runs.json` keeps the latest
-run summaries. The repository grows by roughly 2–3 MB of compressed history a day; after a year or two,
+run summaries. An article is always filed under the Moscow day it was published, even when it turned up
+while another day was being collected. The repository grows by roughly 2–3 MB of compressed history a day; after a year or two,
 consider moving older years to a release archive.
 
 ## Limitations
 
 * Framing detection is lexical. Articles quoting, reporting or rebutting a claim are counted too — every
   number links to the articles so they can be checked.
-* Feed-only outlets (TASS Russian, Gazeta.ru, the Kremlin) have partial or headline-level coverage; TASS's
-  Russian service starts on the day hourly reading begins, because its feed cannot be read retroactively.
-* Regnum answers 403 to every automated request and is disabled. Other sites may start blocking GitHub's
-  servers; the Outlets page shows collection health per day.
+* TASS's Russian service is read from its feed only (headline, lead, time) and starts on the day hourly reading
+  begins: its pages, sitemaps and even `robots.txt` answer 403, the Internet Archive's copies are the same 403,
+  and the feed holds only about three hours. TASS's English service (tass.com) is complete.
+* Gazeta.ru sends every visitor through an optional Sber ID sign-in first. Woland holds the cookie that the
+  page's own script gives every visitor who is not signed in (`cookies` in `outlets.yaml`) — it declines to sign
+  in, like any anonymous reader — and reads the pages in full.
+* Zvezda and Komsomolskaya Pravda keep only a day or two in their own listings, so early September 2026 was
+  filled in from the Internet Archive's captures (about 70% of Zvezda's and 60% of KP's online news).
+  AiF's sitemaps are regenerated only now and then; its paged news list covers the days in between.
+* Regnum answers 403 to every automated request (robots.txt and feed included) and the Internet Archive only
+  has error pages for its news, so it is disabled. Sputnik is blocked from Finnish networks and is collected
+  by GitHub's servers only. Other sites may start blocking; `check.yml` and the Outlets page show it.
 * Machine translations are serviceable, not authoritative.
 
 ## Legal and ethical notes
