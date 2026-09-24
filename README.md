@@ -32,10 +32,13 @@ blocked in the EU) and cited in APA, Chicago or BibTeX, with a content fingerpri
    ```
 3. In the repository, go to **Settings → Pages** and set **Source: GitHub Actions**.
 4. Go to **Settings → Actions → General → Workflow permissions**, choose **Read and write permissions**, and save.
-5. Open the **Actions** tab, pick **Nightly collection** and press **Run workflow**. The first run fills in
-   everything since 1 September 2026; it can take a few hours (it stops itself after five and the next run
-   carries on where it left off). When it finishes, it publishes the site.
-6. The site appears at `https://<you>.github.io/woland/`.
+5. Open the **Actions** tab, pick **Nightly collection** and press **Run workflow**. The repository already
+   holds everything collected since 1 September 2026, so this first run only fills the gaps (Sputnik, which
+   Finnish networks block, is collected from GitHub's servers from 1 September onwards). In a fresh fork
+   without `data/`, the first run fills in everything; that takes a few hours (it stops itself after four and
+   a half and the next run carries on where it left off). When it finishes, it publishes the site.
+6. The site appears at `https://<you>.github.io/woland/`. Run **Check outlets** once to see, from GitHub's
+   servers, which outlets can be read.
 
 From then on everything is automatic:
 

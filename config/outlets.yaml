@@ -109,6 +109,9 @@ outlets:
       fi: Venäjän hallituksen virallinen sanomalehti, jossa lait julkaistaan.
       sv: Den ryska regeringens officiella tidning, där lagar kungörs.
     tz_fix: true   # rg.ru labels Moscow time as UTC
+    # Behind Qrator, which answers bursts of requests with a CAPTCHA page (HTTP 401): read it gently.
+    rate: 1.0
+    parallel: 1
     article: '^https://rg\.ru/\d{4}/\d{2}/\d{2}/[^?#]+\.html$'
     sources:
       - {type: sitemap, per: day, url: 'https://rg.ru/sitemaps/index.xml?date_start={msk_start}&date_end={msk_end}'}
@@ -275,6 +278,7 @@ outlets:
       en: Popular Moscow tabloid and national news site.
       fi: Suosittu moskovalainen iltapäivälehti ja valtakunnallinen uutissivusto.
       sv: Populär Moskvatabloid och rikstäckande nyhetssajt.
+    rate: 1.0   # answers bursts with 429 "too many requests" and slow pages
     article: '^https://www\.mk\.ru/[a-z0-9/-]+/\d{4}/\d{2}/\d{2}/[^/?#]+\.html$'
     sources:
       - {type: html_list, per: day, url: 'https://www.mk.ru/news/{y}/{m}/{d}/', pages: 1, link: 'https://www\.mk\.ru/[a-z0-9/-]+/{y}/{mm}/{dd}/[^/"?#]+\.html'}

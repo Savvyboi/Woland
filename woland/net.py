@@ -80,17 +80,41 @@ if os.environ.get("WOLAND_DOH") == "1":
 
 # ── Throttle ──────────────────────────────────────────────────────────────────
 class _HostThrottle:
+    """A minimum gap between requests to one host, widened when the host says "too many requests"
+    and narrowed again, step by step, as requests succeed."""
+
     def __init__(self):
         self._lock = threading.Lock()
         self._next: dict[str, float] = {}
+        self._slow: dict[str, float] = {}  # host → the widened gap
 
     def wait(self, host: str, gap: float):
         with self._lock:
             now = time.monotonic()
             at = max(now, self._next.get(host, 0.0))
-            self._next[host] = at + gap
+            self._next[host] = at + max(gap, self._slow.get(host, 0.0))
         if at > now:
             time.sleep(at - now)
+
+    def penalise(self, host: str, retry_after: str | None = None) -> float:
+        """Widen the host's gap; returns how long to pause before trying again."""
+        with self._lock:
+            slow = min(30.0, max(2.0, self._slow.get(host, 0.0) * 2))
+            self._slow[host] = slow
+        try:
+            return min(120.0, float(retry_after))
+        except (TypeError, ValueError):
+            return slow * 5
+
+    def relax(self, host: str):
+        with self._lock:
+            if host in self._slow:
+                self._slow[host] *= 0.97
+                if self._slow[host] < 0.3:
+                    del self._slow[host]
+
+    def gap(self, host: str) -> float:
+        return self._slow.get(host, 0.0)
 
 
 THROTTLE = _HostThrottle()
@@ -153,8 +177,9 @@ class Fetcher:
         })
         for name, value in self.cookies.items():
             s.cookies.set(name, str(value), domain=f".{self.cookie_domain}" if self.cookie_domain else "", path="/")
+        # 429 is handled in get(), where it can slow down every later request to the host too.
         retry = Retry(total=3, connect=3, read=2, backoff_factor=1.5,
-                      status_forcelist=(429, 500, 502, 503, 504), respect_retry_after_header=True,
+                      status_forcelist=(500, 502, 503, 504), respect_retry_after_header=True,
                       allowed_methods=("GET", "HEAD"))
         adapter = HTTPAdapter(max_retries=retry, pool_connections=4, pool_maxsize=4)
         s.mount("http://", adapter)
@@ -185,6 +210,17 @@ class Fetcher:
         if check_robots and not self.allowed(url):
             return Response(None, url, error="disallowed by robots.txt")
         r = self._get(url, gap, timeout)
+        host = urlsplit(url).netloc
+        for _ in range(4):  # "too many requests": slow down for this host, pause, try again
+            if r.status != 429:
+                break
+            pause = THROTTLE.penalise(host, r.headers.get("retry-after"))
+            log.info("%s: too many requests; pausing %.0fs, then one request every %.1fs", host, pause,
+                     THROTTLE.gap(host))
+            time.sleep(pause)
+            r = self._get(url, gap, timeout)
+        if r.ok:
+            THROTTLE.relax(host)
         for attempt in range(retry_403):
             # Some feeds (TASS) intermittently refuse a connection; reconnect after a pause.
             if r.status != 403:
