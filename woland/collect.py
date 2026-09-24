@@ -22,7 +22,6 @@ from .util import (MSK, canonical_url, fingerprint, iso_msk, iso_utc, msk_day, n
 log = logging.getLogger("woland.collect")
 
 BODY_FAMILIES = ("framing",)  # topics are matched on headline and lead only
-RATE_LIMIT_WAITS = (15, 60)   # seconds to wait before retrying a page refused as "too many requests"
 
 
 @dataclass
@@ -100,12 +99,7 @@ def _fetch_page(o: Outlet, c: Candidate, fetchers: list, local: threading.local)
     if not hasattr(local, "fetcher"):
         local.fetcher = o.fetcher()
         fetchers.append(local.fetcher)
-    r = local.fetcher.get(c.url)
-    for wait in RATE_LIMIT_WAITS:  # DDoS shields (Qrator, …) answer bursts with 401/429/503: slow down
-        if r.status not in (401, 429, 503):
-            break
-        time.sleep(wait)
-        r = local.fetcher.get(c.url)
+    r = local.fetcher.get(c.url)  # (it slows down by itself when the site asks it to)
     if not r.ok or r.challenged():
         return None, ("bot-check" if r.ok else (str(r.status) if r.status else "network")), r.status, r.error
     info = extract(r.text, c.url, o.headline)

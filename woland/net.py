@@ -148,6 +148,12 @@ class Response:
         except LookupError:
             return self.content.decode("utf-8", errors="replace")
 
+    def slow_down(self) -> bool:
+        """The site asks us to slow down: "too many requests", or a DDoS shield's challenge page (Qrator
+        answers bursts with HTTP 401 and a CAPTCHA, which lifts after a while). Woland never solves such
+        challenges; it only waits and asks less often."""
+        return self.status == 429 or (self.status == 401 and self.challenged())
+
     def challenged(self) -> bool:
         """True if the page is a JavaScript bot check rather than content."""
         if len(self.content) > 20000:
@@ -211,12 +217,12 @@ class Fetcher:
             return Response(None, url, error="disallowed by robots.txt")
         r = self._get(url, gap, timeout)
         host = urlsplit(url).netloc
-        for _ in range(4):  # "too many requests": slow down for this host, pause, try again
-            if r.status != 429:
+        for _ in range(4):  # asked to slow down: widen the pause for this host, wait, try again
+            if not r.slow_down():
                 break
             pause = THROTTLE.penalise(host, r.headers.get("retry-after"))
-            log.info("%s: too many requests; pausing %.0fs, then one request every %.1fs", host, pause,
-                     THROTTLE.gap(host))
+            log.info("%s: %s; pausing %.0fs, then one request every %.1fs", host,
+                     "too many requests" if r.status == 429 else "challenged", pause, THROTTLE.gap(host))
             time.sleep(pause)
             r = self._get(url, gap, timeout)
         if r.ok:
