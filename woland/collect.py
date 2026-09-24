@@ -320,6 +320,12 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
                 summary["outlets"][o.id] = {"error": f"{type(exc).__name__}: {exc}"[:300]}
                 continue
             cov = coverage.setdefault(o.id, {})
+            # Pages that failed for passing reasons (network, "too many requests", 5xx) are retried by a later
+            # run only if their days are not marked complete, so more than a few such failures keep them open.
+            passing = sum(v for k, v in run.stats.items()
+                          if k.startswith("fail_") and k not in ("fail_404", "fail_410", "fail_unparsable"))
+            clean_run = (not run.errors and not run.aborted and not limit and not feeds_only
+                         and passing <= max(5, 0.01 * run.stats.get("to_fetch", 0)))
             d = run.start
             while d <= run.end:
                 key = d.isoformat()
@@ -331,7 +337,6 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
                 if not o.can_backfill:  # coverage limited to what the feed held at the time
                     entry["status"] = "feed"
                 elif entry.get("status") != "complete":
-                    clean_run = not run.errors and not run.aborted and not limit and not feeds_only
                     entry["status"] = "complete" if clean_run and _day_complete(d, started_msk) else "partial"
                 entry["at"] = iso_utc()
                 d += timedelta(days=1)

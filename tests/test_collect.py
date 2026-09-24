@@ -127,6 +127,15 @@ def test_run_collection_writes_days_and_coverage_and_keeps_other_runs_state(fake
     assert summary["outlets"]["t"]["new"] == 0 and stats["known"] == 3 and stats["skipped"] == 1
 
 
+@pytest.mark.parametrize("failure, status", [(404, "complete"), (503, "partial")])
+def test_days_with_passing_failures_stay_open_for_a_retry(fake_site, archive, monkeypatch, failure, status):
+    monkeypatch.setattr(collect, "today_msk", lambda: date(2026, 9, 24))
+    fake_site["cands"] = [Candidate(url=f"https://t.ru/a/{i}") for i in range(30)]
+    fake_site["pages"] = {f"https://t.ru/a/{i}": page_info(D, i) if i < 20 else failure for i in range(30)}
+    collect.run_collection({"t": (D, D)}, [outlet()], mode="backfill", translate=False)
+    assert store.load_coverage()["t"]["2026-09-10"]["status"] == status
+
+
 def test_merge_day_keeps_existing_records_and_fills_missing_fields(archive):
     store.write_day(D, "t", [{"id": "t:1", "u": "https://t.ru/a/1", "p": "2026-09-10T10:00:00+03:00", "t": "A"}])
     n = store.merge_day(D, "t", [{"id": "t:1", "u": "https://t.ru/a/1", "p": "2026-09-10T10:00:00+03:00", "t": "B", "te": "A!"},
