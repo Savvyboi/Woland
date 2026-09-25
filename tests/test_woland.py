@@ -183,3 +183,29 @@ def test_build_smoke(tmp_path, monkeypatch):
     assert len(shard["p"][st]) == 10
     html = (out / "index.html").read_text(encoding="utf-8")
     assert "include:" not in html and 'class="masthead"' in html
+
+
+# ── leads that say nothing are replaced by the article's opening paragraph ─────
+STUB_PAGE = """<html><head>
+<meta property="og:title" content="В Ростове машина перевернулась на крышу">
+<meta name="twitter:description" content="Подробнее на сайте">
+<meta property="article:published_time" content="2026-09-19T21:10:00+03:00">
+</head><body><article><h1>В Ростове машина перевернулась на крышу</h1>
+<p>В Ростове вечером 19 сентября автомобиль перевернулся на крышу после столкновения с препятствием на улице Советской.</p>
+<p>Кадры с места происшествия опубликовали очевидцы. Пострадавших, по предварительным данным, нет, сообщили в ГИБДД.</p>
+<p>Движение на участке было затруднено около часа, пока эвакуатор не убрал машину с проезжей части.</p>
+</article></body></html>"""
+
+
+def test_a_read_more_stub_is_not_a_lead():
+    info = extract(STUB_PAGE, "https://tsargrad.tv/news/x_1")
+    assert info["lead"].startswith("В Ростове вечером 19 сентября автомобиль перевернулся")
+    assert clean_lead("Подробнее на сайте") == "" and clean_lead("Читайте также") == ""
+    assert clean_lead("Подробнее о том, как изменится транспорт, рассказал мэр.").startswith("Подробнее о том")
+
+
+def test_a_template_that_repeats_the_headline_is_not_a_lead():
+    page = STUB_PAGE.replace('<meta name="twitter:description" content="Подробнее на сайте">',
+                             '<meta property="og:description" content="Парламентская газета. Новости: Общество. '
+                             'В Ростове машина перевернулась на крышу. Дата публикации: 19.09.2026.">')
+    assert extract(page, "https://www.pnp.ru/social/x.html")["lead"].startswith("В Ростове вечером 19 сентября")

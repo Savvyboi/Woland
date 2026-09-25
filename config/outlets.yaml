@@ -282,7 +282,7 @@ outlets:
       en: Popular Moscow tabloid and national news site.
       fi: Suosittu moskovalainen iltapäivälehti ja valtakunnallinen uutissivusto.
       sv: Populär Moskvatabloid och rikstäckande nyhetssajt.
-    rate: 1.0   # answers bursts with 429 "too many requests" and slow pages
+    rate: 4.0   # answers more than ~15 pages a minute with 429 "too many requests"
     article: '^https://www\.mk\.ru/[a-z0-9/-]+/\d{4}/\d{2}/\d{2}/[^/?#]+\.html$'
     sources:
       - {type: html_list, per: day, url: 'https://www.mk.ru/news/{y}/{m}/{d}/', pages: 1, link: 'https://www\.mk\.ru/[a-z0-9/-]+/{y}/{mm}/{dd}/[^/"?#]+\.html'}

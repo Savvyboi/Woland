@@ -38,8 +38,10 @@ _LEAD_SUFFIX = re.compile(rf"\s*(?:{_names})(?:\s+[\w.]+){{0,2}},\s*\d{{2}}\.\d{
 _AUTHOR_IS_SITE = re.compile(rf"^(?:(?:{_names})(?:\s+[\w.]+){{0,2}}|[\w.-]+\.(?:ru|com|tv|su|net))$", re.I)
 # Site-specific boilerplate: "… - Новости на Вести.ru", "Последние новости на сайте Вести: …"
 _TITLE_TAIL = re.compile(r"\s+[-—–|]\s+(?:Новости на Вести\.?(?:ru)?|Вести\.?ru)\.?$", re.I)
-_LEAD_HEAD = re.compile(r"^(?:Последние новости на сайте Вести:\s*)", re.I)
-_LEAD_TAIL = re.compile(r"\s*(?:Актуальные события России и мира на сайте Вести\.?)$", re.I)
+_LEAD_HEAD = re.compile(r"^(?:Последние новости на сайте Вести:\s*|Парламентская газета\.\s*Новости:\s*[^.]{1,40}\.\s*)", re.I)
+_LEAD_TAIL = re.compile(r"\s*(?:Актуальные события России и мира на сайте Вести\.?|Дата публикации:\s*\d\d\.\d\d\.\d{4}\.?)$", re.I)
+# Leads that say nothing: "read more on the website" stubs (Tsargrad's twitter:description, among others).
+_LEAD_STUB = re.compile(r"^(?:Подробнее|Читайте(?: также)?|Читать далее|Смотрите|Read more)(?:\s+на сайте)?(?:\s+[\w.«»\"-]+){0,3}[\s.…:!]*$", re.I)
 
 
 def _meta(doc) -> tuple[dict, list[str]]:
@@ -110,9 +112,27 @@ def clean_title(t: str) -> str:
 def clean_lead(d: str) -> str:
     d = _LEAD_HEAD.sub("", _LEAD_SUFFIX.sub("", clean(d))).strip()
     d = _LEAD_TAIL.sub("", d).strip()
+    if _LEAD_STUB.match(d):
+        return ""
     d = re.sub(r"(?:\.{3}|…)[.…]*$", "…", d)          # "…." / "...." → "…"
     d = re.sub(r"(?<!\.)\.\.(?!\.)", ".", d)          # stray double full stops
     return d
+
+
+def same_text(a: str, b: str) -> bool:
+    """Equal apart from punctuation, spacing and case (a lead that only repeats the headline)."""
+    def norm(x):
+        return re.sub(r"\W+", " ", x).strip().lower()
+    return norm(a) == norm(b)
+
+
+def first_paragraph(body: str) -> str:
+    """The opening paragraph of an article's text — in news writing, the lead."""
+    for para in body.split("\n"):
+        para = clean(para)
+        if len(para) >= 60 and not para.endswith(":"):
+            return para
+    return ""
 
 
 def body_text(html: str, url: str, ld: dict) -> str:
@@ -147,8 +167,12 @@ def extract(html: str, url: str, headline: str = "meta") -> dict:
     if not title:
         h1 = doc.xpath("//h1")
         title = h1[0].text_content() if h1 else (doc.findtext(".//title") or "")
-    lead = meta.get("og:description") or meta.get("description") or meta.get("twitter:description") \
-        or ld.get("description") or ""
+    title = clean_title(title)
+    # The outlet's own summary: the first description that says something other than the headline.
+    descriptions = (meta.get("og:description"), meta.get("description"), meta.get("twitter:description"),
+                    ld.get("description"))
+    lead = next((d for d in (clean_lead(x) for x in descriptions if isinstance(x, str))
+                 if d and not same_text(d, title)), "")
 
     published = None
     for cand in (meta.get("article:published_time"), ld.get("datePublished"), meta.get("datepublished"),
@@ -173,15 +197,16 @@ def extract(html: str, url: str, headline: str = "meta") -> dict:
             tags = [clean(k) for k in re.split(r"[,;]", kw)]
     tags = [t for t in dict.fromkeys(tags) if t and len(t) < 60][:8]
 
+    body = body_text(html, url, ld)
     return {
-        "title": clean_title(title),
-        "lead": clean_lead(lead),
+        "title": title,
+        "lead": lead or clean_lead(first_paragraph(body)),  # no summary of its own: the opening paragraph
         "published": published,
         "modified": modified,
         "section": clean(section)[:60],
         "tags": tags,
         "author": _author(ld, meta),
-        "body": body_text(html, url, ld),
+        "body": body,
     }
 
 

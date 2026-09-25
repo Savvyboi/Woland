@@ -272,6 +272,8 @@ def _day_complete(day: date, run_started_msk: datetime) -> bool:
     return day <= today - timedelta(days=2) or (day == today - timedelta(days=1) and run_started_msk.hour >= 3)
 
 
+KNOWN_DAYS = 45  # how far back already-stored URLs are looked up
+
 # Every night the last WINDOW + 1 days are looked at again. Discovery is cheap (articles already stored
 # are skipped), and several sources only list an article a day or two after it appeared.
 WINDOW = 6
@@ -343,7 +345,9 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
 
     def job(o):
         start, end = ranges[o.id]
-        known = known_urls(o.id, start - timedelta(days=3), end + timedelta(days=1))
+        # Articles stored in the last weeks count as known: sites re-date evergreen pages ("when the heating
+        # comes on"), and one URL is filed once, under the day it first appeared.
+        known = known_urls(o.id, max(START_DATE, start - timedelta(days=KNOWN_DAYS)), end + timedelta(days=1))
         # Backfill-only sources (the Internet Archive, deep feed pages, full sitemaps) are read only
         # when the range reaches back beyond the rolling window.
         deep = backfill if backfill is not None else (start < today_msk() - timedelta(days=WINDOW + 1))
