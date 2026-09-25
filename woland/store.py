@@ -95,12 +95,12 @@ def drop_urls(day: date, outlet: str, urls: set[str]) -> int:
     return len(recs) - len(keep)
 
 
-def known_urls(outlet: str, start: date, end: date) -> dict[str, str]:
-    """URL → how the stored record was read ("page", or "feed" for a headline-only record)."""
-    urls: dict[str, str] = {}
+def known_urls(outlet: str, start: date, end: date) -> dict[str, tuple[str, str]]:
+    """URL → (how the stored record was read: "page", or "feed" for a headline-only record; its day)."""
+    urls: dict[str, tuple[str, str]] = {}
     d = start
     while d <= end:
-        urls.update((r["u"], r.get("via", "page")) for r in read_day(d, outlet))
+        urls.update((r["u"], (r.get("via", "page"), d.isoformat())) for r in read_day(d, outlet))
         d += timedelta(days=1)
     return urls
 

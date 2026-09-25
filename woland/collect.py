@@ -148,7 +148,7 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict,
         if c.hint and start <= msk_day(c.hint) <= end:
             run.found_by_day[msk_day(c.hint).isoformat()] += 1
         if c.url in known:
-            if o.fetch and not feeds_only and known[c.url] == "feed":
+            if o.fetch and not feeds_only and known[c.url][0] == "feed":
                 upgrades.append(c)  # stored from a listing only: try the page again
             else:
                 run.stats["known"] += 1
@@ -214,7 +214,7 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict,
             if kb:
                 rec["kb"] = kb
             if id(c) not in new:
-                rec["_up"] = True  # completes a headline-only record (which may sit under a neighbouring day)
+                rec["_was"] = known[c.url][1]  # completes a headline-only record, filed under this day
                 run.stats["upgraded"] += 1
             keep(rec)
             run.stats["stored"] += 1
@@ -331,10 +331,9 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
             by_day: dict[str, list] = {}
             moved: dict[str, set] = {}
             for r in records:
-                if r.pop("_up", False):  # a completed headline-only record may have sat under a neighbouring day
-                    d = date.fromisoformat(r["p"][:10])
-                    for other in (d - timedelta(days=1), d + timedelta(days=1)):
-                        moved.setdefault(other.isoformat(), set()).add(r["u"])
+                was = r.pop("_was", None)  # a completed headline-only record that the page dates differently
+                if was and was != r["p"][:10]:
+                    moved.setdefault(was, set()).add(r["u"])
                 by_day.setdefault(r["p"][:10], []).append(r)
             for key, recs in by_day.items():
                 merge_day(date.fromisoformat(key), o.id, recs)

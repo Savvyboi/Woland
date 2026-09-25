@@ -67,7 +67,7 @@ def test_articles_from_other_days_are_kept_and_unwanted_ones_rejected(fake_site)
 def test_known_and_previously_rejected_urls_are_not_fetched_again(fake_site):
     fake_site["cands"] = [Candidate(url=f"https://t.ru/a/{i}") for i in range(3)]
     fake_site["pages"] = {"https://t.ru/a/2": page_info(D, 2)}
-    run = collect.collect_outlet(outlet(), D, D, LEX, known={"https://t.ru/a/0": "page"},
+    run = collect.collect_outlet(outlet(), D, D, LEX, known={"https://t.ru/a/0": ("page", "2026-09-10")},
                                  rejected_before={"https://t.ru/a/1": "2026-09-20"})
     assert [r["u"] for r in run.records] == ["https://t.ru/a/2"]
     assert run.stats["known"] == 1 and run.stats["skipped"] == 1
@@ -141,16 +141,16 @@ def test_headline_only_records_are_completed_and_their_days_stay_open_until_then
     collect.run_collection({"t": (D, D)}, [outlet()], mode="backfill", translate=False)
     assert [r["via"] for r in store.read_day(D, "t")] == ["feed", "feed"]
     assert store.load_coverage()["t"]["2026-09-10"]["status"] == "partial"
-    # the next night the pages can be read; one of them was in fact published just after midnight
-    later = page_info(D + timedelta(days=1), 2)
-    later["published"] = datetime(2026, 9, 11, 0, 5, tzinfo=MSK)
+    # the next night the pages can be read; one of them the page dates three days later than the listing did
+    later = page_info(D + timedelta(days=3), 2)
+    later["published"] = datetime(2026, 9, 13, 0, 5, tzinfo=MSK)
     fake_site["pages"] = {"https://t.ru/a/1": page_info(D, 1), "https://t.ru/a/2": later}
     summary = collect.run_collection({"t": (D, D)}, [outlet()], mode="backfill", translate=False)
     assert summary["outlets"]["t"]["new"] == 0 and summary["outlets"]["t"]["stats"]["upgraded"] == 2
-    today, tomorrow = store.read_day(D, "t"), store.read_day(D + timedelta(days=1), "t")
+    today, later_day = store.read_day(D, "t"), store.read_day(D + timedelta(days=3), "t")
     assert [(r["u"], r["via"]) for r in today] == [("https://t.ru/a/1", "page")]
-    assert [(r["u"], r["via"]) for r in tomorrow] == [("https://t.ru/a/2", "page")]   # moved, not duplicated
-    assert all("_up" not in r for r in today + tomorrow)
+    assert [(r["u"], r["via"]) for r in later_day] == [("https://t.ru/a/2", "page")]   # moved, not duplicated
+    assert all(not k.startswith("_") for r in today + later_day for k in r)
     assert store.load_coverage()["t"]["2026-09-10"]["status"] == "complete"
 
 
