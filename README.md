@@ -145,7 +145,7 @@ own situation.
 | `o`, `u` | outlet id, URL |
 | `p`, `m` | published / modified (ISO 8601, Moscow time) |
 | `t`, `te` | headline as published; English machine translation (Russian outlets) |
-| `d` | lead / summary, at most 240 characters |
+| `d` | lead: the outlet's own summary or, where it gives none (or only a "read more" stub), the article's opening paragraph; at most 240 characters |
 | `s`, `g`, `a` | section, tags (≤ 8), author |
 | `w` | words in the body text (0 = the body could not be read) |
 | `h` | content fingerprint: first 16 hex digits of SHA-256 over the normalised text |
