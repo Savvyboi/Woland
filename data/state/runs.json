@@ -520,5 +520,54 @@
    }
   },
   "seconds": 13155
+ },
+ {
+  "at": "2026-09-25T01:12:01Z",
+  "lexicon": "9db6bcb8",
+  "mode": "poll",
+  "outlets": {
+   "tass": {
+    "aborted": "",
+    "errors": [],
+    "new": 12,
+    "range": [
+     "2026-09-24",
+     "2026-09-25"
+    ],
+    "requests": 2,
+    "seconds": 6.6,
+    "stats": {
+     "known": 88,
+     "stored": 12,
+     "to_fetch": 12
+    },
+    "translated": 12
+   }
+  },
+  "seconds": 7
+ },
+ {
+  "at": "2026-09-25T22:11:13Z",
+  "lexicon": "9db6bcb8",
+  "mode": "poll",
+  "outlets": {
+   "tass": {
+    "aborted": "",
+    "errors": [],
+    "new": 98,
+    "range": [
+     "2026-09-25",
+     "2026-09-26"
+    ],
+    "requests": 2,
+    "seconds": 7.5,
+    "stats": {
+     "stored": 98,
+     "to_fetch": 98
+    },
+    "translated": 98
+   }
+  },
+  "seconds": 7
  }
 ]
