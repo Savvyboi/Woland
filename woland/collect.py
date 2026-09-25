@@ -11,7 +11,7 @@ from datetime import date, datetime, timedelta
 
 from .config import START_DATE, Outlet, load_lexicon, load_outlets
 from .discover import Candidate, discover, parse_sitemap
-from .extract import clean_lead, clean_title, extract, published_from_url
+from .extract import clean_lead, clean_title, extract, first_paragraph, published_from_url
 from .lexicon import Lexicon
 from .store import (append_run, drop_urls, known_urls, load_coverage, load_seen, merge_day, read_day,
                     save_coverage, save_seen)
@@ -71,7 +71,7 @@ def build_record(o: Outlet, c: Candidate, info: dict | None) -> tuple[dict, str]
     if o.tz_fix:
         published = published.replace(tzinfo=MSK)  # Moscow wall-clock time under a wrong offset label
     body = info.get("body") or c.body or ""
-    lead = _dedupe_lead(title, lead)
+    lead = _dedupe_lead(title, lead) or _dedupe_lead(title, clean_lead(first_paragraph(body, title)))
     lead = truncate(lead, 240) if lead else ""
     rec = {"id": f"{o.id}:{short_hash(c.url)}", "o": o.id, "u": c.url, "p": iso_msk(published),
            "t": truncate(title, 300)}

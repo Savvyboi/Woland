@@ -126,11 +126,12 @@ def same_text(a: str, b: str) -> bool:
     return norm(a) == norm(b)
 
 
-def first_paragraph(body: str) -> str:
-    """The opening paragraph of an article's text — in news writing, the lead."""
+def first_paragraph(body: str, title: str = "") -> str:
+    """The opening paragraph of an article's text — in news writing, the lead. (Extracted texts often
+    begin with the headline itself, which is skipped.)"""
     for para in body.split("\n"):
         para = clean(para)
-        if len(para) >= 60 and not para.endswith(":"):
+        if len(para) >= 60 and not para.endswith(":") and not same_text(para, title):
             return para
     return ""
 
@@ -200,7 +201,7 @@ def extract(html: str, url: str, headline: str = "meta") -> dict:
     body = body_text(html, url, ld)
     return {
         "title": title,
-        "lead": lead or clean_lead(first_paragraph(body)),  # no summary of its own: the opening paragraph
+        "lead": lead or clean_lead(first_paragraph(body, title)),  # no summary of its own: the opening paragraph
         "published": published,
         "modified": modified,
         "section": clean(section)[:60],

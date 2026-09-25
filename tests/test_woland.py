@@ -13,7 +13,7 @@ from woland import build as buildmod
 from woland import store
 from woland.config import ROOT, Narrative, load_lexicon, load_outlets
 from woland.discover import fill, parse_feed, parse_sitemap
-from woland.extract import clean_lead, clean_title, extract
+from woland.extract import clean_lead, clean_title, extract, first_paragraph
 from woland.lexicon import Lexicon, snippet
 from woland.textproc import index_terms, stem, tokens
 from woland.util import MSK, canonical_url, parse_dt
@@ -209,3 +209,9 @@ def test_a_template_that_repeats_the_headline_is_not_a_lead():
                              '<meta property="og:description" content="Парламентская газета. Новости: Общество. '
                              'В Ростове машина перевернулась на крышу. Дата публикации: 19.09.2026.">')
     assert extract(page, "https://www.pnp.ru/social/x.html")["lead"].startswith("В Ростове вечером 19 сентября")
+
+
+def test_the_opening_paragraph_is_not_the_headline_repeated():
+    title = "Эксперт Созонова: как выбрать художественную студию для ребёнка"
+    body = f"{title}\nПри выборе художественной студии для ребёнка родителям следует смотреть не только на программу.\n"
+    assert first_paragraph(body, title).startswith("При выборе художественной студии")
