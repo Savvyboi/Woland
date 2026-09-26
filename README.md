@@ -182,6 +182,8 @@ consider moving older years to a release archive.
   by GitHub's servers only. Other sites may start blocking; `check.yml` and the Outlets page show it.
 * Machine translations are serviceable, not authoritative.
 
+What is still open — data gaps, planned fixes, reviews that need a person — is listed in [`TODO.md`](TODO.md).
+
 ## Legal and ethical notes
 
 Several of these outlets fall under the EU broadcasting ban (Council Regulation (EU) 833/2014, art. 2f).
