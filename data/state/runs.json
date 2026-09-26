@@ -1131,5 +1131,113 @@
    }
   },
   "seconds": 455
+ },
+ {
+  "at": "2026-09-26T07:59:33Z",
+  "lexicon": "9db6bcb8",
+  "mode": "poll",
+  "outlets": {
+   "kremlin": {
+    "aborted": "",
+    "errors": [],
+    "new": 0,
+    "range": [
+     "2026-09-25",
+     "2026-09-26"
+    ],
+    "requests": 1,
+    "seconds": 2.6,
+    "stats": {
+     "known": 6,
+     "to_fetch": 0
+    },
+    "translated": 0
+   },
+   "kremlin-en": {
+    "aborted": "",
+    "errors": [],
+    "new": 0,
+    "range": [
+     "2026-09-25",
+     "2026-09-26"
+    ],
+    "requests": 1,
+    "seconds": 2.4,
+    "stats": {
+     "known": 4,
+     "to_fetch": 0
+    },
+    "translated": 0
+   },
+   "rg": {
+    "aborted": "",
+    "errors": [],
+    "new": 46,
+    "range": [
+     "2026-09-25",
+     "2026-09-26"
+    ],
+    "requests": 47,
+    "seconds": 49.1,
+    "stats": {
+     "known": 48,
+     "not_article": 6,
+     "stored": 46,
+     "to_fetch": 46
+    },
+    "translated": 46
+   },
+   "tass": {
+    "aborted": "",
+    "errors": [],
+    "new": 100,
+    "range": [
+     "2026-09-25",
+     "2026-09-26"
+    ],
+    "requests": 2,
+    "seconds": 13.6,
+    "stats": {
+     "stored": 100,
+     "to_fetch": 100
+    },
+    "translated": 100
+   },
+   "tass-en": {
+    "aborted": "",
+    "errors": [],
+    "new": 30,
+    "range": [
+     "2026-09-25",
+     "2026-09-26"
+    ],
+    "requests": 31,
+    "seconds": 19.5,
+    "stats": {
+     "known": 70,
+     "stored": 30,
+     "to_fetch": 30
+    },
+    "translated": 0
+   },
+   "zvezda": {
+    "aborted": "",
+    "errors": [],
+    "new": 34,
+    "range": [
+     "2026-09-25",
+     "2026-09-26"
+    ],
+    "requests": 36,
+    "seconds": 38.2,
+    "stats": {
+     "known": 66,
+     "stored": 34,
+     "to_fetch": 34
+    },
+    "translated": 34
+   }
+  },
+  "seconds": 49
  }
 ]
