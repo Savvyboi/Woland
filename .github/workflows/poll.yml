@@ -40,10 +40,11 @@ jobs:
       # not read by then are kept from the feeds as headline-only records).
       - run: python -m woland poll --budget 20
 
+      # Under Savvyboi's no-reply address, so the repository keeps a single contributor.
       - name: Commit
         run: |
           git config user.name "woland-bot"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.email "123981133+Savvyboi@users.noreply.github.com"
           git add data
           if git diff --cached --quiet; then echo "Nothing new."; exit 0; fi
           git commit -q -m "Feeds $(date -u +%Y-%m-%dT%H:%M)"

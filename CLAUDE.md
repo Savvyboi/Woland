@@ -40,3 +40,6 @@ from GitHub's runners.
   run it after any change to data or collection code.
 - **The workflows commit to `main` every hour**: pull before committing locally, and don't run a local
   collection for outlets GitHub is collecting at the same time.
+- **Savvyboi is the only contributor**: commit messages carry no `Co-Authored-By` line, and the workflows
+  commit under Savvyboi's no-reply address. GitHub lists every address it can tie to an account (a bot's, a
+  co-author's, someone else's `name@users.noreply.github.com`), and taking one off means rewriting history.
