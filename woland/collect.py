@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import threading
 import time
 from collections import Counter
@@ -13,11 +14,11 @@ from .config import START_DATE, Outlet, load_lexicon, load_outlets
 from .discover import Candidate, discover, parse_sitemap
 from .extract import clean_lead, clean_title, extract, first_paragraph, published_from_url
 from .lexicon import Lexicon
-from .store import (append_run, drop_urls, known_urls, load_coverage, load_seen, merge_day, read_day,
-                    save_coverage, save_seen)
+from .store import (append_run, drop_urls, headline_only, known_urls, load_coverage, load_runs, load_seen,
+                    merge_day, read_day, save_coverage, save_seen)
 from .translate import get_translator
-from .util import (MSK, canonical_url, fingerprint, iso_msk, iso_utc, msk_day, now_utc, short_hash, today_msk,
-                   truncate)
+from .util import (MSK, canonical_url, daterange, fingerprint, iso_msk, iso_utc, msk_day, now_utc, parse_dt,
+                   short_hash, today_msk, truncate)
 
 log = logging.getLogger("woland.collect")
 
@@ -41,11 +42,19 @@ class OutletRun:
 
 
 class Budget:
-    def __init__(self, minutes: float | None):
+    """A deadline in minutes from now; with `within`, never later than that budget's own deadline."""
+
+    def __init__(self, minutes: float | None, within: Budget | None = None):
         self.deadline = time.monotonic() + minutes * 60 if minutes else None
+        if within is not None and within.deadline is not None:
+            self.deadline = within.deadline if self.deadline is None else min(self.deadline, within.deadline)
 
     def exceeded(self) -> bool:
         return self.deadline is not None and time.monotonic() > self.deadline
+
+
+# how net.Fetcher reports a host that could not be reached at all
+_NO_CONNECTION = re.compile(r"\b(NoConnection|ConnectTimeout|ConnectionError|SSLError)\b")
 
 
 def _dedupe_lead(title: str, lead: str) -> str:
@@ -108,7 +117,8 @@ def _fetch_page(o: Outlet, c: Candidate, fetchers: list, local: threading.local)
 
 def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict, rejected_before: dict, *,
                    feeds_only: bool = False, backfill: bool = False, limit: int | None = None,
-                   budget: Budget | None = None, sink=None, flush_every: int = 300) -> OutletRun:
+                   budget: Budget | None = None, sink=None, flush_every: int = 300,
+                   retry: list[dict] = ()) -> OutletRun:
     """Discover and read one outlet's articles for [start, end].
 
     known: URLs already stored → "page" or "feed" (headline only). Records go to `sink` in batches as they
@@ -117,7 +127,8 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict,
     Nothing Woland has found is thrown away. An article that turns out to belong to another day of the
     chronicle is kept under that day. An article whose page could not be read — the site refused, asked
     us to slow down, or the time ran out — is kept as what the outlet's own listing or feed says about it
-    (headline, lead if any, time; via "feed"), and later runs try its page again to complete the record."""
+    (headline, lead if any, time; via "feed"), and later runs try its page again to complete the record:
+    `retry` holds such stored records, tried even if no listing announces them again."""
     run = OutletRun(o, start, end)
     t0 = time.monotonic()
     budget = budget or Budget(None)
@@ -148,7 +159,7 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict,
         if c.hint and start <= msk_day(c.hint) <= end:
             run.found_by_day[msk_day(c.hint).isoformat()] += 1
         if c.url in known:
-            if o.fetch and not feeds_only and known[c.url][0] == "feed":
+            if o.fetch and not feeds_only and known[c.url][0] == "feed" and c.url not in rejected_before:
                 upgrades.append(c)  # stored from a listing only: try the page again
             else:
                 run.stats["known"] += 1
@@ -156,6 +167,15 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict,
             run.stats["skipped"] += 1
         else:
             todo.append(c)
+    if o.fetch and not feeds_only:
+        for r in retry:  # headline-only records no listing announced this time
+            if r["u"] not in urls and r["u"] in known and r["u"] not in rejected_before:
+                urls.add(r["u"])
+                upgrades.append(Candidate(url=r["u"], hint=parse_dt(r["p"]), title=r["t"], lead=r.get("d", ""),
+                                          via="stored"))
+    if not cands and run.errors and all(_NO_CONNECTION.search(e) for e in run.errors):
+        run.aborted = f"no connection to {o.host}"
+
     def priority(c):  # announced inside the range first, newest first; margin candidates last
         inside = c.hint is not None and start <= msk_day(c.hint) <= end
         return (not inside, -(c.hint.timestamp() if c.hint else 0))
@@ -174,6 +194,8 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict,
     step = o.parallel * 8
     reached = 0  # candidates attempted so far
     for i in range(0, len(todo), step):
+        if run.aborted:  # (no connection at all)
+            break
         if budget.exceeded():
             run.aborted = "time budget exhausted"
             break
@@ -189,6 +211,8 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict,
                 run.stats[f"fail_{fail}"] += 1
                 if status in (404, 410) or error == "disallowed by robots.txt":
                     run.rejected[c.url] = today
+                    if id(c) not in new:
+                        run.stats["upgrade_gone"] += 1  # the headline is all there is left of it
                 elif fail != "unparsable":
                     streak += 1
                     if id(c) in new:
@@ -244,7 +268,6 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict,
             _, entries = parse_sitemap(r.text)
             counts = Counter()
             for e in entries:
-                from .util import parse_dt
                 dt = parse_dt(e["lastmod"])
                 if dt and start <= msk_day(dt) <= end:
                     counts[msk_day(dt).isoformat()] += 1
@@ -279,16 +302,19 @@ KNOWN_DAYS = 45  # how far back already-stored URLs are looked up
 WINDOW = 6
 
 
-def typical_day(cov: dict, before: date, days: int = 28) -> float:
-    """An outlet's usual number of articles a day: the median over its recent days (0 without history)."""
+def typical_day(cov: dict, before: date, days: int = 28, through: date | None = None) -> float:
+    """An outlet's usual number of articles a day: the median over the `days` days before `before` and,
+    with `through`, the days from `before` to `through` too — a backfill from the first day has nothing
+    earlier to compare with. Days not yet over do not count; 0 with fewer than five days to go on."""
+    upper = min(through + timedelta(days=1) if through else before, today_msk()).isoformat()
     counts = sorted(v.get("n", 0) for k, v in cov.items()
-                    if (before - timedelta(days=days)).isoformat() <= k < before.isoformat())
+                    if (before - timedelta(days=days)).isoformat() <= k < upper)
     return counts[len(counts) // 2] if len(counts) >= 5 else 0
 
 
 def plan(outlets: list[Outlet], coverage: dict, catch_up_days: int, window: int = WINDOW) -> dict[str, tuple[date, date]]:
-    """Date range per outlet: the rolling window plus the oldest day that is not yet complete — or that
-    holds far fewer articles than the outlet usually publishes."""
+    """Date range per outlet: the rolling window plus the oldest day that is not yet complete, that holds
+    far fewer articles than the outlet usually publishes, or whose articles are partly headline only."""
     today = today_msk()
     oldest = max(START_DATE, today - timedelta(days=catch_up_days))
     ranges = {}
@@ -300,7 +326,8 @@ def plan(outlets: list[Outlet], coverage: dict, catch_up_days: int, window: int 
             d = oldest
             while d < start:
                 e = cov.get(d.isoformat(), {})
-                if e.get("status") != "complete" or (typical >= 20 and e.get("n", 0) < 0.25 * typical):
+                if e.get("status") != "complete" or (o.fetch and e.get("h")) \
+                        or (typical >= 20 and e.get("n", 0) < 0.25 * typical):
                     start = d
                     break
                 d += timedelta(days=1)
@@ -321,6 +348,7 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
     summary = {"at": iso_utc(started), "mode": mode, "lexicon": lex.fingerprint(), "outlets": {}}
     translated: Counter = Counter()
     tr_lock = threading.Lock()  # one translation model, shared by the outlets' threads
+    touched: dict[str, set[str]] = {}  # outlet → days whose files this run changed (some outside its range)
 
     def sink_for(o: Outlet):
         def sink(records: list[dict]):
@@ -341,21 +369,28 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
                 merge_day(date.fromisoformat(key), o.id, recs)
             for key, gone in moved.items():
                 drop_urls(date.fromisoformat(key), o.id, gone)
+            touched.setdefault(o.id, set()).update(by_day, moved)
         return sink
 
     def job(o):
         start, end = ranges[o.id]
-        # Articles stored in the last weeks count as known: sites re-date evergreen pages ("when the heating
-        # comes on"), and one URL is filed once, under the day it first appeared.
+        # Every article ever stored counts as known: sites re-date evergreen pages ("when the heating comes
+        # on"), and one URL is filed once, under the day it first appeared. The last weeks' records say
+        # besides which of them are headline only (to be completed) and where they are filed.
         known = known_urls(o.id, max(START_DATE, start - timedelta(days=KNOWN_DAYS)), end + timedelta(days=1))
+        retry = headline_only(o.id, start, end) if o.fetch and not feeds_only else []
         # Backfill-only sources (the Internet Archive, deep feed pages, full sitemaps) are read only
         # when the range reaches back beyond the rolling window.
         deep = backfill if backfill is not None else (start < today_msk() - timedelta(days=WINDOW + 1))
         return collect_outlet(o, start, end, lex, known, seen.get(o.id, {}), feeds_only=feeds_only,
-                              backfill=deep, limit=limit, budget=budget, sink=sink_for(o))
+                              backfill=deep, limit=limit, budget=Budget(o.budget, within=budget),
+                              sink=sink_for(o), retry=retry)
 
     active = [o for o in outlets if o.id in ranges]
-    done: set[str] = set()  # outlets whose state this run has updated (other runs may update the rest)
+    # what this run changed, per outlet: other runs (the hourly feeds beside a long backfill, say) may be
+    # changing the rest of the state files at the same time
+    owned_days: dict[str, set[str]] = {}
+    owned_urls: dict[str, set[str]] = {}
     with ThreadPoolExecutor(max_workers=max(1, workers)) as ex:
         futures = {ex.submit(job, o): o for o in active}
         for fut in as_completed(futures):
@@ -366,34 +401,9 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
                 log.exception("%s failed", o.id)
                 summary["outlets"][o.id] = {"error": f"{type(exc).__name__}: {exc}"[:300]}
                 continue
-            cov = coverage.setdefault(o.id, {})
-            # Pages that failed for passing reasons (network, "too many requests", 5xx) are retried by a later
-            # run only if their days are not marked complete, so more than a few such failures keep them open.
-            passing = sum(v for k, v in run.stats.items()
-                          if k.startswith("fail_") and k not in ("fail_404", "fail_410", "fail_unparsable"))
-            # Days holding headline-only records stay open too, so that their pages are tried again.
-            clean_run = (not run.errors and not run.aborted and not limit and not feeds_only
-                         and passing <= max(5, 0.01 * run.stats.get("to_fetch", 0))
-                         and not run.stats.get("listed")
-                         and run.stats.get("upgraded", 0) >= run.stats.get("to_upgrade", 0))
-            typical = typical_day(cov, run.start)
-            d = run.start
-            while d <= run.end:
-                key = d.isoformat()
-                entry = cov.setdefault(key, {})
-                entry["n"] = len(read_day(d, o.id)) if not dry_run else entry.get("n", 0)
-                entry["found"] = max(entry.get("found", 0), run.found_by_day.get(key, 0))
-                if key in run.published_by_day:
-                    entry["published"] = run.published_by_day[key]
-                if not o.can_backfill:  # coverage limited to what the feed held at the time
-                    entry["status"] = "feed"
-                elif entry.get("status") != "complete":
-                    # a day far quieter than usual has a hole in it (a listing that lags, say): keep it open
-                    thin = typical >= 20 and entry["n"] < 0.25 * typical
-                    entry["status"] = "complete" if clean_run and not thin and _day_complete(d, started_msk) else "partial"
-                entry["at"] = iso_utc()
-                d += timedelta(days=1)
             seen.setdefault(o.id, {}).update(run.rejected)
+            days = update_coverage(coverage.setdefault(o.id, {}), o, run, touched.get(o.id, set()), started_msk,
+                                   gone=set(seen[o.id]), limit=limit, feeds_only=feeds_only, dry_run=dry_run)
             new = run.stats.get("stored", 0) - run.stats.get("upgraded", 0) + run.stats.get("listed", 0)
             summary["outlets"][o.id] = {
                 "range": [run.start.isoformat(), run.end.isoformat()], "new": new,
@@ -403,16 +413,66 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
             log.info("%-10s done: %d new, %d requests, %.0fs%s%s", o.id, new, run.requests,
                      run.seconds, f", errors: {run.errors}" if run.errors else "",
                      f", aborted: {run.aborted}" if run.aborted else "")
-            done.add(o.id)
+            owned_days[o.id] = days
+            owned_urls[o.id] = set(run.rejected)
             if not dry_run:  # persist progress as we go: a long run may be cut short
-                save_coverage(coverage, only=done)
-                save_seen(seen, today_msk(), only=done)
+                save_coverage(coverage, only=owned_days)
+                save_seen(seen, today_msk(), only=owned_urls)
     summary["seconds"] = round((now_utc() - started).total_seconds())
     if not dry_run:
-        save_coverage(coverage, only=done)
-        save_seen(seen, today_msk(), only=done)
+        save_coverage(coverage, only=owned_days)
+        save_seen(seen, today_msk(), only=owned_urls)
         append_run(summary)
     return summary
+
+
+def update_coverage(cov: dict, o: Outlet, run: OutletRun, touched: set[str], started_msk: datetime, *,
+                    gone: set[str] = frozenset(), limit=None, feeds_only=False, dry_run=False) -> set[str]:
+    """Record what a run collected for an outlet: articles per day (the days of its range, and any other
+    day it filed articles under), how many are headline only with a page still to read (`gone`: URLs
+    whose pages have disappeared), and whether each day of the range is complete. Returns the days changed."""
+    in_range = [d.isoformat() for d in daterange(run.start, run.end)]
+    days = set(in_range) | touched
+    at = iso_utc()
+    for key in sorted(days):
+        entry = cov.setdefault(key, {})
+        if dry_run:
+            entry.setdefault("n", 0)
+        else:
+            recs = read_day(date.fromisoformat(key), o.id)
+            entry["n"] = len(recs)
+            heads = sum(r.get("via") == "feed" and r["u"] not in gone for r in recs) if o.fetch else 0
+            if heads:
+                entry["h"] = heads  # the day is looked at again until their pages are read
+            else:
+                entry.pop("h", None)
+        if key not in in_range:
+            entry.setdefault("status", "partial" if o.can_backfill else "feed")
+        entry["at"] = at
+    # Pages that failed for passing reasons (network, "too many requests", 5xx) are retried by a later
+    # run only if their days are not marked complete, so more than a few such failures keep them open.
+    passing = sum(v for k, v in run.stats.items()
+                  if k.startswith("fail_") and k not in ("fail_404", "fail_410", "fail_unparsable"))
+    # Days holding headline-only records stay open too, so that their pages are tried again.
+    clean_run = (not run.errors and not run.aborted and not limit and not feeds_only
+                 and passing <= max(5, 0.01 * run.stats.get("to_fetch", 0))
+                 and not run.stats.get("listed")
+                 and run.stats.get("upgraded", 0) + run.stats.get("upgrade_gone", 0) >= run.stats.get("to_upgrade", 0))
+    # the days around, this run's counts included (a backfill from the first day has no earlier ones)
+    typical = typical_day(cov, run.start, through=run.end)
+    for key in in_range:
+        entry = cov[key]
+        entry["found"] = max(entry.get("found", 0), run.found_by_day.get(key, 0))
+        if key in run.published_by_day:
+            entry["published"] = run.published_by_day[key]
+        if not o.can_backfill:  # coverage limited to what the feed held at the time
+            entry["status"] = "feed"
+        elif entry.get("status") != "complete":
+            # a day far quieter than usual has a hole in it (a listing that lags, say): keep it open
+            thin = typical >= 20 and entry["n"] < 0.25 * typical
+            complete = clean_run and not thin and _day_complete(date.fromisoformat(key), started_msk)
+            entry["status"] = "complete" if complete else "partial"
+    return days
 
 
 def daily(outlets: list[Outlet] | None = None, catch_up_days: int = 45, **kw) -> dict:
@@ -420,8 +480,20 @@ def daily(outlets: list[Outlet] | None = None, catch_up_days: int = 45, **kw) ->
     return run_collection(plan(outlets, load_coverage(), catch_up_days), outlets, mode="daily", **kw)
 
 
-def poll(outlets: list[Outlet] | None = None, **kw) -> dict:
-    """Hourly: read the feeds of outlets whose feeds only hold a few hours of news."""
+def last_feed_read() -> datetime | None:
+    """When the latest run that read the feeds (a poll, or a nightly run) began."""
+    starts = [parse_dt(r["at"]) for r in load_runs() if r.get("mode") in ("poll", "daily") and r.get("at")]
+    return max(starts) if starts else None
+
+
+def poll(outlets: list[Outlet] | None = None, min_gap: float | None = None, **kw) -> dict | None:
+    """Read the feeds of outlets whose feeds only hold a few hours of news. With `min_gap`, do nothing if
+    they were read less than that many minutes ago: GitHub starts scheduled jobs late or not at all, so
+    the job is scheduled often and skips the turns it does not need."""
+    if min_gap:
+        last = last_feed_read()
+        if last and now_utc() - last < timedelta(minutes=min_gap):
+            return None
     outlets = [o for o in (outlets or load_outlets()) if o.poll]
     today = today_msk()
     ranges = {o.id: (today - timedelta(days=1), today) for o in outlets}

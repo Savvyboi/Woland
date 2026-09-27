@@ -32,7 +32,7 @@ entries:
   - {ru: '\bСВО\b', not: '\bСВР\b', wrong: ['SBO', 'NWO', 'CBO', 'SVR'], en: 'SVO'}
   - {ru: '\bВСУ\b', wrong: ['APU'], en: 'AFU'}
   - {ru: '\bСК\b', not: 'Британ|Великобритан|Лондон|Соединенн\w+ Королевств', wrong: ['SK RF', 'SK', 'UK'], en: 'Investigative Committee'}
-  - {ru: 'Росгвардейц', wrong: ['Rosgvardeyts\w*', 'Rosgvardeits\w*', 'Regardie officers'], en: 'Rosgvardia officers'}
+  - {ru: 'Росгвардейц', wrong: ['Rosgvardeyts\w*', 'Rosgvardeyets\w*', 'Rosgvardeits\w*', 'Regardie officers'], en: 'Rosgvardia officers'}
   - {ru: 'Росгварди', wrong: ['Regardie', 'Rosgvardiya', 'Rosguard'], en: 'Rosgvardia'}
   - {ru: '\bТЦК\b', wrong: ['TCK', 'TsK', 'TSK', 'shopping cent(?:er|re)s?'], en: 'TCC'}
 
@@ -40,11 +40,13 @@ entries:
   - {ru: 'Геран[иьея]', wrong: ['Gerani', 'Heran\w*', 'Gueran\w*', 'Geranium\w*'], en: 'Geran drones'}
 
   # Places: one spelling each, so that an English search finds them all
-  - {ru: 'Запорож', wrong: ['Zaporozh\w*', 'Zaporizh(?!zhia(?!\w))\w*'], en: 'Zaporizhzhia'}
+  # the Zaporizhstal steelworks and the Zaporozhets car keep their names
+  - {ru: 'Запорожстал', wrong: ['Zaporizstal\w*', 'Zaporozhstal\w*'], en: 'Zaporizhstal'}
+  - {ru: 'Запорож', wrong: ['Zaporozh(?!stal|ets)\w*', 'Zaporizh(?!zhia(?!\w)|stal)\w*'], en: 'Zaporizhzhia'}
   - {ru: 'Харьков', wrong: ['Kharkov'], en: 'Kharkiv'}
   - {ru: 'Днепропетровск', wrong: ['Dnepropetrovsk'], en: 'Dnipropetrovsk'}
   - {ru: 'Красноармейск', wrong: ['Krasnoarmeisk'], en: 'Krasnoarmeysk'}
-  - {ru: 'Буч[аиеу]\b', wrong: ['Buche', 'Buchi', 'Buchu'], en: 'Bucha'}
+  - {ru: 'Буч[аиеу]\b', wrong: ['Buche', 'Buchi', 'Buchu', 'Butch'], en: 'Bucha'}
 
   # Ordinary words
   - {ru: '[Лл]уна-парк', wrong: ['moon park', 'Moon park', 'Moon Park', 'lunar park', 'Lunar park'], en: 'amusement park'}

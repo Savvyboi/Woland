@@ -17,6 +17,7 @@ import gzip
 import hashlib
 import json
 import logging
+import math
 import os
 import shutil
 import time
@@ -39,6 +40,10 @@ BLOCK = 100       # documents per block file
 BASELINE_DAYS = 28
 RISING_BASELINE = 14
 RISING_MIN = {"ru": 6, "en": 5}  # headlines a word needs on the day to be considered "rising"
+# ... and how unlikely its count must be by chance, given its usual rate (a Poisson test). This is what
+# thins out the English list, drawn from only ~200 headlines a day, where five headlines with a word that
+# usually has two are no news; for Russian's thousands of headlines the ratio alone decides.
+RISING_P = 1e-3
 RISING_SHOWN = 12                 # events listed per language
 EXAMPLES = 6
 SEARCH_LEAD = 180  # characters of the lead kept in search documents (the archive keeps up to 240)
@@ -68,6 +73,30 @@ def dump(path: Path, obj, pretty: bool = False) -> None:
     with open(path, "w", encoding="utf-8", newline="\n") as fh:
         json.dump(obj, fh, ensure_ascii=False, separators=None if pretty else (",", ":"),
                   indent=1 if pretty else None)
+
+
+def poisson_tail(k: int, lam: float) -> float:
+    """P(X >= k) for X ~ Poisson(lam): how likely a count of k or more is by chance."""
+    if k <= 0:
+        return 1.0
+    term = math.exp(k * math.log(lam) - lam - math.lgamma(k + 1))  # P(X = k)
+    total, i = 0.0, k
+    while term > 0 and i < k + 10000:
+        total += term
+        i += 1
+        term *= lam / i
+        if term < total * 1e-12:
+            break
+    return min(1.0, total)
+
+
+def recent_runs(runs: list[dict], polls: int = 9, other: int = 3) -> list[dict]:
+    """The runs the Outlets page lists, by start time (runs.json is appended to as runs finish, and runs
+    overlap): the latest feed polls, and the latest nightly runs and backfills, which polls every hour or
+    so would otherwise push out of the list within hours."""
+    runs = sorted((r for r in runs if r.get("at")), key=lambda r: r["at"])
+    keep = [r for r in runs if r.get("mode") == "poll"][-polls:] + [r for r in runs if r.get("mode") != "poll"][-other:]
+    return sorted(keep, key=lambda r: r["at"])
 
 
 def delta_encode(nums: list[int]) -> list[int]:
@@ -338,7 +367,7 @@ class Builder:
                     continue
                 base = sum(p["df"][lang].get(w, 0) for p in past) / len(past)
                 score = ((c + 0.5) / n_today) / ((base + 0.5) / n_past)
-                if score >= 2.0:
+                if score >= 2.0 and poisson_tail(c, (base + 0.5) * n_today / n_past) < RISING_P:
                     scored.append((score, c, base, w))
             scored.sort(reverse=True)
             posts = today["posts"][lang]
@@ -520,8 +549,7 @@ class Builder:
                                     {"complete": "c", "partial": "p", "feed": "f"}.get(v.get("status"), "p")]
                                 for d, v in sorted(by_day.items())}
         dump(self.out / "data" / "coverage.json", compact_cov)
-        # runs.json is appended to as runs finish, and several runs overlap: list them by start time
-        runs = sorted((r for r in load_runs() if r.get("at")), key=lambda r: r["at"])[-12:]
+        runs = recent_runs(load_runs())
         repo = os.environ.get("GITHUB_REPOSITORY")
         contexts = load_contexts()
         dump(self.out / "data" / "meta.json", {

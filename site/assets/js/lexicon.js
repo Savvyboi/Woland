@@ -21,11 +21,20 @@ export function normSameLength(s) {
   return out;
 }
 
+/** A pattern as a regular expression: * is any ending, ~ up to three words (as in pattern_regex). */
 export function patternSource(pattern) {
   const words = normalize(pattern).split(/\s+/).filter(Boolean);
-  const parts = words.map((w) => (w.endsWith("*") ? `${esc(w.slice(0, -1))}${W}*` : esc(w)));
+  let src = "";
+  words.forEach((w, i) => {
+    if (w === "~") {
+      src += "(?:\\S+\\s+){0,3}[^\\p{L}\\p{N}_\\s]*";
+      return;
+    }
+    src += w.endsWith("*") ? `${esc(w.slice(0, -1))}${W}*` : esc(w);
+    if (i < words.length - 1) src += "[\\s ]+";
+  });
   const tail = words[words.length - 1].endsWith("*") ? "" : `(?!${W})`;
-  return `(?<!${W})${parts.join("[\\s ]+")}${tail}`;
+  return `(?<!${W})${src}${tail}`;
 }
 
 const alternation = (patterns, flags = "gu") => (patterns && patterns.length

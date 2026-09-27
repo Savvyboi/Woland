@@ -1,12 +1,15 @@
 name: Hourly feeds
 
-# Some outlets can only be read through feeds that hold a few hours of news (TASS's Russian
-# service, Gazeta.ru, Zvezda, the Kremlin). Read them every hour so nothing slips through.
+# Some outlets can only be read through feeds that hold a few hours of news (TASS's Russian service holds
+# about three). Read them every hour or so, so that nothing slips through. GitHub starts scheduled jobs
+# late, or drops them, when it is busy: on 27 September 2026 an hourly schedule ran five times in twenty
+# hours. So the job is scheduled every quarter of an hour, and a run that finds the feeds were read less
+# than 40 minutes ago stops at once.
 # The website itself is rebuilt once a day by the nightly collection.
 
 on:
   schedule:
-    - cron: "43 * * * *"
+    - cron: "8,23,38,53 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -18,8 +21,8 @@ concurrency:
 
 jobs:
   poll:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -37,8 +40,9 @@ jobs:
           key: mt-ru-en-1.9
 
       # The budget keeps a site that refuses pages from holding the job past its timeout (the pages
-      # not read by then are kept from the feeds as headline-only records).
-      - run: python -m woland poll --budget 20
+      # not read by then are kept from the feeds as headline-only records), and the next run from
+      # waiting behind it: a nightly run queued behind a poll is cancelled if another poll is queued too.
+      - run: python -m woland poll --min-gap 40 --budget 10
 
       # Under Savvyboi's no-reply address, so the repository keeps a single contributor.
       - name: Commit

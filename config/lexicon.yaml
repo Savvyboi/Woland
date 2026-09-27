@@ -8,6 +8,8 @@
 #   нацист*          a word starting with "нацист" (нацисты, нацистов, нацистский …)
 #   сво              exactly the word "сво"
 #   киевск* режим*   a phrase: two consecutive words
+#   признан* ~ иноагент*   ~ stands for up to three words of any kind (and a quotation mark or bracket
+#                    before the next word): "признан Минюстом России иноагентом", "признана «иноагентом»"
 #
 # Words that are propaganda in one context and ordinary news in another are written as a group:
 #   - {match: ['теракт*'], with: ukraine-war}
@@ -218,8 +220,9 @@ framings:
       en: Dismissing reports as Western 'fakes' or 'information war'; independent media as an enemy weapon.
       fi: Uutisten kuittaaminen lännen ”valeuutisina” tai ”informaatiosotana”; riippumaton media vihollisen aseena.
       sv: Att avfärda rapporter som västliga ”fejknyheter” eller ”informationskrig”; oberoende medier som fiendens vapen.
-    checked: {n: 25, fit: 17, date: '2026-09-27'}
-    # Not counted: fake accounts and letters used by fraudsters, ballot stuffing and hockey face-offs (вброс),
+    checked: {n: 25, fit: 14, date: '2026-09-28'}
+    # Not counted: fake accounts, letters, exchanges, notices and giveaways used by fraudsters, ballot
+    # stuffing and hockey face-offs (вброс),
     # Ukraine's own "Centre for Countering Disinformation", and Western accusations of Russian
     # disinformation. "Western media" is also a routine source ("according to Western media"): only
     # when the text discredits them.
@@ -227,7 +230,8 @@ framings:
       - 'информационн* войн*'
       - 'информационн* атак*'
       - 'западн* пропаганд*'
-      - {match: ['фейк*'], not: ['фейков* аккаунт*', 'фейков* страниц*', 'фейков* профил*', 'фейков* сайт*', 'фейков* письм*', 'фейков* писем', 'фейков* звонк*', 'фейков* магазин*', 'фейков* приложени*', 'фейков* ссылк*', 'фейков* чат*', 'фейков* номер*', 'фейков* взлом*', 'фейков* курьер*', 'фейков* сообщени* от имени', 'фейков* постановлени*', 'фейков* фото медвед*']}
+      - {match: ['фейк*'], not: ['фейков* аккаунт*', 'фейков* страниц*', 'фейков* профил*', 'фейков* сайт*', 'фейков* письм*', 'фейков* писем', 'фейков* звонк*', 'фейков* магазин*', 'фейков* приложени*', 'фейков* ссылк*', 'фейков* чат*', 'фейков* номер*', 'фейков* взлом*', 'фейков* курьер*', 'фейков* сообщени* от имени', 'фейков* постановлени*', 'фейков* фото медвед*',
+                                 'фейков* бирж*', 'фейков* интернет-бирж*', 'фейков* криптобирж*', 'фейков* уведомлен*', 'фейков* налогов* уведомлен*', 'фейков* объявлен*', 'фейков* розыгрыш*']}
       - {match: ['вброс*'], not: ['вброс* бюллетен*', 'вброс* на участк*', 'вброс* на избирательн*', 'вброс* шайб*', 'вброс* мяч*']}
       - {match: ['дезинформаци*'], not: ['центр* противодействи* дезинформаци*', 'пророссийск* дезинформаци*', 'российск* дезинформаци*', 'кремлевск* дезинформаци*', 'гибридн* атак* и дезинформаци*']}
       - {match: ['западн* сми', 'западн* медиа'], with: discredit}
@@ -300,10 +304,11 @@ framings:
       en: Nuclear sabre-rattling, 'dirty bomb' claims and the celebration of new strategic weapons.
       fi: Ydinaseilla uhkailu, ”likaisen pommin” väitteet ja uusien strategisten aseiden ylistys.
       sv: Kärnvapenskrammel, påståenden om ”smutsiga bomber” och hyllningar av nya strategiska vapen.
-    checked: {n: 25, fit: 18, date: '2026-09-27'}
+    checked: {n: 25, fit: 22, date: '2026-09-28'}
     # Nuclear weapons, deterrence and tests in general (Iran, the test-ban treaty, France's deterrent) are
     # the topic "Nuclear weapons" below. A Burevestnik is also a drone regiment and a dacha cooperative,
-    # a Poseidon also a US patrol aircraft: only next to weapons words.
+    # a Poseidon also a US patrol aircraft: only next to weapons words, and not the Boeing P-8 Poseidon
+    # (whose "anti-submarine" is such a word).
     # Nuclear strikes, war and use are also the United States and Iran: only next to Russia, Europe, NATO or
     # Ukraine. Sarmat is also an ancient people and a training ground.
     ru:
@@ -319,7 +324,8 @@ framings:
       - 'dirty bomb*'
       - 'oreshnik'
       - {match: ['nuclear strike*', 'nuclear war*', 'nuclear response', 'tactical nuclear', 'use of nuclear', 'use nuclear'], with: russia-and-adversaries}
-      - {match: ['sarmat', 'burevestnik', 'poseidon'], with: strategic-weapons}
+      - {match: ['sarmat', 'burevestnik', 'poseidon'], with: strategic-weapons,
+         not: ['p-8* poseidon', 'p·8* poseidon', 'boeing ~ poseidon']}
 
   - id: genocide-claims
     label: {en: "'Genocide' of Russians", fi: "Venäläisten ”kansanmurha”", sv: "”Folkmord” på ryssar"}
@@ -378,9 +384,24 @@ framings:
       en: Irredentist framing of Ukrainian land as historically Russian; the 'Russian world' doctrine.
       fi: Irredentistinen kehys, jossa Ukrainan maat esitetään historiallisesti venäläisinä; ”venäläisen maailman” oppi.
       sv: Irredentistisk inramning av ukrainsk mark som historiskt rysk; doktrinen om ”den ryska världen”.
-    checked: {n: 25, fit: 21, date: '2026-09-27'}
-    # Новороссия, not the port city of Новороссийск.
-    ru: [{match: ['исконно русск*'], not: ['исконно русск* слов*']}, 'русск* мир*', 'историческ* земл*', 'исторически русск*', 'новороссия', 'новороссии', 'новороссию', 'новороссией', 'малоросс*', 'искусственн* государств*']
+    checked: {n: 25, fit: 25, date: '2026-09-28'}
+    # Новороссия, not the port city of Новороссийск, nor the R-280 highway "Новороссия". "Исконно русский"
+    # only of land: it is also said of words, dishes, names and inventions.
+    ru:
+      - 'исконно русск* земл*'
+      - 'исконно русск* земел*'
+      - 'исконно русск* территори*'
+      - 'исконно русск* город*'
+      - 'исконно русск* регион*'
+      - 'исконно русск* област*'
+      - 'русск* мир*'
+      - 'историческ* земл*'
+      - 'исторически русск*'
+      - {match: ['новороссия', 'новороссии', 'новороссию', 'новороссией'],
+         not: ['трасс* ~ новороссия', 'автотрасс* ~ новороссия', 'автодорог* ~ новороссия', 'дорог* ~ новороссия',
+               'р-280 ~ новороссия']}
+      - 'малоросс*'
+      - 'искусственн* государств*'
     en: ['russian world', 'historical russian lands', 'historic russian lands', 'historically russian', 'novorossiya', 'novorossia', 'artificial state', 'little russia']
 
   - id: multipolarity
@@ -409,18 +430,33 @@ framings:
       en: Branding critics, émigrés and independent media as 'foreign agents', 'undesirable', 'extremist' or a 'fifth column'.
       fi: Kriitikoiden, emigranttien ja riippumattoman median leimaaminen ”ulkomaisiksi agenteiksi”, ”epätoivotuiksi”, ”ääriliikkeiksi” tai ”viidenneksi kolonnaksi”.
       sv: Att stämpla kritiker, emigranter och oberoende medier som ”utländska agenter”, ”oönskade”, ”extremister” eller en ”femte kolonn”.
-    checked: {n: 25, fit: 16, date: '2026-09-27'}
+    checked: {n: 25, fit: 19, date: '2026-09-28'}
     # "extremist organisation" is left out on purpose: Russian law makes outlets add it to every
     # mention of Meta, Instagram or Facebook, which would drown the signal. "Traitor" on its own is a
     # film title, South Korea on Zelensky or the Rada on Russian songs: only a traitor to the motherland.
     # The label Russian law requires after every name on the foreign-agent register ("признан в РФ
-    # иностранным агентом", "внесён Минюстом в реестр иноагентов") does not count either: in the audit
-    # most matches were that label under stories about something else. News of a designation
-    # ("признали иноагентом") does.
+    # иностранным агентом", "внесён Минюстом России в реестр иноагентов", "физлицо, выполняющее функции
+    # иноагента") and on the list of undesirable organisations ("признана нежелательной организацией")
+    # does not count either: in the audit most matches were that label under stories about something else.
+    # It is written in the passive voice, with a varying number of words in between (~). News of a
+    # designation ("Минюст признал иноагентом", "внесли в реестр") does count; so, unavoidably, does a
+    # footnote in the active voice.
     ru:
       - match: ['иноагент*', 'иностранн* агент*']
-        not: ['признан* в рф иностранн* агент*', 'признан* в рф иноагент*', 'признан* в рф сми-иноагент*', 'признан* в росси* иностранн* агент*', 'признан* в росси* иноагент*', 'признан* в росси* сми-иноагент*', 'признан* иностранн* агент*', 'признан* иноагент*', 'признан* сми-иноагент*', 'внесен* минюст* рф в реестр иноагент*', 'внесен* минюст* рф в реестр иностранн* агент*', 'внесен* минюст* росси* в реестр иноагент*', 'внесен* минюст* росси* в реестр иностранн* агент*', 'включен* минюст* росси* в реестр иностранн* агент*', 'включен* минюст* рф в реестр иностранн* агент*', 'включен* минюст* росси* в реестр иноагент*', 'включен* министерств* юстиции в реестр иностранн* агент*', 'внесен* в рф в реестр иноагент*', 'в рф внесен* в реестр иноагент*']
-      - 'нежелательн* организац*'
+        not: ['признан* ~ иноагент*', 'признан* ~ сми-иноагент*', 'признан* ~ иностранн* агент*',
+              'внесен* ~ в реестр ~ иноагент*', 'внесен* ~ в реестр ~ иностранн* агент*',
+              'внесен* ~ в список ~ иноагент*', 'внесен* ~ в список ~ иностранн* агент*',
+              'внесен* ~ в перечень ~ иноагент*', 'внесен* ~ в перечень ~ иностранн* агент*',
+              'включен* ~ в реестр ~ иноагент*', 'включен* ~ в реестр ~ иностранн* агент*',
+              'включен* ~ в список ~ иноагент*', 'включен* ~ в список ~ иностранн* агент*',
+              'включен* ~ в перечень ~ иноагент*', 'включен* ~ в перечень ~ иностранн* агент*',
+              'внесен* ~ в реестр сми-иноагент*', 'внесен* ~ в реестр организаций-иноагент*',
+              'включен* ~ в реестр сми-иноагент*', 'включен* ~ в реестр организаций-иноагент*',
+              'выполняющ* функци* иноагент*', 'выполняющ* функци* иностранн* агент*',
+              'террорист* и экстремист* ~ иноагент*', 'террорист* и экстремист* ~ иностранн* агент*']
+      - match: ['нежелательн* организац*']
+        not: ['признан* ~ нежелательн* организац*', 'иноагент* ~ и нежелательн* организац*',
+              'иностранн* агент* ~ и нежелательн* организац*']
       - 'пят* колонн*'
       - 'релокант*'
       - 'национал-предател*'

@@ -26,16 +26,25 @@ def norm_same_length(s: str) -> str:
     return "".join(out)
 
 
+# A pattern word that stands for up to three words, whatever they are, and any quotation mark or bracket
+# before the next word: 'трасс* ~ новороссия' finds "трассе Р-280 «Новороссия»".
+GAP = "~"
+
+
 def pattern_regex(pattern: str) -> str:
     words = normalize(pattern).split()
-    parts = []
-    for w in words:
-        if w.endswith("*"):
-            parts.append(re.escape(w[:-1]) + r"\w*")
-        else:
-            parts.append(re.escape(w))
+    if not words or GAP in (words[0], words[-1]):
+        raise ValueError(f"pattern {pattern!r}: {GAP} can only stand between two words")
+    out = ""
+    for i, w in enumerate(words):
+        if w == GAP:
+            out += r"(?:\S+\s+){0,3}[^\w\s]*"
+            continue
+        out += re.escape(w[:-1]) + r"\w*" if w.endswith("*") else re.escape(w)
+        if i < len(words) - 1:
+            out += r"[\s ]+"
     tail = "" if words[-1].endswith("*") else r"(?!\w)"
-    return r"(?<!\w)" + r"[\s ]+".join(parts) + tail
+    return r"(?<!\w)" + out + tail
 
 
 def _alternation(patterns: list[str]) -> re.Pattern | None:

@@ -119,6 +119,44 @@ class _HostThrottle:
 
 THROTTLE = _HostThrottle()
 
+
+class _HostHealth:
+    """Hosts that do not answer at all are left alone for a while. A site that drops a network's
+    connections (MK and Sputnik from GitHub's servers) costs a minute or more per request, each connection
+    attempt timing out and being retried: after a few such failures in a row, requests to the host fail at
+    once for `pause` seconds, and then one request tries again."""
+
+    def __init__(self, limit: int = 3, pause: float = 900.0):
+        self.limit, self.pause = limit, pause
+        self._lock = threading.Lock()
+        self._fails: dict[str, int] = {}
+        self._until: dict[str, float] = {}
+
+    def down(self, host: str) -> bool:
+        with self._lock:
+            return time.monotonic() < self._until.get(host, 0.0)
+
+    def failed(self, host: str):
+        with self._lock:
+            self._fails[host] = self._fails.get(host, 0) + 1
+            if self._fails[host] >= self.limit:
+                self._until[host] = time.monotonic() + self.pause
+
+    def answered(self, host: str):
+        with self._lock:
+            self._fails.pop(host, None)
+            self._until.pop(host, None)
+
+
+HEALTH = _HostHealth()
+
+
+def _no_connection(exc: Exception) -> bool:
+    """The host was not reached at all: no connection, a refused or reset one, DNS or TLS failure.
+    (A read timeout is a slow answer, not a missing one.)"""
+    return isinstance(exc, requests.ConnectionError) and not isinstance(exc, requests.ReadTimeout)
+
+
 _robots: dict[str, Protego | None] = {}
 _robots_lock = threading.Lock()
 
@@ -199,13 +237,19 @@ class Fetcher:
             known = base in _robots
             rp = _robots.get(base)
         if not known:
+            if HEALTH.down(parts.netloc):
+                return True  # nothing is read from the host for now; its robots.txt is asked for next time
             rp = None
             try:
                 THROTTLE.wait(parts.netloc, self.gap)
                 r = self.session.get(base + "/robots.txt", timeout=self.timeout)
+                HEALTH.answered(parts.netloc)
                 if r.status_code == 200 and "html" not in r.headers.get("content-type", ""):
                     rp = Protego.parse(r.text)
-            except requests.RequestException:
+            except requests.RequestException as exc:
+                if _no_connection(exc):
+                    HEALTH.failed(parts.netloc)
+                    return True  # not cached: asked again once the host answers
                 rp = None
             with _robots_lock:
                 _robots[base] = rp
@@ -239,10 +283,14 @@ class Fetcher:
 
     def _get(self, url: str, gap: float | None, timeout: tuple | None = None) -> Response:
         host = urlsplit(url).netloc
+        if HEALTH.down(host):
+            return Response(None, url, error=f"NoConnection: {host} did not answer the last "
+                                             f"{HEALTH.limit} connection attempts; left alone for a while")
         THROTTLE.wait(host, self.gap if gap is None else gap)
         self.requests += 1
         try:
             with self.session.get(url, timeout=timeout or self.timeout, stream=True) as r:
+                HEALTH.answered(host)
                 chunks, size = [], 0
                 for chunk in r.iter_content(65536):
                     chunks.append(chunk)
@@ -257,4 +305,6 @@ class Fetcher:
                         pass
                 return Response(r.status_code, r.url, body, {k.lower(): v for k, v in r.headers.items()})
         except requests.RequestException as exc:
+            if _no_connection(exc):
+                HEALTH.failed(host)
             return Response(None, url, error=f"{type(exc).__name__}: {exc}"[:300])

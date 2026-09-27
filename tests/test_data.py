@@ -11,7 +11,7 @@ from datetime import date, datetime
 import pytest
 
 from woland.config import START_DATE, load_lexicon, load_outlets
-from woland.store import ART_DIR, STATE_DIR
+from woland.store import ART_DIR, STATE_DIR, url_key
 from woland.util import MSK, short_hash
 
 FILES = sorted(ART_DIR.glob("*/*/*/*.jsonl")) if ART_DIR.exists() else []
@@ -110,6 +110,30 @@ def test_no_article_is_filed_twice():
     assert not twice, f"{len(twice)} articles filed under two days, e.g.:\n" + "\n".join(twice[:10])
 
 
+def test_the_url_index_lists_every_stored_article_under_its_day():
+    """data/state/urls/<outlet>.txt, which keeps a URL from being stored twice, must match the day files
+    (the first run that needs an outlet's index builds it; `python -m woland reindex` rebuilds them all)."""
+    stored = defaultdict(dict)
+    for f in FILES:
+        day = "-".join(f.parts[-4:-1])
+        for line in f.read_text(encoding="utf-8").splitlines():
+            stored[f.stem][url_key(json.loads(line)["u"])] = day
+    problems = []
+    for p in sorted((STATE_DIR / "urls").glob("*.txt")):
+        index = {}
+        for line in p.read_text(encoding="utf-8").splitlines():
+            key, _, day = line.partition(" ")
+            index[key] = day  # a later line for the same URL wins: its record moved
+        have = stored.get(p.stem, {})
+        wrong = sum(index.get(k) != d for k, d in have.items())
+        extra = len(set(index) - set(have))
+        if wrong or extra:
+            problems.append(f"{p.stem}: {wrong} stored articles missing or under another day, "
+                            f"{extra} listed but not stored")
+    assert not problems, "the URL index does not match the archive (python -m woland reindex):\n" + \
+        "\n".join(problems)
+
+
 def test_bodies_were_read_for_page_outlets():
     """Articles whose pages Woland read should mostly have body texts (w > 0): if not, extraction broke.
     (Headline-only records, via "feed", have none by definition.)"""
@@ -136,3 +160,4 @@ def test_coverage_state_is_consistent():
             date.fromisoformat(d)
             assert v.get("status") in ("complete", "partial", "feed"), (oid, d, v)
             assert isinstance(v.get("n"), int) and v["n"] >= 0, (oid, d, v)
+            assert "h" not in v or 0 < v["h"] <= v["n"], (oid, d, v)  # headline-only records still to read

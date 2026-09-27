@@ -8,6 +8,8 @@
   probe     try one outlet on one day and print what Woland would store
   check     can every outlet still be read? (discovery + a few article pages per outlet)
   mtcheck   what the translation glossary (config/glossary.yaml) corrects, and what it still misses
+  reindex   rebuild the index of every URL stored (data/state/urls/) from the day files
+  sample    a random sample of the articles counted under a framing, to read by hand (docs/lexicon-audit.md)
 """
 from __future__ import annotations
 
@@ -50,6 +52,7 @@ def main(argv=None):
     p.add_argument("--catch-up", type=int, default=45, help="how many days back to repair gaps")
     p = sub.add_parser("poll")
     common(p)
+    p.add_argument("--min-gap", type=float, help="do nothing if the feeds were read less than this many minutes ago")
     p = sub.add_parser("backfill")
     common(p)
     p.add_argument("start", type=date.fromisoformat)
@@ -70,8 +73,18 @@ def main(argv=None):
     p.add_argument("--date", type=date.fromisoformat, help="day to look at (default: yesterday)")
     p = sub.add_parser("mtcheck")
     p.add_argument("--days", type=int, help="only the last N days (default: the whole archive)")
+    p = sub.add_parser("reindex")
+    p.add_argument("--outlets", help="comma-separated outlet ids (default: all, including disabled ones)")
+    p = sub.add_parser("sample")
+    p.add_argument("framing", help="a framing's (or topic's) id in config/lexicon.yaml")
+    p.add_argument("-n", type=int, default=25, help="how many articles to draw")
+    p.add_argument("--seed", type=int, default=1, help="a new seed draws a fresh sample")
+    p.add_argument("--round", default="", help="written into the round column")
+    p.add_argument("--csv", help="write the rows (the columns of docs/lexicon-audit-sample.csv) to this file")
 
     a = ap.parse_args(argv)
+    if (sys.stdout.encoding or "").lower().replace("-", "") != "utf8":
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Windows, when the output is piped
     logging.basicConfig(level=logging.DEBUG if a.verbose else logging.INFO,
                         format="%(asctime)s %(levelname)-7s %(name)s: %(message)s", datefmt="%H:%M:%S")
     for noisy in ("urllib3", "trafilatura", "htmldate", "charset_normalizer"):
@@ -85,7 +98,10 @@ def main(argv=None):
         if a.cmd == "collect":
             summary = collect.daily(outlets, catch_up_days=a.catch_up, **kw)
         elif a.cmd == "poll":
-            summary = collect.poll(outlets, **kw)
+            summary = collect.poll(outlets, min_gap=a.min_gap, **kw)
+            if summary is None:
+                print(f"poll: the feeds were read less than {a.min_gap:g} minutes ago; nothing to do")
+                return 0
         else:
             summary = collect.backfill(a.start, a.end or a.start, outlets,
                                        backfill=True if a.wayback else None, **kw)
@@ -125,6 +141,16 @@ def main(argv=None):
     if a.cmd == "check":
         from .check import main as check_main
         return check_main(_outlets(a.outlets, include_disabled=True), a.date or today_msk() - timedelta(days=1))
+
+    if a.cmd == "sample":
+        from .audit import main as sample_main
+        return sample_main(a.framing, a.n, a.seed, a.round, a.csv)
+
+    if a.cmd == "reindex":
+        from .store import rebuild_url_index
+        for o in _outlets(a.outlets, include_disabled=True):
+            print(f"  {o.id:11} {len(rebuild_url_index(o.id)):7} URLs")
+        return 0
 
     if a.cmd == "mtcheck":
         from .glossary import report

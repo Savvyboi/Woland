@@ -41,3 +41,47 @@ def test_fetcher_pauses_and_retries_after_429(monkeypatch):
     assert r.ok and r.content == b"ok"
     assert slept == [3.0, 20.0]                   # Retry-After, then 5× the doubled gap
     assert 0 < net.THROTTLE.gap("www.mk.ru") < 4.0
+
+
+class _Clock:
+    """Stands in for the time module in woland.net: a clock that only moves when told to."""
+
+    def __init__(self):
+        self.now = 1000.0
+
+    def monotonic(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.now += seconds
+
+
+def test_a_host_that_does_not_answer_is_left_alone_for_a_while(monkeypatch):
+    import requests
+    clock = _Clock()
+    monkeypatch.setattr(net, "time", clock)
+    monkeypatch.setattr(net, "THROTTLE", _HostThrottle())
+    monkeypatch.setattr(net, "HEALTH", net._HostHealth(limit=3, pause=900))
+    tried = []
+
+    def silent(url, **kw):
+        tried.append(url)
+        raise requests.ConnectTimeout("connection timed out")
+
+    f = Fetcher()
+    monkeypatch.setattr(f.session, "get", silent)
+    answers = [f.get("https://www.mk.ru/news/2026/9/%d/" % d) for d in range(1, 8)]
+    assert not any(r.ok for r in answers)
+    # robots.txt, the first listing, robots.txt again (not remembered while unanswered): three connection
+    # attempts that went unanswered, then nothing more
+    assert len(tried) == 3 and f.requests == 1 and answers[-1].error.startswith("NoConnection")
+    clock.now += 901                        # a quarter of an hour later, one more try
+    f.get("https://www.mk.ru/news/2026/9/8/")
+    assert len(tried) == 4 and net.HEALTH.down("www.mk.ru")
+    # a host that answers is not held back, and an answer ends the pause
+    monkeypatch.setattr(f.session, "get", lambda url, **kw: (_ for _ in ()).throw(requests.ReadTimeout("slow")))
+    for _ in range(5):
+        f.get("https://ria.ru/a.html", check_robots=False)
+    assert not net.HEALTH.down("ria.ru")    # a slow answer is not a missing one
+    net.HEALTH.answered("www.mk.ru")
+    assert not net.HEALTH.down("www.mk.ru")

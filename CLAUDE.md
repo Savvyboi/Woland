@@ -6,13 +6,13 @@ Pages publishes. Read `README.md` for how it works and **`TODO.md` for the open 
 
 ## Layout
 
-- `woland/` — collector and site builder (`python -m woland collect | poll | backfill | translate | build | probe | check | mtcheck`)
+- `woland/` — collector and site builder (`python -m woland collect | poll | backfill | translate | build | probe | check | mtcheck | reindex | sample`)
 - `config/outlets.yaml` — the outlets and how each is read (all options documented at the top);
   `config/lexicon.yaml` — framings and topics, with contexts and exclusions; `config/glossary.yaml` —
   corrections to the machine translation, applied at build time
 - `docs/lexicon-audit.md` — how many of a random sample of each framing's matches fit its definition
 - `site/` — the website (plain HTML/CSS/JS modules, no build tool); UI strings in `site/assets/js/i18n.js`
-- `data/articles/YYYY/MM/DD/<outlet>.jsonl` — the archive; `data/state/` — coverage, runs, rejected URLs
+- `data/articles/YYYY/MM/DD/<outlet>.jsonl` — the archive; `data/state/` — coverage, runs, rejected URLs, and `urls/` (every URL stored, so none is stored twice)
 - `.github/workflows/` — nightly collection, hourly feeds, build and publish, tests, outlet check
 
 ## Commands
@@ -26,8 +26,8 @@ WOLAND_LIVE=1 .venv/Scripts/python -m pytest -m live   # reads the real outlets
 ```
 
 Working from Finland (or elsewhere in the EU): ISPs block most of these domains in DNS; set
-`WOLAND_DOH=1` to resolve through DNS-over-HTTPS. sputnikglobe.com is blocked by IP and can only be read
-from GitHub's runners.
+`WOLAND_DOH=1` to resolve through DNS-over-HTTPS. sputnikglobe.com is blocked by IP. From GitHub's runners
+neither Sputnik nor MK answered on 27 September 2026 (MK does from Finland): see `TODO.md`.
 
 ## Ground rules
 

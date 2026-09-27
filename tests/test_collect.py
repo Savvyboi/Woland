@@ -10,7 +10,7 @@ from woland import collect, store
 from woland.config import START_DATE, Outlet, load_lexicon
 from woland.discover import Candidate
 from woland.lexicon import Lexicon
-from woland.util import MSK
+from woland.util import MSK, iso_utc, now_utc
 
 LEX = Lexicon(load_lexicon())
 
@@ -241,3 +241,154 @@ def test_a_day_is_complete_once_it_is_over_in_moscow():
     assert collect._day_complete(date(2026, 9, 10), at)
     assert not collect._day_complete(date(2026, 9, 11), at)
     assert not collect._day_complete(date(2026, 9, 10), datetime(2026, 9, 11, 1, 0, tzinfo=MSK))
+
+
+# ── one URL, one record: the index of every URL stored ─────────────────────────
+def stored(i, day=D, via="page"):
+    return {"id": f"t:{i}", "o": "t", "u": f"https://t.ru/a/{i}", "p": f"{day.isoformat()}T10:00:00+03:00",
+            "t": f"Заголовок {i}", "w": 0 if via == "feed" else 100, "h": "0" * 16, "r": "2026-09-10T08:00:00Z",
+            "via": via}
+
+
+def test_the_url_index_is_built_from_the_day_files_once_then_appended_to(archive):
+    store.write_day(D, "t", [stored(1), stored(2)])                  # stored before the index existed
+    store.merge_day(D + timedelta(days=1), "t", [stored(3, D + timedelta(days=1))])
+    store.merge_day(D, "t", [stored(2), stored(4)])                  # 2 is already there: not listed twice
+    index = store.load_url_index("t")
+    assert index == {store.url_key(f"https://t.ru/a/{i}"): d for i, d in
+                     [(1, "2026-09-10"), (2, "2026-09-10"), (3, "2026-09-11"), (4, "2026-09-10")]}
+    assert store.rebuild_url_index("t") == index
+    lines = (archive / "data" / "state" / "urls" / "t.txt").read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 4 and all(len(line) == 27 for line in lines)
+
+
+def test_one_url_is_filed_once_however_late_a_site_re_dates_it(fake_site, archive, monkeypatch):
+    monkeypatch.setattr(collect, "today_msk", lambda: date(2026, 12, 20))
+    store.merge_day(date(2026, 9, 3), "t", [stored(1, date(2026, 9, 3))])
+    # in December the site re-dates the September page ("when the heating comes on"), long after the
+    # weeks whose day files a run reads
+    fake_site["cands"] = [listed(1, date(2026, 12, 18))]
+    fake_site["pages"] = {"https://t.ru/a/1": page_info(date(2026, 12, 18), 1)}
+    summary = collect.run_collection({"t": (date(2026, 12, 14), date(2026, 12, 20))}, [outlet()],
+                                     mode="daily", translate=False)
+    assert summary["outlets"]["t"]["stats"]["known"] == 1 and summary["outlets"]["t"]["new"] == 0
+    assert store.read_day(date(2026, 12, 18), "t") == []
+
+
+# ── state shared by runs that overlap ──────────────────────────────────────────
+def test_two_runs_over_different_days_of_one_outlet_keep_each_others_coverage(archive):
+    store.save_coverage({"t": {"2026-09-10": {"n": 5, "status": "partial"}}})
+    # a long backfill read the coverage before that, and has since changed the 11th only
+    mine = {"t": {"2026-09-10": {"n": 1, "status": "partial"}, "2026-09-11": {"n": 3, "status": "complete"}}}
+    store.save_coverage(mine, only={"t": {"2026-09-11"}})
+    cov = store.load_coverage()["t"]
+    assert cov["2026-09-10"]["n"] == 5 and cov["2026-09-11"]["n"] == 3
+    store.save_seen({"t": {"https://t.ru/a/1": "2026-09-20"}}, date(2026, 9, 24))
+    store.save_seen({"t": {"https://t.ru/a/2": "2026-09-21"}}, date(2026, 9, 24), only={"t": {"https://t.ru/a/2"}})
+    assert set(store.load_seen()["t"]) == {"https://t.ru/a/1", "https://t.ru/a/2"}
+
+
+def test_frequent_polls_do_not_push_the_nightly_runs_out_of_the_log(archive):
+    store.append_run({"at": "2026-09-02T01:17:00Z", "mode": "daily", "outlets": {}})
+    for i in range(200):
+        store.append_run({"at": f"2026-09-02T{i // 60:02d}:{i % 60:02d}:30Z", "mode": "poll", "outlets": {}})
+    runs = store.load_runs()
+    assert [r["mode"] for r in runs].count("daily") == 1 and len(runs) == 49
+
+
+def test_polling_skips_turns_it_does_not_need(archive, monkeypatch):
+    store.append_run({"at": iso_utc(now_utc() - timedelta(minutes=50)), "mode": "poll", "outlets": {}})
+    assert collect.poll([outlet()], min_gap=40) is not None           # read 50 minutes ago: read again
+    assert collect.poll([outlet()], min_gap=40) is None               # just read: nothing to do
+    assert collect.poll([outlet()]) is not None                       # (unless asked)
+
+
+# ── headline-only records: read again until their pages are read or gone ──────
+def test_headline_only_records_on_a_complete_day_are_read_again(fake_site, archive, monkeypatch):
+    monkeypatch.setattr(collect, "today_msk", lambda: date(2026, 10, 20))
+    old = date(2026, 10, 2)
+    # a feed reader filed a headline-only record under a day long marked complete
+    store.merge_day(old, "t", [stored(7, old, via="feed")])
+    days = [START_DATE + timedelta(days=k) for k in range((date(2026, 10, 20) - START_DATE).days)]
+    cov = {"t": {d.isoformat(): {"status": "complete", "n": 80} for d in days}}
+    cov["t"]["2026-10-02"]["h"] = 1
+    assert collect.plan([outlet()], cov, catch_up_days=45)["t"][0] == old
+    assert collect.plan([outlet(fetch=False, sources=[{"type": "sitemap", "url": "x"}])], cov, 45)["t"][0] > old
+    # no listing announces it any more: its page is read all the same
+    fake_site["cands"] = []
+    fake_site["pages"] = {"https://t.ru/a/7": page_info(old, 7)}
+    summary = collect.run_collection({"t": (old, old)}, [outlet()], mode="daily", translate=False)
+    assert summary["outlets"]["t"]["stats"]["upgraded"] == 1
+    assert [r["via"] for r in store.read_day(old, "t")] == ["page"]
+    assert "h" not in store.load_coverage()["t"]["2026-10-02"]
+
+
+def test_a_headline_whose_page_is_gone_does_not_hold_its_day_open(fake_site, archive, monkeypatch):
+    monkeypatch.setattr(collect, "today_msk", lambda: date(2026, 9, 24))
+    fake_site["cands"] = [listed(1), listed(2)]
+    fake_site["pages"] = {"https://t.ru/a/1": page_info(D, 1), "https://t.ru/a/2": 429}
+    collect.run_collection({"t": (D, D)}, [outlet()], mode="backfill", translate=False)
+    entry = store.load_coverage()["t"]["2026-09-10"]
+    assert entry["status"] == "partial" and entry["h"] == 1
+    fake_site["pages"]["https://t.ru/a/2"] = 404                     # the next night: taken down
+    summary = collect.run_collection({"t": (D, D)}, [outlet()], mode="backfill", translate=False)
+    assert summary["outlets"]["t"]["stats"]["upgrade_gone"] == 1
+    entry = store.load_coverage()["t"]["2026-09-10"]
+    assert entry["status"] == "complete" and "h" not in entry
+    assert sorted((r["u"][-1], r["via"]) for r in store.read_day(D, "t")) == [("1", "page"), ("2", "feed")]
+    summary = collect.run_collection({"t": (D, D)}, [outlet()], mode="backfill", translate=False)
+    assert "upgrade_gone" not in summary["outlets"]["t"]["stats"]            # and not asked for again
+
+
+# ── coverage ───────────────────────────────────────────────────────────────────
+def test_coverage_is_counted_for_every_day_a_run_filed_articles_under(fake_site, archive, monkeypatch):
+    monkeypatch.setattr(collect, "today_msk", lambda: date(2026, 9, 24))
+    fake_site["cands"] = [Candidate(url="https://t.ru/a/1"), Candidate(url="https://t.ru/a/2")]
+    fake_site["pages"] = {"https://t.ru/a/1": page_info(D, 1), "https://t.ru/a/2": page_info(D + timedelta(days=4), 2)}
+    collect.run_collection({"t": (D, D)}, [outlet()], mode="backfill", translate=False)
+    cov = store.load_coverage()["t"]
+    assert cov["2026-09-10"] | {"at": ""} == {"n": 1, "found": 0, "status": "complete", "at": ""}
+    assert cov["2026-09-14"]["n"] == 1 and cov["2026-09-14"]["status"] == "partial"   # counted, not judged
+
+
+def test_an_empty_day_in_a_backfill_from_the_first_day_is_not_called_complete(fake_site, archive, monkeypatch):
+    monkeypatch.setattr(collect, "today_msk", lambda: date(2026, 9, 24))
+    start = START_DATE
+    busy = [k for k in range(10) if k != 4]                  # 40 articles a day, none found on the fifth
+    fake_site["cands"] = [Candidate(url=f"https://t.ru/a/{k * 100 + i}") for k in busy for i in range(40)]
+    fake_site["pages"] = {f"https://t.ru/a/{k * 100 + i}": page_info(start + timedelta(days=k), i)
+                          for k in busy for i in range(40)}
+    collect.run_collection({"t": (start, start + timedelta(days=9))}, [outlet()], mode="backfill", translate=False)
+    cov = store.load_coverage()["t"]
+    assert cov["2026-09-05"]["n"] == 0 and cov["2026-09-05"]["status"] == "partial"
+    assert cov["2026-09-04"]["status"] == "complete" and cov["2026-09-06"]["status"] == "complete"
+
+
+# ── time and reach ─────────────────────────────────────────────────────────────
+def test_a_slow_outlet_has_its_own_time_budget(fake_site, archive, monkeypatch):
+    total = collect.Budget(270)
+    assert collect.Budget(90, within=total).deadline < total.deadline
+    assert collect.Budget(None, within=total).deadline == total.deadline == collect.Budget(500, within=total).deadline
+    assert collect.Budget(None, within=collect.Budget(None)).deadline is None
+    deadlines = {}
+    real = collect.collect_outlet
+
+    def spy(o, *a, budget=None, **kw):
+        deadlines[o.id] = budget.deadline
+        return real(o, *a, budget=budget, **kw)
+
+    monkeypatch.setattr(collect, "collect_outlet", spy)
+    slow = outlet("s")
+    slow.budget = 90
+    collect.run_collection({"t": (D, D), "s": (D, D)}, [outlet(), slow], mode="backfill", translate=False)
+    assert deadlines["t"] is None and deadlines["s"] is not None
+
+
+def test_an_outlet_that_cannot_be_reached_at_all_is_reported_as_such(fake_site):
+    fake_site["errors"] = ["html_list: https://t.ru/news/: ConnectTimeout: HTTPSConnectionPool(host='t.ru')",
+                           "sitemap_index: https://t.ru/s.xml: NoConnection: t.ru did not answer"]
+    fake_site["pages"] = {"https://t.ru/a/7": page_info(D, 7)}
+    run = collect.collect_outlet(outlet(), D, D, LEX, {"https://t.ru/a/7": ("feed", "2026-09-10")}, {},
+                                 retry=[stored(7, via="feed")])
+    assert run.aborted == "no connection to t.ru" and run.stats["to_upgrade"] == 1
+    assert "upgraded" not in run.stats and not run.records                   # nothing else was tried

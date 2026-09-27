@@ -35,7 +35,8 @@ obtained it and which words made it count under a framing.
 4. Go to **Settings → Actions → General → Workflow permissions**, choose **Read and write permissions**, and save.
 5. Open the **Actions** tab, pick **Nightly collection** and press **Run workflow**. The repository already
    holds everything collected since 1 September 2026, so this first run only fills the gaps (Sputnik, which
-   Finnish networks block, is collected from GitHub's servers from 1 September onwards). In a fresh fork
+   Finnish networks block, was to be collected from GitHub's servers, but on 27 September 2026 it did not
+   answer them either: see `TODO.md`). In a fresh fork
    without `data/`, the first run fills in everything; that takes a few hours (it stops itself after four and
    a half and the next run carries on where it left off). When it finishes, it publishes the site.
 6. The site appears at `https://<you>.github.io/woland/`. Run **Check outlets** once to see, from GitHub's
@@ -46,7 +47,7 @@ From then on everything is automatic:
 | Workflow | When | What |
 |---|---|---|
 | `collect.yml` — Nightly collection | 04:17 Moscow time | collects the previous day, looks again at the past week, repairs any older gap back to the start date, commits `data/`, checks it, rebuilds and publishes the site |
-| `poll.yml` — Hourly feeds | every hour | reads the feeds that only hold a few hours of news (TASS, TASS English, Zvezda, the Kremlin) |
+| `poll.yml` — Hourly feeds | every hour or so | reads the feeds that only hold a few hours of news (TASS, TASS English, Rossiyskaya Gazeta, Zvezda, the Kremlin); scheduled every 15 minutes because GitHub starts scheduled jobs late or drops them, a run skips its turn when the feeds were read less than 40 minutes before |
 | `deploy.yml` — Build and publish | after the nightly run, and when code changes | builds `_site/` and deploys it to Pages |
 | `test.yml` — Tests | on every push | the test-suite (see *Tests* below) |
 | `check.yml` — Check outlets | Mondays, or by hand | can every outlet still be read from GitHub's servers? A table in the run summary; the run fails if an outlet is broken |
@@ -106,8 +107,10 @@ python -m http.server 8000 --directory _site         # open http://localhost:800
 Other commands: `backfill 2026-09-01 2026-09-10` (a date range; add `--wayback` for the Internet Archive sources),
 `poll`, `translate`, `probe ria --date 2026-09-23` (tries one outlet and prints what would be stored), `check`
 (discovers yesterday's articles for every outlet and reads a few: a health table) and `mtcheck` (what the
-translation glossary corrects, and translations of its names that still look wrong). `--outlets ria,tass --limit 20`
-narrows any run. Collection runs may work side by side on different outlets (state files are merged, not overwritten).
+translation glossary corrects, and translations of its names that still look wrong), `sample enemies-within --seed 3`
+(a random sample of a framing's matches to read, as in `docs/lexicon-audit.md`) and `reindex` (rebuilds the URL
+index). `--outlets ria,tass --limit 20` narrows any run. Collection runs may work side by side on different
+outlets (state files are merged per outlet and day, not overwritten).
 
 ### Tests
 
@@ -171,8 +174,9 @@ own situation.
 | `via` | `page` (article page read) or `feed` (from the outlet's own feed, sitemap or listing only: for feed-only outlets always; for the others a *headline-only* record, kept when the page could not be read and completed by a later run) |
 
 `data/state/coverage.json` records, for every outlet and day, how many articles were stored, how many the
-outlet's own listings announced, and whether the day is complete. `data/state/runs.json` keeps the latest
-run summaries. An article is always filed under the Moscow day it was published, even when it turned up
+outlet's own listings announced, how many are still headline only (`h`), and whether the day is complete.
+`data/state/runs.json` keeps the latest run summaries. `data/state/urls/<outlet>.txt` lists every URL stored (a
+key and its day), so that an article is stored once even if its site re-dates it months later. An article is always filed under the Moscow day it was published, even when it turned up
 while another day was being collected. The repository grows by roughly 2–3 MB of compressed history a day; after a year or two,
 consider moving older years to a release archive.
 
@@ -180,13 +184,17 @@ consider moving older years to a release archive.
 
 * Framing detection is lexical: the site reports *pattern matches*. Articles quoting, reporting or rebutting a
   claim are counted too — every number links to the articles, and each article shows the words that matched. In a
-  first check of 25 random matches per framing, 537 of 600 fit the definitions, from 16 of 25 ("enemies within")
-  to 25 of 25 (`docs/lexicon-audit.md`); that check still needs a specialist's review.
+  check of 25 random matches per framing (three rounds, the last on 28 September 2026), 545 of 600 fit the
+  definitions, from 14 of 25 ("Western fakes") to 25 of 25 (`docs/lexicon-audit.md`); that check still needs a
+  specialist's review. `python -m woland sample <framing>` draws a fresh sample to read.
 * The current day, and the previous one until the nightly run has gathered it, are *still being collected*: the
   site leaves them out of comparisons and averages unless asked, and marks them where they are shown.
 * TASS's Russian service is read from its feed only (headline, lead, time) and starts on the day hourly reading
   begins: its pages, sitemaps and even `robots.txt` answer 403, the Internet Archive's copies are the same 403,
-  and the feed holds only about three hours. TASS's English service (tass.com) is complete.
+  and the feed holds only its latest 100 items (about three hours of a weekday). GitHub starts the hourly job late
+  or not at all when it is busy, so hours are missing (listed in TASS's note on the Outlets page); the job is
+  therefore scheduled every quarter of an hour and skips the turns it does not need. TASS's English service
+  (tass.com) is complete.
 * Gazeta.ru sends every visitor through an optional Sber ID sign-in first. Woland holds the cookie that the
   page's own script gives every visitor who is not signed in (`cookies` in `outlets.yaml`) — it declines to sign
   in, like any anonymous reader — and reads the pages in full.
@@ -196,11 +204,14 @@ consider moving older years to a release archive.
 * Nothing found is thrown away: when a page cannot be read (the site refuses, asks Woland to slow down, or the
   night's time runs out), the article is kept as its listing or feed describes it — headline, lead if any, time —
   marked *headline only* on the site, and its day stays open so that later runs read the page and complete it.
-  MK (which allows about 15 pages a minute) and Rossiyskaya Gazeta (whose Qrator shield answers bursts with a
-  CAPTCHA, which Woland never solves; it only slows down) are completed this way over several nights.
+  MK (which allows about 15 pages a minute; a run spends at most 90 minutes on it) and Rossiyskaya Gazeta (whose
+  Qrator shield answers bursts with a CAPTCHA, which Woland never solves; it only slows down) are completed this
+  way over several nights.
 * Regnum answers 403 to every automated request (robots.txt and feed included) and the Internet Archive only
-  has error pages for its news, so it is disabled. Sputnik is blocked from Finnish networks and is collected
-  by GitHub's servers only. Other sites may start blocking; `check.yml` and the Outlets page show it.
+  has error pages for its news, so it is disabled. Sputnik is blocked from Finnish networks and did not answer
+  GitHub's servers either on 27 September 2026; neither did MK, which answers from Finland. A site that does not
+  answer is left alone for a quarter of an hour after three failed connections, so that it does not hold up the
+  run. Other sites may start blocking; `check.yml` and the Outlets page show it.
 * Machine translations are serviceable, not authoritative.
 
 What is still open — data gaps, planned fixes, reviews that need a person — is listed in [`TODO.md`](TODO.md).

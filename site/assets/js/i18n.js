@@ -58,7 +58,7 @@ const S = {
     "narratives.examples": "Recent examples",
     "narratives.definition": "How Woland recognises it",
     "narratives.patterns.ru": "Russian patterns", "narratives.patterns.en": "English patterns",
-    "narratives.patterns.note": "* stands for any ending. Checked in the headline, the lead and — where Woland can read the page — the full text. Some words count only in a given context, or not in given phrases.",
+    "narratives.patterns.note": "* stands for any ending, ~ for up to three words. Checked in the headline, the lead and — where Woland can read the page — the full text. Some words count only in a given context, or not in given phrases.",
     "narratives.total": "{n} of {all} articles in the period",
 
     "archive.title": "Manuscripts Don't Burn",
@@ -271,7 +271,7 @@ const S = {
     "narratives.examples": "Tuoreita esimerkkejä",
     "narratives.definition": "Miten Woland tunnistaa sen",
     "narratives.patterns.ru": "Venäjänkieliset hakuehdot", "narratives.patterns.en": "Englanninkieliset hakuehdot",
-    "narratives.patterns.note": "* tarkoittaa mitä tahansa päätettä. Haetaan otsikosta, ingressistä ja – kun Woland voi lukea sivun – koko tekstistä. Jotkin sanat lasketaan vain tietyssä yhteydessä tai eivät tietyissä ilmauksissa.",
+    "narratives.patterns.note": "* tarkoittaa mitä tahansa päätettä, ~ enintään kolmea sanaa. Haetaan otsikosta, ingressistä ja – kun Woland voi lukea sivun – koko tekstistä. Jotkin sanat lasketaan vain tietyssä yhteydessä tai eivät tietyissä ilmauksissa.",
     "narratives.total": "{n}/{all} artikkelia ajanjaksolla",
 
     "archive.title": "Käsikirjoitukset eivät pala",
@@ -484,7 +484,7 @@ const S = {
     "narratives.examples": "Färska exempel",
     "narratives.definition": "Hur Woland känner igen det",
     "narratives.patterns.ru": "Ryska sökmönster", "narratives.patterns.en": "Engelska sökmönster",
-    "narratives.patterns.note": "* står för valfri ändelse. Söks i rubriken, ingressen och – där Woland kan läsa sidan – hela texten. Vissa ord räknas bara i ett visst sammanhang, eller inte i vissa fraser.",
+    "narratives.patterns.note": "* står för valfri ändelse, ~ för upp till tre ord. Söks i rubriken, ingressen och – där Woland kan läsa sidan – hela texten. Vissa ord räknas bara i ett visst sammanhang, eller inte i vissa fraser.",
     "narratives.total": "{n} av {all} artiklar under perioden",
 
     "archive.title": "Manuskript brinner inte",

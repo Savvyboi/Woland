@@ -35,6 +35,8 @@
 #   feed_fulltext  feed-only, but the feed carries the complete texts (so framings are found in the body)
 #   tz_fix      the site writes Moscow wall-clock time but declares another UTC offset; trust the clock
 #   parallel    how many article pages to fetch at once (default 2; the per-host pause still applies)
+#   budget      the most minutes one run spends on this outlet (default: the run's own budget), so that a
+#               slow site does not hold up the nightly run and the website's update
 #   cookies     cookies that an anonymous visitor's browser would hold for the site (see Gazeta.ru)
 #   headline    meta (default: og:title and the like) | h1 (the visible headline, when meta titles are SEO text)
 #   coverage_sitemap  a sitemap used only to count how many articles the outlet published per day
@@ -75,12 +77,13 @@ outlets:
       fi: Venäjän keskeinen valtiollinen uutistoimisto (venäjänkielinen palvelu).
       sv: Rysslands centrala statliga nyhetsbyrå (ryskspråkig tjänst).
     note:
-      en: 'Read from its own feed only, which holds about three hours of news and cannot be read backwards: collected from 24 September 2026, when hourly reading began. About 05:00–21:00 Moscow time on 25 September is missing.'
-      fi: 'Luetaan vain median omasta syötteestä, jossa on noin kolmen tunnin uutiset ja jota ei voi lukea takautuvasti: kerätty 24.9.2026 alkaen, jolloin tunneittainen lukeminen alkoi. 25.9. puuttuu noin klo 5–21 Moskovan aikaa.'
-      sv: 'Läses bara från mediets eget flöde, som rymmer ungefär tre timmars nyheter och inte kan läsas i efterhand: insamlat från den 24 september 2026, då läsningen varje timme började. Cirka 05.00–21.00 Moskvatid den 25 september saknas.'
+      en: 'Read from its own feed only, which holds about three hours of news and cannot be read backwards: collected from 24 September 2026, when hourly reading began. Missing, in Moscow time: about 04:00–21:00 on 25 September; about 04:30–07:30, 11:00–13:30 and 16:20–17:40 on 26 September and 11:30–12:15 on 27 September, when GitHub started the hourly reading only every few hours.'
+      fi: 'Luetaan vain median omasta syötteestä, jossa on noin kolmen tunnin uutiset ja jota ei voi lukea takautuvasti: kerätty 24.9.2026 alkaen, jolloin tunneittainen lukeminen alkoi. Puuttuu (Moskovan aikaa): 25.9. noin klo 4–21 sekä 26.9. noin klo 4.30–7.30, 11–13.30 ja 16.20–17.40 ja 27.9. noin klo 11.30–12.15, jolloin GitHub käynnisti tunneittaisen lukemisen vain muutaman tunnin välein.'
+      sv: 'Läses bara från mediets eget flöde, som rymmer ungefär tre timmars nyheter och inte kan läsas i efterhand: insamlat från den 24 september 2026, då läsningen varje timme började. Saknas (Moskvatid): cirka 04.00–21.00 den 25 september samt cirka 04.30–07.30, 11.00–13.30 och 16.20–17.40 den 26 september och 11.30–12.15 den 27 september, då GitHub bara startade läsningen med några timmars mellanrum.'
     # Article pages, sitemaps and robots.txt answer 403 ("if you are not a bot…"), and the Internet
-    # Archive's copies are the same 403 page. The feed holds about three hours of news and cannot be read
-    # backwards, so it is read every hour and TASS's Russian service starts with the first hourly run.
+    # Archive's copies are the same 403 page. The feed holds the latest 100 items (about three hours of a
+    # weekday) and cannot be read backwards or paged, so it is read every hour and TASS's Russian service
+    # starts with the first hourly run.
     fetch: false
     poll: true
     article: '^https?://tass\.ru/[a-z0-9_-]+/\d+$'
@@ -308,10 +311,13 @@ outlets:
       fi: Suosittu moskovalainen iltapäivälehti ja valtakunnallinen uutissivusto.
       sv: Populär Moskvatabloid och rikstäckande nyhetssajt.
     note:
-      en: 'MK allows about 15 pages a minute, so many of its articles are kept headline only until later nightly runs read their pages.'
-      fi: 'MK sallii noin 15 sivua minuutissa, joten moni sen artikkeleista on toistaiseksi vain otsikko, kunnes myöhemmät yöajot lukevat sivut.'
-      sv: 'MK tillåter ungefär 15 sidor i minuten, så många av dess artiklar finns tills vidare bara som rubrik tills senare nattliga körningar läser sidorna.'
+      en: 'MK allows about 15 pages a minute, so many of its articles are kept headline only until a later run reads their pages. Since 27 September 2026 it has not answered GitHub''s servers, where Woland''s collection runs, so most of its articles from 26 September on are missing for now.'
+      fi: 'MK sallii noin 15 sivua minuutissa, joten moni sen artikkeleista on toistaiseksi vain otsikko, kunnes myöhempi ajo lukee sivut. 27.9.2026 alkaen se ei ole vastannut GitHubin palvelimille, joilla Wolandin keruu toimii, joten suurin osa sen artikkeleista 26.9. alkaen puuttuu toistaiseksi.'
+      sv: 'MK tillåter ungefär 15 sidor i minuten, så många av dess artiklar finns tills vidare bara som rubrik tills en senare körning läser sidorna. Sedan den 27 september 2026 har den inte svarat GitHubs servrar, där Wolands insamling körs, så de flesta av dess artiklar från och med den 26 september saknas tills vidare.'
     rate: 4.0   # answers more than ~15 pages a minute with 429 "too many requests"
+    # From GitHub's servers every connection timed out on 27 September 2026 (from Finland it answers).
+    # A cap, so that a night of completing headline-only records does not delay the website.
+    budget: 90
     article: '^https://www\.mk\.ru/[a-z0-9/-]+/\d{4}/\d{2}/\d{2}/[^/?#]+\.html$'
     sources:
       - {type: html_list, per: day, url: 'https://www.mk.ru/news/{y}/{m}/{d}/', pages: 1, link: 'https://www\.mk\.ru/[a-z0-9/-]+/{y}/{mm}/{dd}/[^/"?#]+\.html'}
@@ -427,9 +433,10 @@ outlets:
       fi: Rossija Segodnjan kansainvälinen englanninkielinen brändi (aiemmin Sputnik News).
       sv: Rossija Segodnjas internationella engelskspråkiga varumärke (tidigare Sputnik News).
     note:
-      en: 'Blocked on the network in Finland where Woland was set up, so only GitHub''s servers can collect it.'
-      fi: 'Estetty Suomessa siinä verkossa, jossa Woland perustettiin, joten vain GitHubin palvelimet voivat kerätä sitä.'
-      sv: 'Blockerad i det finländska nätverk där Woland sattes upp, så bara GitHubs servrar kan samla in den.'
+      en: 'Blocked on the network in Finland where Woland was set up, and it did not answer GitHub''s servers, where the collection runs, either (27 September 2026): not collected so far.'
+      fi: 'Estetty Suomessa siinä verkossa, jossa Woland perustettiin, eikä se vastannut myöskään GitHubin palvelimille, joilla keruu toimii (27.9.2026): ei toistaiseksi kerätty.'
+      sv: 'Blockerad i det finländska nätverk där Woland sattes upp, och den svarade inte heller GitHubs servrar, där insamlingen körs (27 september 2026): inte insamlad hittills.'
+    # Every connection timed out from GitHub's servers on 27 September 2026, as from Finland.
     article: '^https://sputnikglobe\.com/\d{8}/[^/]+\.html$'
     sources:
       - {type: sitemap, per: day, url: 'https://sputnikglobe.com/sitemap_article.xml?date_start={ymd}&date_end={ymd}'}

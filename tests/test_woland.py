@@ -79,6 +79,20 @@ def test_a_group_needs_its_context_and_skips_excluded_phrases():
     assert "ВСУ" in body["n"]
 
 
+def test_a_gap_stands_for_up_to_three_words_and_a_quotation_mark():
+    lex = lex_of(ru=[{"match": ["иноагент*"], "not": ["внесен* ~ в реестр ~ иноагент*"]},
+                     {"match": ["новороссия"], "not": ["трасс* ~ новороссия"]}])
+    assert lex.find("Дудь (внесен Минюстом России в реестр иноагентов) дал интервью", "ru") == {}
+    assert lex.find("Внесён в реестр лиц, выполняющих функции иноагента", "ru") == {}
+    assert "n" in lex.find("Минюст внес в реестр иноагентов пятерых журналистов", "ru")   # news: active voice
+    assert "n" in lex.find("Законопроект внесен в Госдуму: реестр для иноагентов расширят", "ru")
+    assert lex.find("ДТП на трассе Р-280 «Новороссия»", "ru") == {}
+    assert lex.find('Пробка на трассе "Новороссия"', "ru") == {}
+    assert "n" in lex.find("Новороссия и Малороссия в учебниках", "ru")
+    with pytest.raises(ValueError):
+        lex_of(ru=["~ иноагент*"])
+
+
 def test_the_lexicon_file_resolves_contexts_and_topics():
     narratives = {n.id: n for n in load_lexicon()}
     groups = [p for p in narratives["terrorism"].patterns["ru"] if not isinstance(p, str)]
@@ -117,6 +131,14 @@ LEXICON_TEXTS = [
     ("ru", "Он вернулся к своим после смены политического курса", ""),
     ("ru", "Сменивший пол активист и смена пола в Европе", ""),
     ("ru", "Текст статьи. " + "Слово " * 30 + "теракт на рынке, " + "слово " * 30 + "атака ВСУ", ""),
+    ("ru", "Рэпер Моргенштерн (внесен Минюстом РФ в реестр иноагентов) высказался о возвращении", ""),
+    ("ru", "Ходорковский внесён Минюстом России в список лиц, выполняющих функции иноагента", ""),
+    ("ru", "«Дождь» (признан иноагентом и нежелательной организацией в РФ) и Deutsche Welle", ""),
+    ("ru", "Минюст признал иноагентом политолога и внёс в перечень нежелательных организаций НКО", ""),
+    ("ru", "Авария на 19-м км автодороги Р-280 «Новороссия» и история Новороссии", ""),
+    ("ru", "Никиты массово отказываются от исконно русского отчества; Одесса — исконно русский город", ""),
+    ("ru", "Пенсионерка поверила создателям фейковой интернет-биржи; ВСУ снимают фейковые видео", ""),
+    ("en", "Sarmat, Poseidon and Burevestnik missiles; the Boeing P·8 Poseidon anti·submarine aircraft", ""),
     ("en", "Kiev regime staged a provocation, Moscow says", ""),
     ("en", "Ukrainian troops staged 53 shelling attacks", ""),
     ("en", "Report proves the Bucha massacre was staged by Kiev", ""),
@@ -151,6 +173,24 @@ def test_python_and_browser_match_the_same_words():
         assert whole == py and windowed == py50, t
 
 
+def test_a_framings_matches_can_be_sampled_for_reading(archive):
+    from woland import audit
+    day = date(2026, 9, 10)
+    recs = [{"id": f"ria:{i}", "o": "ria", "u": f"https://ria.ru/20260910/{i}.html", "p": "2026-09-10T10:00:00+03:00",
+             "t": f"Новость {i}", "w": 0, "h": "0" * 16, "r": "2026-09-10T08:00:00Z", "via": "page"} for i in range(40)]
+    for i in range(0, 40, 4):
+        recs[i]["t"] = f"Киевский режим готовит провокацию {i}"                      # counted from the headline
+    recs[1]["d"] = "Лавров назвал действия киевского режима провокацией"               # from the lead
+    recs[2]["kb"] = {"kyiv-regime": "…и снова киевский режим…"}                        # from the text
+    recs[3]["kb"] = {"kyiv-regime": "…слово, которого нет в словаре…"}                 # no longer matches: not counted
+    store.write_day(day, "ria", recs)
+    total, rows = audit.sample("kyiv-regime", n=5, seed=3)
+    assert total == 12 and len(rows) == 5 and rows == audit.sample("kyiv-regime", n=5, seed=3)[1]
+    assert all("[[" in r["excerpt"] and r["fits"] == "" for r in rows)
+    where = {r["id"]: r["where"] for r in audit.sample("kyiv-regime", n=12)[1]}
+    assert where["ria:0"] == "headline" and where["ria:1"] == "lead" and where["ria:2"] == "text"
+
+
 def test_the_glossary_corrects_names_only_where_the_russian_has_them():
     from woland.glossary import Glossary
     g = Glossary()
@@ -163,6 +203,11 @@ def test_the_glossary_corrects_names_only_where_the_russian_has_them():
     assert g.fix("СК Великобритании", "UK police") == "UK police"                    # the United Kingdom
     assert g.fix("Сальдо торгового баланса выросло", "Balance of trade grew") == "Balance of trade grew"
     assert g.fix("Власти Запорожья", "Zaporizhzhzhia, Zaporizhzhia") == "Zaporizhzhia, Zaporizhzhia"
+    assert g.fix("Удар по «Запорожстали» в Запорожье", "Strike on Zaporizhstal in Zaporozhye") == \
+        "Strike on Zaporizhstal in Zaporizhzhia"                                       # the steelworks keep their name
+    assert g.fix("Армия ударила по «Запорожстали»", "The army hit the Zaporizstal") == "The army hit the Zaporizhstal"
+    assert g.fix("Мост открыл красный «Запорожец»", "A red Zaporozhets opened the bridge") == \
+        "A red Zaporozhets opened the bridge"                                          # and so does the car
     assert g.fix("Погода в Москве", "Mask and SBO") == "Mask and SBO"               # nothing to correct
 
 
@@ -173,6 +218,31 @@ def test_rising_words_group_word_forms_by_lemma():
     assert "медведев" in keys("Медведев предупредил") and "медведь" in keys("Медведи вышли к селу")
     assert keys("ТАСС: часть рейсов задержана")[0] != "тасс"                      # outlets' names left out
     assert "part" not in keys("Lavrov to take part in talks")
+
+
+def test_a_rising_word_must_be_more_than_chance(tmp_path):
+    import math
+    assert buildmod.poisson_tail(0, 3.0) == 1.0
+    assert math.isclose(buildmod.poisson_tail(1, 1.0), 1 - math.exp(-1))
+    assert math.isclose(buildmod.poisson_tail(5, 0.5), 1.7212e-4, rel_tol=1e-3)
+    b = buildmod.Builder(tmp_path / "site")
+    day = lambda df, n=200: {"totals": {"tass-en": n}, "df": {"ru": {}, "en": df}, "forms": {"ru": {}, "en": {}},
+                             "posts": {"ru": {}, "en": {w: list(range(c)) for w, c in df.items()}},
+                             "stem_ex": {"ru": {}, "en": {}}}
+    history = {f"2026-09-{i:02d}": day({"near": 2, "lavrov": 4}) for i in range(1, 15)}
+    history["2026-09-15"] = day({"near": 5, "rubio": 9, "lavrov": 5})
+    rising = [r["k"] for r in b.rising(date(2026, 9, 15), history)["en"]]
+    # a name never seen before rises; a common word used five times instead of twice is chance
+    assert rising == ["rubio"]
+
+
+def test_the_run_log_keeps_the_nightly_runs_among_frequent_polls():
+    runs = [{"at": "2026-09-27T01:17:00Z", "mode": "daily"}] + \
+        [{"at": f"2026-09-27T{h:02d}:30:00Z", "mode": "poll"} for h in range(2, 23)] + \
+        [{"at": "2026-09-27T00:05:00Z", "mode": "backfill"}, {"mode": "poll"}]      # finished later; no time
+    shown = buildmod.recent_runs(runs)
+    assert [r["mode"] for r in shown] == ["backfill", "daily"] + ["poll"] * 9
+    assert [r["at"] for r in shown] == sorted(r["at"] for r in shown)
 
 
 def test_snippet_is_short_and_centred():
