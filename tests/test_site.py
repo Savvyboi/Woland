@@ -24,7 +24,11 @@ HEADLINES = [
     ("ria", "Синоптики пообещали тёплую погоду", "Forecasters promised warm weather"),
     ("rt", "Kiev regime staged a provocation, Moscow says", ""),
     ("rt", "Finland closes the border again", ""),
+    ("ria", "Уиткофф прилетел в Москву", "Whitkoff arrived in Moscow"),   # the glossary corrects the name
 ]
+# the nightly run that started at 04:17 Moscow time on 7 September gathered 6 September after it ended
+RUNS = [{"at": "2026-09-07T01:17:00Z", "mode": "daily", "outlets": {"ria": {"range": ["2026-09-01", "2026-09-07"], "new": 3}}},
+        {"at": "2026-09-08T10:43:00Z", "mode": "poll", "outlets": {"tass": {"range": ["2026-09-07", "2026-09-08"], "new": 0}}}]
 
 
 @pytest.fixture(scope="module")
@@ -51,6 +55,10 @@ def built_site(tmp_path_factory):
                     rec["te"] = te
                 recs.append(rec)
             store.write_day(d, outlet, recs)
+    days = [(start + timedelta(days=i)).isoformat() for i in range(8)]
+    store._save("runs.json", RUNS)
+    store._save("coverage.json", {"ria": {d: {"n": 3, "status": "complete"} for d in days},
+                                  "tass": {d: {"n": 0, "status": "feed"} for d in days}})  # its feed not read yet
     out = tmp / "_site"
     buildmod.build(out_dir=str(out))
     yield out
@@ -113,6 +121,56 @@ def test_word_forms_the_archive_has_never_seen(built_site):
 def test_a_prefix_needs_four_letters(built_site):
     (r,) = search(built_site, {"q": "кие*"})
     assert r["error"] == "minchars"
+
+
+@needs_node
+def test_english_searches_find_either_spelling_and_corrected_translations(built_site):
+    kyiv, kiev, witkoff = search(built_site, {"q": "kyiv"}, {"q": "kiev"}, {"q": "witkoff"})
+    assert kyiv["total"] == kiev["total"] == 16                 # "Kiev" in RT's headline and in the translation
+    assert witkoff["total"] == 8 and all(h["te"] == "Witkoff arrived in Moscow" for h in witkoff["hits"])
+
+
+def cite(site, hits):
+    res = subprocess.run([NODE, str(ROOT / "tests" / "js" / "cite_harness.mjs"), str(site), json.dumps(hits)],
+                         capture_output=True, text=True, encoding="utf-8", check=True)
+    return json.loads(res.stdout)
+
+
+@needs_node
+def test_citations_have_unique_keys_and_the_records_fields(built_site):
+    from woland.util import short_hash
+    (day1,) = search(built_site, {"q": "", "from": "2026-09-01", "to": "2026-09-01"})
+    assert day1["total"] == 6
+    out = cite(built_site, [{"month": "2026-09", "i": i} for i in range(6)])
+    keys = [x["key"] for x in out]
+    assert len(set(keys)) == 6                                   # every record has the same fingerprint and day
+    for x in out:
+        r = x["record"]
+        assert r["id"] == f"{r['outlet_id']}:{short_hash(r['url'])}"   # the id of the record in data/
+        assert r["fingerprint"] == "0" * 16 and r["retrieved"] == "2026-09-24" and r["body_words"] in (0, 100)
+        assert r["published"].startswith("2026-09-01T") and r["published"].endswith("+03:00")
+    weather = next(x["record"] for x in out if x["record"]["title"].startswith("Синоптики"))
+    assert weather["source"] == "headline only" and weather["body_words"] == 0
+
+
+def test_digest_examples_carry_what_a_citation_needs(built_site):
+    dg = json.loads((built_site / "data" / "days" / "2026-09-03.json").read_text(encoding="utf-8"))
+    ex = next(n for n in dg["narratives"] if n["id"] == "kyiv-regime")["ex"]
+    assert ex and all(e["h"] == "0" * 16 and e["r"] == "2026-09-24" and e["w"] == 100 for e in ex)
+    assert dg["spark_from"] == "2026-09-01" and len(dg["narratives"][0]["spark_n"]) == 3
+
+
+def test_days_still_being_collected_and_outlets_not_collected(built_site):
+    meta = json.loads((built_site / "data" / "meta.json").read_text(encoding="utf-8"))
+    series = json.loads((built_site / "data" / "series.json").read_text(encoding="utf-8"))
+    assert meta["complete_through"] == "2026-09-06"            # 7 and 8 September: not yet gathered by a nightly run
+    assert [r["mode"] for r in meta["runs"]] == ["daily", "poll"]
+    cov = series["cov"]
+    assert cov["ria"] == "c" * 8                                # complete every day
+    assert cov["rt"] == "p" * 8                                 # articles, but no coverage record: partial
+    assert cov["tass"] == "m" * 8                               # feed-only and empty: its feed was not read
+    assert cov["sputnik"] == "m" * 8                            # nothing at all
+    assert meta["contexts"]["ukraine-war"]["ru"] and meta["narratives"][0]["checked"]["n"] == 25
 
 
 def test_every_page_is_assembled_from_the_partials(built_site):

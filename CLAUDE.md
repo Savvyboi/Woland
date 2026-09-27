@@ -6,9 +6,11 @@ Pages publishes. Read `README.md` for how it works and **`TODO.md` for the open 
 
 ## Layout
 
-- `woland/` — collector and site builder (`python -m woland collect | poll | backfill | translate | build | probe | check`)
+- `woland/` — collector and site builder (`python -m woland collect | poll | backfill | translate | build | probe | check | mtcheck`)
 - `config/outlets.yaml` — the outlets and how each is read (all options documented at the top);
-  `config/lexicon.yaml` — framings and topics
+  `config/lexicon.yaml` — framings and topics, with contexts and exclusions; `config/glossary.yaml` —
+  corrections to the machine translation, applied at build time
+- `docs/lexicon-audit.md` — how many of a random sample of each framing's matches fit its definition
 - `site/` — the website (plain HTML/CSS/JS modules, no build tool); UI strings in `site/assets/js/i18n.js`
 - `data/articles/YYYY/MM/DD/<outlet>.jsonl` — the archive; `data/state/` — coverage, runs, rejected URLs
 - `.github/workflows/` — nightly collection, hourly feeds, build and publish, tests, outlet check
@@ -35,6 +37,12 @@ from GitHub's runners.
   only declines an optional sign-in, as every anonymous visitor does (see `outlets.yaml`).
 - **Keep English, Finnish and Swedish in step**: every UI string exists in all three (`tests/test_site.py`
   checks), and the Method page has a section per language. Finnish and Swedish need a native speaker's review.
+- **Framing counts are pattern matches**, and the site says so. `woland/lexicon.py` and
+  `site/assets/js/lexicon.js` must match the same words (`tests/test_woland.py` compares them). After changing a
+  framing's patterns, read a fresh random sample of its matches and update its `checked` entry
+  (`docs/lexicon-audit.md` says how).
+- **Days still being collected** (after `complete_through` in `meta.json`) stay out of comparisons and averages
+  unless the reader asks for them, and are marked wherever they are shown.
 - **Data**: one record per URL, filed under the Moscow day it was published; only headlines, leads (≤ 240
   characters) and snippets (≤ ~170) are stored — never full texts. `tests/test_data.py` validates every record;
   run it after any change to data or collection code.

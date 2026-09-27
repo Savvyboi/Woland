@@ -9,8 +9,62 @@
 #   сво              exactly the word "сво"
 #   киевск* режим*   a phrase: two consecutive words
 #
+# Words that are propaganda in one context and ordinary news in another are written as a group:
+#   - {match: ['теракт*'], with: ukraine-war}
+#         counts only when the same headline and lead also contain a word from the `ukraine-war` list
+#         below (or from a topic, by its id). In the full text the word must be within 50 characters,
+#         so that the stored snippet shows it.
+#   - {match: ['вброс*'], not: ['вброс* бюллетен*']}
+#         does not count when the match is part of one of these phrases ("ballot stuffing").
+#
+# Matching is lexical: an article that quotes, reports or rebuts a claim counts too. The `checked` entries
+# record how many of a random sample of 25 matches fit the definition when they were read (who read them,
+# and how: docs/lexicon-audit.md); re-check a fresh sample after changing a framing's patterns.
+#
 # Editing this file changes the whole archive at the next build for headlines and leads. Full-text
-# matches are recorded when an article is collected; see README → "Changing the lexicon".
+# matches are recorded when an article is collected; see README → "Configuration".
+
+contexts:
+
+  ukraine-war:
+    label: {en: "Ukraine and the war", fi: "Ukraina ja sota", sv: "Ukraina och kriget"}
+    ru: ['украин*', 'киев*', 'всу', 'зсу', 'зеленск*', 'сбу', 'гур', 'бандеров*', 'неонацист*', 'донбасс*', 'донецк*', 'луганск*', 'днр', 'лнр', 'запорож*', 'херсон*', 'беспилотник*', 'бпла', 'дрон*', 'сво', 'спецоперац*']
+    en: ['ukrain*', 'kiev*', 'kyiv*', 'zelensk*', 'sbu', 'donbas*', 'donetsk', 'lugansk', 'luhansk', 'dpr', 'lpr', 'zaporo*', 'zaporizh*', 'kherson', 'drone*', 'uav*', 'special military operation']
+
+  the-west:
+    label: {en: "the West", fi: "länsi", sv: "väst"}
+    ru: ['запад*', 'сша', 'америк*', 'вашингтон*', 'европ*', 'евросоюз*', 'брюссел*', 'нато', 'британ*', 'лондон*', 'англосакс*', 'прибалт*', 'латви*', 'эстони*', 'литв*', 'польш*', 'поляк*', 'канад*', 'мерц*', 'фрг']
+    en: ['west*', 'usa', 'united states', 'america*', 'washington', 'europe*', 'eu', 'brussels', 'nato', 'brit*', 'london', 'anglo-saxon*', 'baltic*', 'latvia*', 'estonia*', 'lithuania*', 'poland', 'polish', 'canad*', 'merz']
+
+  kyiv-government:
+    label: {en: "Ukraine's president and government", fi: "Ukrainan presidentti ja hallitus", sv: "Ukrainas president och regering"}
+    ru: ['зеленск*', 'президент* украин*', 'украинск* президент*', 'президент* незалежн*', 'глав* украин*', 'глав* киев*', 'главар*', 'лидер* украин*', 'украинск* лидер*', 'лидер* киев*', 'киевск* режим*', 'киевск* власт*', 'украинск* власт*', 'власт* украин*', 'правительств* украин*', 'банков*']
+    en: ['zelensk*', 'president of ukraine', 'ukrainian president', 'kiev* regime*', 'kyiv* regime*', 'ukrainian leader*', 'kiev* authorities', 'kyiv* authorities', 'ukrainian authorities', 'ukrainian government']
+
+  aid:
+    label: {en: "aid and money", fi: "apu ja raha", sv: "bistånd och pengar"}
+    ru: ['помощ*', 'деньг*', 'денег', 'средств*', 'миллиард*', 'миллион*', 'транш*', 'финансир*', 'кредит*', 'налогоплательщик*', 'бюджет*', 'оружи*', 'поставк*', 'евро', 'доллар*']
+    en: ['aid', 'money', 'funds', 'funding', 'billion*', 'million*', 'tranche*', 'financ*', 'loan*', 'taxpayer*', 'budget*', 'weapon*', 'arms', 'supplies']
+
+  russia-and-adversaries:
+    label: {en: "Russia and its adversaries", fi: "Venäjä ja sen vastustajat", sv: "Ryssland och dess motståndare"}
+    ru: ['росси*', 'рф', 'москв*', 'кремл*', 'нато', 'европ*', 'евросоюз*', 'запад*', 'украин*', 'киев*', 'британ*', 'лондон*', 'польш*', 'варшав*', 'прибалт*', 'литв*', 'латви*', 'эстони*', 'финлянди*', 'германи*', 'берлин*', 'франци*', 'париж*']
+    en: ['russia*', 'moscow', 'kremlin', 'nato', 'europe*', 'eu', 'west*', 'ukrain*', 'kiev*', 'kyiv*', 'brit*', 'london', 'poland', 'polish', 'warsaw', 'baltic*', 'lithuania*', 'latvia*', 'estonia*', 'finland', 'german*', 'berlin', 'france', 'french', 'paris']
+
+  strategic-weapons:
+    label: {en: "strategic weapons", fi: "strategiset aseet", sv: "strategiska vapen"}
+    ru: ['ракет*', 'мбр', 'ядерн*', 'боеголовк*', 'торпед*', 'подлодк*', 'подводн* лодк*', 'стратегическ*', 'радиоактивн*']
+    en: ['missile*', 'icbm*', 'nuclear', 'warhead*', 'torpedo*', 'submarine*', 'strategic', 'radioactive']
+
+  annexed-regions:
+    label: {en: "Crimea and the annexed regions", fi: "Krim ja liitetyt alueet", sv: "Krim och de annekterade regionerna"}
+    ru: ['крым*', 'севастопол*', 'полуостров*', 'донбасс*', 'донецк*', 'луганск*', 'днр', 'лнр', 'запорож*', 'херсон*', 'новороссия', 'новороссии', 'новороссию', 'новороссией', 'нов* регион*', 'с россией', 'с родиной']
+    en: ['crimea*', 'sevastopol', 'donbas*', 'donetsk', 'lugansk', 'luhansk', 'dpr', 'lpr', 'zaporo*', 'zaporizh*', 'kherson', 'novorossiya', 'new regions', 'with russia']
+
+  discredit:
+    label: {en: "words that discredit", fi: "halventavat sanat", sv: "misskrediterande ord"}
+    ru: ['ложь', 'лжи', 'ложью', 'лжив*', 'лжец*', 'ложн*', 'лгут', 'лгал*', 'лгать', 'вран*', 'врут', 'наврал*', 'фейк*', 'пропаганд*', 'клевет*', 'дезинформ*', 'замалчива*', 'умалчива*', 'истери*', 'травл*', 'манипул*', 'обман*', 'выдума*', 'сфабрик*', 'вброс*', 'ангажирован*', 'русофоб*', 'цензур*', 'искажа*', 'исказ*', 'шлак']
+    en: ['lie', 'lies', 'lying', 'liar*', 'false*', 'fake*', 'propaganda', 'disinformation', 'misinformation', 'hysteria', 'smear*', 'slander*', 'manipulat*', 'fabricat*', 'distort*', 'russophob*', 'censor*', 'hoax*']
 
 framings:
 
@@ -20,6 +74,7 @@ framings:
       en: The official euphemism for the full-scale war against Ukraine.
       fi: Virallinen kiertoilmaus Ukrainaa vastaan käytävälle täysimittaiselle sodalle.
       sv: Den officiella eufemismen för det fullskaliga kriget mot Ukraina.
+    checked: {n: 25, fit: 25, date: '2026-09-27'}
     ru: ['специальн* военн* операц*', 'сво', 'спецоперац*']
     en: ['special military operation*', 'special operation']
 
@@ -29,8 +84,33 @@ framings:
       en: Casting Ukraine, its army or its allies as Nazis or fascists; the stated war aim of 'denazification'.
       fi: Ukrainan, sen armeijan tai liittolaisten kuvaaminen natseina tai fasisteina; sodan julistettu tavoite ”denatsifikaatio”.
       sv: Att framställa Ukraina, dess armé eller allierade som nazister eller fascister; krigets uttalade mål ”denazifiering”.
-    ru: ['нацист*', 'неонацист*', 'нео-нацист*', 'нацизм*', 'неонацизм*', 'денацифик*', 'фашист*', 'фашизм*', 'неофашист*', 'бандеров*', 'укронацист*', 'укрофашист*', 'нацбат*']
-    en: ['nazi*', 'neo-nazi*', 'neonazi*', 'denazif*', 'fascis*', 'neofascis*', 'banderite*', 'banderist*', 'bandera']
+    checked: {n: 25, fit: 22, date: '2026-09-27'}
+    # The plain words also describe the Second World War, which the Russian press recalls almost daily:
+    # they count only next to Ukraine, the war or the West, and not in the stock phrases of war memory.
+    ru:
+      - 'неонацист*'
+      - 'нео-нацист*'
+      - 'неонацизм*'
+      - 'денацифик*'
+      - 'неофашист*'
+      - 'бандеров*'
+      - 'укронацист*'
+      - 'укрофашист*'
+      - 'нацбат*'
+      - match: ['нацист*', 'нацизм*', 'фашист*', 'фашизм*']
+        with: [ukraine-war, the-west]
+        not: ['немецко-фашистск*', 'немецк* фашист*', 'фашистск* захватчик*', 'нацистск* захватчик*', 'фашистск* оккупац*', 'нацистск* оккупац*', 'фашистск* оккупант*', 'нацистск* оккупант*', 'фашистск* концлагер*', 'нацистск* концлагер*', 'узник* фашистск*', 'узник* нацистск*', 'победа над фашизмом', 'победы над фашизмом', 'победу над фашизмом', 'победе над фашизмом', 'победой над фашизмом', 'победа над нацизмом', 'победы над нацизмом', 'победу над нацизмом', 'победе над нацизмом', 'победой над нацизмом', 'разгром* фашизм*', 'разгром* нацизм*']
+    en:
+      - 'neo-nazi*'
+      - 'neonazi*'
+      - 'denazif*'
+      - 'neofascis*'
+      - 'banderite*'
+      - 'banderist*'
+      - 'bandera'
+      - match: ['nazi*', 'fascis*']
+        with: [ukraine-war, the-west]
+        not: ['victory over nazism', 'victory over fascism', 'defeat of nazism', 'defeat of fascism', 'defeated nazism', 'defeated fascism', 'nazi occupation', 'nazi invaders', 'nazi concentration camp*']
 
   - id: kyiv-regime
     label: {en: "'The Kyiv regime'", fi: "”Kiovan hallinto”", sv: "”Kievregimen”"}
@@ -38,8 +118,21 @@ framings:
       en: "Refusing to call Ukraine's government a government: 'Kyiv regime', 'Zelensky regime', 'junta'."
       fi: Ukrainan hallituksen kutsuminen ”hallinnoksi” tai ”juntaksi” – ”Kiovan hallinto”, ”Zelenskyin hallinto”.
       sv: Att vägra kalla Ukrainas regering för regering – ”Kievregimen”, ”Zelenskyjregimen”, ”juntan”.
-    ru: ['киевск* режим*', 'режим* зеленск*', 'киевск* хунт*', 'неонацистск* режим*', 'преступн* режим*', 'марионеточн* режим*', 'бандеровск* режим*']
-    en: ['kiev* regime*', 'kyiv* regime*', 'zelensky* regime*', 'kiev junta', 'neo-nazi regime*', 'puppet regime*', 'criminal regime*']
+    checked: {n: 25, fit: 25, date: '2026-09-27'}
+    ru:
+      - 'киевск* режим*'
+      - 'режим* зеленск*'
+      - 'киевск* хунт*'
+      - 'неонацистск* режим*'
+      - 'бандеровск* режим*'
+      - {match: ['преступн* режим*', 'марионеточн* режим*'], with: ukraine-war}
+    en:
+      - 'kiev* regime*'
+      - 'kyiv* regime*'
+      - 'zelensky* regime*'
+      - 'kiev junta'
+      - 'neo-nazi regime*'
+      - {match: ['puppet regime*', 'criminal regime*'], with: ukraine-war}
 
   - id: illegitimacy
     label: {en: "Zelensky 'illegitimate'", fi: "Zelenskyi ”epälegitiimi”", sv: "Zelenskyj ”illegitim”"}
@@ -47,8 +140,16 @@ framings:
       en: Claims that Ukraine's president lost his legitimacy when elections were postponed under martial law.
       fi: Väitteet, että Ukrainan presidentti menetti legitimiteettinsä, kun vaalit siirrettiin sotatilan vuoksi.
       sv: Påståenden om att Ukrainas president förlorade sin legitimitet när valen sköts upp under krigslagar.
-    ru: ['нелегитимн*', 'просроченн* президент*', 'узурпатор*', 'узурпаци*', 'бывш* президент* украин*']
-    en: ['illegitima*', 'expired president', 'usurp*', 'former president zelensky']
+    checked: {n: 25, fit: 25, date: '2026-09-27'}
+    # "Illegitimate" is also said of sanctions, elections and airspace notices: only next to Ukraine's
+    # president or government. ("Former president of Ukraine" found Kuchma, Yanukovych and Poroshenko.)
+    ru:
+      - 'просроченн* президент*'
+      - {match: ['нелегитимн*', 'узурпатор*', 'узурпаци*'], with: kyiv-government}
+    en:
+      - 'expired president'
+      - 'former president zelensky'
+      - {match: ['illegitima*', 'usurp*'], with: kyiv-government}
 
   - id: collective-west
     label: {en: "'Collective West' & 'Anglo-Saxons'", fi: "”Kollektiivinen länsi” ja ”anglosaksit”", sv: "”Det kollektiva väst” och ”anglosaxarna”"}
@@ -56,8 +157,20 @@ framings:
       en: The West as one hostile bloc steering events; the 'Anglo-Saxons' as puppet-masters.
       fi: Länsi yhtenä vihamielisenä blokkina, joka ohjailee tapahtumia; ”anglosaksit” nukkemestareina.
       sv: Väst som ett enda fientligt block som styr händelserna; ”anglosaxarna” som marionettmästare.
-    ru: ['коллективн* запад*', 'англосакс*', 'западн* куратор*', 'западн* хозя*', 'куратор* киев*', 'кукловод*']
-    en: ['collective west', 'anglo-saxon*', 'western handlers', 'western masters', 'puppet master*', 'puppeteer*']
+    checked: {n: 25, fit: 25, date: '2026-09-27'}
+    ru:
+      - 'коллективн* запад*'
+      - 'англосакс*'
+      - 'западн* куратор*'
+      - 'западн* хозя*'
+      - 'куратор* киев*'
+      - {match: ['кукловод*'], with: [ukraine-war, the-west]}
+    en:
+      - 'collective west'
+      - 'anglo-saxon*'
+      - 'western handlers'
+      - 'western masters'
+      - {match: ['puppet master*', 'puppeteer*'], with: [ukraine-war, the-west]}
 
   - id: russophobia
     label: {en: "Russophobia", fi: "Russofobia", sv: "Russofobi"}
@@ -65,6 +178,7 @@ framings:
       en: Criticism of Russia recast as irrational hatred of Russians, including 'cancelling Russian culture'.
       fi: Venäjän arvostelu esitetään järjettömänä vihana venäläisiä kohtaan, myös ”venäläisen kulttuurin kanselointina”.
       sv: Kritik mot Ryssland omtolkas som irrationellt hat mot ryssar, inklusive att ”cancellera rysk kultur”.
+    checked: {n: 25, fit: 25, date: '2026-09-27'}
     ru: ['русофоб*', 'антироссийск* истери*', 'отмен* русск* культур*', 'культур* отмен*', 'дискриминац* русск*', 'дискриминац* русскоязычн*']
     en: ['russophob*', 'anti-russian hysteria', 'cancel* russian culture', 'discrimination against russian*']
 
@@ -74,8 +188,29 @@ framings:
       en: Claims, often in advance, that incidents are staged provocations or false-flag operations.
       fi: Usein ennakoivat väitteet, että tapahtumat ovat lavastettuja provokaatioita tai false flag -operaatioita.
       sv: Ofta förebyggande påståenden om att händelser är iscensatta provokationer eller false flag-operationer.
-    ru: ['провокаци*', 'провокатор*', 'инсценир*', 'инсценировк*', 'постановочн*', 'ложн* флаг*']
-    en: ['provocation*', 'provocateur*', 'staged', 'false flag*', 'false-flag*']
+    checked: {n: 25, fit: 22, date: '2026-09-27'}
+    # "Staged" is also a staged robbery or a stage adaptation (инсценировка), and TASS English "stages"
+    # shelling attacks: only next to Ukraine, the war or the West.
+    # "Провокационный" is also a pop video, a headline or a question: the adjective only next to Ukraine,
+    # the war or the West.
+    ru:
+      - 'провокация'
+      - 'провокации'
+      - 'провокацию'
+      - 'провокацией'
+      - 'провокаций'
+      - 'провокациям'
+      - 'провокациями'
+      - 'провокациях'
+      - 'провокатор*'
+      - 'ложн* флаг*'
+      - {match: ['провокационн*', 'инсценир*', 'инсценировк*', 'постановочн*'], with: [ukraine-war, the-west]}
+    en:
+      - 'provocation*'
+      - 'provocateur*'
+      - 'false flag*'
+      - 'false-flag*'
+      - {match: ['staged incident*', 'staged provocation*', 'staged performance*', 'staged video*', 'staged footage', 'staged bucha', 'was staged', 'were staged'], with: [ukraine-war, the-west]}
 
   - id: western-fakes
     label: {en: "'Western fakes' & information war", fi: "”Lännen valeuutiset” ja informaatiosota", sv: "”Västliga fejknyheter” och informationskrig"}
@@ -83,8 +218,26 @@ framings:
       en: Dismissing reports as Western 'fakes' or 'information war'; independent media as an enemy weapon.
       fi: Uutisten kuittaaminen lännen ”valeuutisina” tai ”informaatiosotana”; riippumaton media vihollisen aseena.
       sv: Att avfärda rapporter som västliga ”fejknyheter” eller ”informationskrig”; oberoende medier som fiendens vapen.
-    ru: ['фейк*', 'информационн* войн*', 'информационн* атак*', 'вброс*', 'западн* сми', 'западн* пропаганд*', 'западн* медиа', 'дезинформаци*']
-    en: ['fake*', 'information war*', 'information attack*', 'western media', 'western propaganda', 'mainstream media', 'disinformation']
+    checked: {n: 25, fit: 17, date: '2026-09-27'}
+    # Not counted: fake accounts and letters used by fraudsters, ballot stuffing and hockey face-offs (вброс),
+    # Ukraine's own "Centre for Countering Disinformation", and Western accusations of Russian
+    # disinformation. "Western media" is also a routine source ("according to Western media"): only
+    # when the text discredits them.
+    ru:
+      - 'информационн* войн*'
+      - 'информационн* атак*'
+      - 'западн* пропаганд*'
+      - {match: ['фейк*'], not: ['фейков* аккаунт*', 'фейков* страниц*', 'фейков* профил*', 'фейков* сайт*', 'фейков* письм*', 'фейков* писем', 'фейков* звонк*', 'фейков* магазин*', 'фейков* приложени*', 'фейков* ссылк*', 'фейков* чат*', 'фейков* номер*', 'фейков* взлом*', 'фейков* курьер*', 'фейков* сообщени* от имени', 'фейков* постановлени*', 'фейков* фото медвед*']}
+      - {match: ['вброс*'], not: ['вброс* бюллетен*', 'вброс* на участк*', 'вброс* на избирательн*', 'вброс* шайб*', 'вброс* мяч*']}
+      - {match: ['дезинформаци*'], not: ['центр* противодействи* дезинформаци*', 'пророссийск* дезинформаци*', 'российск* дезинформаци*', 'кремлевск* дезинформаци*', 'гибридн* атак* и дезинформаци*']}
+      - {match: ['западн* сми', 'западн* медиа'], with: discredit}
+    en:
+      - 'information war*'
+      - 'information attack*'
+      - 'western propaganda'
+      - {match: ['fake*'], not: ['fake account*', 'fake page*', 'fake profile*', 'fake website*', 'fake email*', 'fake call*', 'fake app*', 'fake government request*']}
+      - {match: ['disinformation'], not: ['russian disinformation', 'pro-russian disinformation', 'kremlin disinformation', 'center for countering disinformation', 'centre for countering disinformation']}
+      - {match: ['western media', 'mainstream media'], with: discredit}
 
   - id: terrorism
     label: {en: "Ukraine as 'terrorist state'", fi: "Ukraina ”terroristivaltiona”", sv: "Ukraina som ”terroriststat”"}
@@ -92,8 +245,18 @@ framings:
       en: Labelling Ukrainian military action as terrorism and Ukraine as a terrorist state.
       fi: Ukrainan sotilaallisten toimien leimaaminen terrorismiksi ja Ukrainan terroristivaltioksi.
       sv: Att stämpla ukrainska militära handlingar som terrorism och Ukraina som en terroriststat.
-    ru: ['террористическ* режим*', 'террористическ* государств*', 'киевск* террорист*', 'украинск* террорист*', 'террористическ* атак*', 'террористическ* акт*', 'теракт*', 'терроризм* киев*']
-    en: ['terrorist regime*', 'terrorist state', 'ukrainian terrorist*', 'kiev* terrorist*', 'terrorist attack*', 'terror attack*', 'act* of terror*']
+    checked: {n: 25, fit: 23, date: '2026-09-27'}
+    # A terrorist attack in Dagestan, Pakistan or on 11 September is not this framing: "terrorist act" and
+    # "terrorist state" count only next to Ukraine, its army, drones or the war.
+    ru:
+      - 'киевск* террорист*'
+      - 'украинск* террорист*'
+      - 'терроризм* киев*'
+      - {match: ['теракт*', 'террористическ* акт*', 'террористическ* атак*', 'террористическ* режим*', 'террористическ* государств*'], with: ukraine-war}
+    en:
+      - 'ukrainian terrorist*'
+      - 'kiev* terrorist*'
+      - {match: ['terrorist attack*', 'terror attack*', 'act* of terror*', 'terrorist regime*', 'terrorist state'], with: ukraine-war}
 
   - id: mercenaries
     label: {en: "'Foreign mercenaries'", fi: "”Ulkomaiset palkkasoturit”", sv: "”Utländska legosoldater”"}
@@ -101,8 +264,19 @@ framings:
       en: Presenting foreign volunteers and Western involvement as mercenaries fighting for Kyiv.
       fi: Ulkomaisten vapaaehtoisten ja lännen osallistumisen esittäminen Kiovan palkkasotureina.
       sv: Att framställa utländska frivilliga och västligt engagemang som legosoldater i Kievs tjänst.
-    ru: ['наемник*', 'иностранн* легион*', 'иностранн* боевик*', 'западн* инструктор*', 'натовск* инструктор*']
-    en: ['mercenar*', 'foreign legion', 'foreign fighters', 'western instructors', 'nato instructors']
+    checked: {n: 25, fit: 21, date: '2026-09-27'}
+    ru:
+      - 'наемник*'
+      - 'иностранн* легион*'
+      - 'западн* инструктор*'
+      - 'натовск* инструктор*'
+      - {match: ['иностранн* боевик*'], with: ukraine-war}
+    en:
+      - 'mercenar*'
+      - 'foreign legion'
+      - 'western instructors'
+      - 'nato instructors'
+      - {match: ['foreign fighters'], with: ukraine-war}
 
   - id: biolabs
     label: {en: "US 'biolabs'", fi: "Yhdysvaltain ”biolaboratoriot”", sv: "USA:s ”biolaboratorier”"}
@@ -110,8 +284,15 @@ framings:
       en: The long-running claim of secret US military biological laboratories in Ukraine and elsewhere.
       fi: Pitkäikäinen väite Yhdysvaltain salaisista sotilaallisista biolaboratorioista Ukrainassa ja muualla.
       sv: Det långlivade påståendet om hemliga amerikanska militära biolaboratorier i Ukraina och på andra håll.
-    ru: ['биолаборатор*', 'биологическ* лаборатор*', 'военно-биологическ*', 'биологическ* оружи*']
-    en: ['biolab*', 'bio-lab*', 'biological laborator*', 'biological weapon*', 'bioweapon*', 'military-biological']
+    checked: {n: 25, fit: 24, date: '2026-09-27'}
+    # A biolab is also an AI company's drug laboratory, and "biological weapons" were mostly North Korea's
+    # law and Baltic insurance policies: laboratories only next to Ukraine or the West, weapons not at all.
+    ru:
+      - 'военно-биологическ*'
+      - {match: ['биолаборатор*', 'биологическ* лаборатор*'], with: [ukraine-war, the-west]}
+    en:
+      - 'military-biological'
+      - {match: ['biolab*', 'bio-lab*', 'biological laborator*'], with: [ukraine-war, the-west]}
 
   - id: nuclear-threat
     label: {en: "Nuclear threats & 'superweapons'", fi: "Ydinuhkailu ja ”superaseet”", sv: "Kärnvapenhot och ”supervapen”"}
@@ -119,8 +300,26 @@ framings:
       en: Nuclear sabre-rattling, 'dirty bomb' claims and the celebration of new strategic weapons.
       fi: Ydinaseilla uhkailu, ”likaisen pommin” väitteet ja uusien strategisten aseiden ylistys.
       sv: Kärnvapenskrammel, påståenden om ”smutsiga bomber” och hyllningar av nya strategiska vapen.
-    ru: ['ядерн* оружи*', 'ядерн* удар*', 'ядерн* войн*', 'ядерн* ответ*', 'ядерн* доктрин*', 'ядерн* сдерживани*', 'ядерн* испытани*', 'тактическ* ядерн*', 'грязн* бомб*', 'сармат*', 'орешник*', 'буревестник*', 'посейдон*']
-    en: ['nuclear weapon*', 'nuclear strike*', 'nuclear war*', 'nuclear response', 'nuclear doctrine', 'nuclear deterrence', 'nuclear test*', 'tactical nuclear', 'dirty bomb*', 'sarmat', 'oreshnik', 'burevestnik', 'poseidon']
+    checked: {n: 25, fit: 18, date: '2026-09-27'}
+    # Nuclear weapons, deterrence and tests in general (Iran, the test-ban treaty, France's deterrent) are
+    # the topic "Nuclear weapons" below. A Burevestnik is also a drone regiment and a dacha cooperative,
+    # a Poseidon also a US patrol aircraft: only next to weapons words.
+    # Nuclear strikes, war and use are also the United States and Iran: only next to Russia, Europe, NATO or
+    # Ukraine. Sarmat is also an ancient people and a training ground.
+    ru:
+      - 'ядерн* доктрин*'
+      - 'грязн* бомб*'
+      - 'радиоактивн* пепел'
+      - 'радиоактивн* пепл*'
+      - 'орешник*'
+      - {match: ['ядерн* удар*', 'ядерн* войн*', 'ядерн* ответ*', 'тактическ* ядерн*', 'применени* ядерн*', 'примен* ядерн*'], with: russia-and-adversaries}
+      - {match: ['сармат', 'сармата', 'сармату', 'сарматом', 'сармате', 'буревестник*', 'посейдон*'], with: strategic-weapons}
+    en:
+      - 'nuclear doctrine'
+      - 'dirty bomb*'
+      - 'oreshnik'
+      - {match: ['nuclear strike*', 'nuclear war*', 'nuclear response', 'tactical nuclear', 'use of nuclear', 'use nuclear'], with: russia-and-adversaries}
+      - {match: ['sarmat', 'burevestnik', 'poseidon'], with: strategic-weapons}
 
   - id: genocide-claims
     label: {en: "'Genocide' of Russians", fi: "Venäläisten ”kansanmurha”", sv: "”Folkmord” på ryssar"}
@@ -128,6 +327,7 @@ framings:
       en: Claims of genocide against Russians, Russian speakers, Donbas or 'the Soviet people', used to justify the war.
       fi: Väitteet kansanmurhasta venäläisiä, venäjänkielisiä, Donbasia tai ”neuvostokansaa” vastaan – sodan oikeutus.
       sv: Påståenden om folkmord på ryssar, rysktalande, Donbas eller ”det sovjetiska folket”, som rättfärdigar kriget.
+    checked: {n: 25, fit: 24, date: '2026-09-27'}
     ru: ['геноцид* донбасс*', 'геноцид* русск*', 'геноцид* русскоязычн*', 'геноцид* жител* донбасс*', 'геноцид* мирн*', 'геноцид* советск* народ*']
     en: ['genocide in donbas*', 'genocide of russians', 'genocide against russian*', 'genocide of the russian*', 'genocide of russian-speak*', 'genocide of the soviet people']
 
@@ -137,7 +337,8 @@ framings:
       en: Russia as guardian of 'traditional values' against a morally corrupt West.
       fi: Venäjä ”perinteisten arvojen” puolustajana moraalisesti rappeutunutta länttä vastaan.
       sv: Ryssland som väktare av ”traditionella värderingar” mot ett moraliskt fördärvat väst.
-    ru: ['традиционн* ценност*', 'духовно-нравственн*', 'традиционн* семейн*', 'деструктивн* идеолог*']
+    checked: {n: 25, fit: 24, date: '2026-09-27'}
+    ru: ['традиционн* ценност*', 'традиционн* семейн* ценност*', 'духовно-нравственн*', 'деструктивн* идеолог*']
     en: ['traditional values', 'family values', 'spiritual and moral', 'destructive ideolog*']
 
   - id: western-decadence
@@ -146,8 +347,30 @@ framings:
       en: The West as satanic and decadent; LGBT people as an extremist threat (Russia has banned the 'LGBT movement' as extremist).
       fi: Länsi saatanallisena ja rappeutuneena; LGBT-ihmiset ääriliikkeen uhkana (Venäjä on kieltänyt ”LGBT-liikkeen” ääriliikkeenä).
       sv: Väst som sataniskt och dekadent; hbtq-personer som ett extremistiskt hot (Ryssland har förbjudit ”hbtq-rörelsen” som extremistisk).
-    ru: ['сатанизм*', 'сатанист*', 'сатанинск*', 'лгбт*', 'гей-пропаганд*', 'пропаганд* лгбт*', 'содомит*', 'гейроп*', 'гендерн* идеолог*', 'трансгендер*', 'смен* пол*']
-    en: ['satanis*', 'satanic', 'lgbt*', 'gay propaganda', 'gender ideology', 'transgender*', 'sex change*', 'gay europe']
+    checked: {n: 25, fit: 20, date: '2026-09-27'}
+    # "Satanic" is mostly crime news (sects, symbols on a blogger): only next to the West or Ukraine. The note
+    # that Russian law requires wherever LGBT people are mentioned ("the LGBT movement is recognised as
+    # extremist") does not count, like the note on Meta under "Enemies within".
+    # "Смена пола" is a sex change; "смена политического курса" is not.
+    ru:
+      - {match: ['лгбт*'], not: ['движени* лгбт* признан*', 'лгбт-движени* признан*']}
+      - 'гей-пропаганд*'
+      - 'пропаганд* лгбт*'
+      - 'содомит*'
+      - 'гейроп*'
+      - 'гендерн* идеолог*'
+      - 'трансгендер*'
+      - 'смен* пол'
+      - 'смен* пола'
+      - {match: ['сатанизм*', 'сатанист*', 'сатанинск*'], with: [the-west, ukraine-war]}
+    en:
+      - 'lgbt*'
+      - 'gay propaganda'
+      - 'gender ideology'
+      - 'transgender*'
+      - 'sex change*'
+      - 'gay europe'
+      - {match: ['satanis*', 'satanic'], with: [the-west, ukraine-war]}
 
   - id: russian-world
     label: {en: "'Russian world' & 'historical lands'", fi: "”Venäläinen maailma” ja ”historialliset maat”", sv: "”Den ryska världen” och ”historiska länder”"}
@@ -155,7 +378,9 @@ framings:
       en: Irredentist framing of Ukrainian land as historically Russian; the 'Russian world' doctrine.
       fi: Irredentistinen kehys, jossa Ukrainan maat esitetään historiallisesti venäläisinä; ”venäläisen maailman” oppi.
       sv: Irredentistisk inramning av ukrainsk mark som historiskt rysk; doktrinen om ”den ryska världen”.
-    ru: ['русск* мир*', 'историческ* земл*', 'исконно русск*', 'исторически русск*', 'новоросси*', 'малоросс*', 'искусственн* государств*']
+    checked: {n: 25, fit: 21, date: '2026-09-27'}
+    # Новороссия, not the port city of Новороссийск.
+    ru: [{match: ['исконно русск*'], not: ['исконно русск* слов*']}, 'русск* мир*', 'историческ* земл*', 'исторически русск*', 'новороссия', 'новороссии', 'новороссию', 'новороссией', 'малоросс*', 'искусственн* государств*']
     en: ['russian world', 'historical russian lands', 'historic russian lands', 'historically russian', 'novorossiya', 'novorossia', 'artificial state', 'little russia']
 
   - id: multipolarity
@@ -164,6 +389,7 @@ framings:
       en: Russia as leader of a 'global majority' resisting US-led hegemony and 'neo-colonialism'.
       fi: Venäjä ”globaalin enemmistön” johtajana Yhdysvaltain johtamaa hegemoniaa ja ”uuskolonialismia” vastaan.
       sv: Ryssland som ledare för en ”global majoritet” mot USA-ledd hegemoni och ”nykolonialism”.
+    checked: {n: 25, fit: 23, date: '2026-09-27'}
     ru: ['многополярн*', 'однополярн*', 'гегемони*', 'неоколониал*', 'неоколониз*', 'миров* большинств*', 'глобальн* юг*', 'глобальн* большинств*']
     en: ['multipolar*', 'unipolar*', 'hegemon*', 'neocolonial*', 'neo-colonial*', 'global majority', 'global south']
 
@@ -173,6 +399,7 @@ framings:
       en: Stories of European deindustrialisation and collapse, freezing homes and the end of the dollar.
       fi: Tarinoita Euroopan teollisuuden alasajosta ja romahduksesta, kylmistä kodeista ja dollarin lopusta.
       sv: Berättelser om Europas avindustrialisering och kollaps, frysande hem och dollarns slut.
+    checked: {n: 25, fit: 21, date: '2026-09-27'}
     ru: ['деиндустриализ*', 'закат* европ*', 'закат* запад*', 'упад* запад*', 'крах* доллар*', 'крах* евро*', 'дедолларизац*', 'замерза* европ*', 'европ* замерз*']
     en: ['deindustriali*', 'decline of the west', 'decline of europe', 'collapse of the dollar', 'dedollari*', 'de-dollari*', 'death of the dollar', 'freezing europe']
 
@@ -182,10 +409,29 @@ framings:
       en: Branding critics, émigrés and independent media as 'foreign agents', 'undesirable', 'extremist' or a 'fifth column'.
       fi: Kriitikoiden, emigranttien ja riippumattoman median leimaaminen ”ulkomaisiksi agenteiksi”, ”epätoivotuiksi”, ”ääriliikkeiksi” tai ”viidenneksi kolonnaksi”.
       sv: Att stämpla kritiker, emigranter och oberoende medier som ”utländska agenter”, ”oönskade”, ”extremister” eller en ”femte kolonn”.
+    checked: {n: 25, fit: 16, date: '2026-09-27'}
     # "extremist organisation" is left out on purpose: Russian law makes outlets add it to every
-    # mention of Meta, Instagram or Facebook, which would drown the signal.
-    ru: ['иноагент*', 'иностранн* агент*', 'нежелательн* организац*', 'пят* колонн*', 'релокант*', 'национал-предател*', 'предател*']
-    en: ['foreign agent*', 'undesirable organi*', 'fifth column', 'traitor*', 'relocant*']
+    # mention of Meta, Instagram or Facebook, which would drown the signal. "Traitor" on its own is a
+    # film title, South Korea on Zelensky or the Rada on Russian songs: only a traitor to the motherland.
+    # The label Russian law requires after every name on the foreign-agent register ("признан в РФ
+    # иностранным агентом", "внесён Минюстом в реестр иноагентов") does not count either: in the audit
+    # most matches were that label under stories about something else. News of a designation
+    # ("признали иноагентом") does.
+    ru:
+      - match: ['иноагент*', 'иностранн* агент*']
+        not: ['признан* в рф иностранн* агент*', 'признан* в рф иноагент*', 'признан* в рф сми-иноагент*', 'признан* в росси* иностранн* агент*', 'признан* в росси* иноагент*', 'признан* в росси* сми-иноагент*', 'признан* иностранн* агент*', 'признан* иноагент*', 'признан* сми-иноагент*', 'внесен* минюст* рф в реестр иноагент*', 'внесен* минюст* рф в реестр иностранн* агент*', 'внесен* минюст* росси* в реестр иноагент*', 'внесен* минюст* росси* в реестр иностранн* агент*', 'включен* минюст* росси* в реестр иностранн* агент*', 'включен* минюст* рф в реестр иностранн* агент*', 'включен* минюст* росси* в реестр иноагент*', 'включен* министерств* юстиции в реестр иностранн* агент*', 'внесен* в рф в реестр иноагент*', 'в рф внесен* в реестр иноагент*']
+      - 'нежелательн* организац*'
+      - 'пят* колонн*'
+      - 'релокант*'
+      - 'национал-предател*'
+      - 'предател* родин*'
+      - 'предательств* родин*'
+      - 'предал* родин*'
+      - 'предавш* родин*'
+      - 'предател* россии'
+      - 'предал* россию'
+      - 'предавш* россию'
+    en: ['foreign agent*', 'undesirable organi*', 'fifth column', 'traitor* to russia', 'traitor* to the motherland', 'national traitor*', 'relocant*']
 
   - id: blame-for-war
     label: {en: "Blaming Kyiv & the West for no peace", fi: "Rauhan puute Kiovan ja lännen syyksi", sv: "Kiev och väst skylls för att freden uteblir"}
@@ -193,8 +439,28 @@ framings:
       en: Kyiv 'incapable of negotiating', the West as the 'party of war', the lost 'Istanbul agreements' and 'root causes'.
       fi: Kiova ”kyvytön neuvottelemaan”, länsi ”sodan puolueena”, menetetyt ”Istanbulin sopimukset” ja ”perimmäiset syyt”.
       sv: Kiev ”oförmöget att förhandla”, väst som ”krigspartiet”, de förlorade ”Istanbulavtalen” och ”grundorsakerna”.
-    ru: ['недоговороспособн*', 'срыв* переговор*', 'сорва* переговор*', 'отказ* от переговор*', 'стамбульск* договоренност*', 'стамбульск* соглашени*', 'парти* войн*', 'первопричин*']
-    en: ['incapable of negotiat*', 'not capable of negotiat*', 'refus* to negotiat*', 'derail* negotiat*', 'derail* the talks', 'istanbul agreement*', 'istanbul accords', 'party of war', 'war party', 'root causes']
+    checked: {n: 25, fit: 24, date: '2026-09-27'}
+    # Iran and the United States also break off talks, global warming has root causes too, and a partisan
+    # war (партизанская война) is not the party of war.
+    ru:
+      - 'недоговороспособн*'
+      - 'стамбульск* договоренност*'
+      - 'стамбульск* соглашени*'
+      - 'партия войны'
+      - 'партии войны'
+      - 'партию войны'
+      - 'партией войны'
+      - {match: ['срыв* переговор*', 'сорва* переговор*', 'отказ* от переговор*'], with: [ukraine-war, the-west]}
+      - {match: ['первопричин*'], with: [ukraine-war, negotiations]}
+    en:
+      - 'incapable of negotiat*'
+      - 'not capable of negotiat*'
+      - 'istanbul agreement*'
+      - 'istanbul accords'
+      - 'party of war'
+      - 'war party'
+      - {match: ['refus* to negotiat*', 'derail* negotiat*', 'derail* the talks'], with: [ukraine-war, the-west]}
+      - {match: ['root causes'], with: [ukraine-war, negotiations]}
 
   - id: stolen-aid
     label: {en: "Stolen aid & black-market arms", fi: "Varastettu apu ja pimeät aseet", sv: "Stulet bistånd och svarta vapen"}
@@ -202,8 +468,31 @@ framings:
       en: Western aid to Ukraine portrayed as stolen, embezzled or resold on the black market.
       fi: Länsimaiden apu Ukrainalle esitetään varastettuna, kavallettuna tai pimeillä markkinoilla myytynä.
       sv: Västligt bistånd till Ukraina framställs som stulet, förskingrat eller sålt på svarta marknaden.
-    ru: ['разворовыва*', 'разворован*', 'черн* рын*', 'перепрода*', 'распил*', 'украденн* помощ*', 'коррупци* на украин*', 'коррупци* в киев*']
-    en: ['black market*', 'resold', 'resell*', 'embezzl*', 'stolen aid', 'corruption in ukraine', 'ukrainian corruption']
+    checked: {n: 25, fit: 19, date: '2026-09-27'}
+    # Resale was concert tickets and flats, "распил" sawn safes and timber: only resold arms or aid, and a
+    # budget "sawn up"; black markets and embezzlement only next to Ukraine or the West; corruption in
+    # Ukraine only where aid or money is concerned (not every corruption story is about aid).
+    ru:
+      - 'украденн* помощ*'
+      - {match: ['коррупци* на украин*', 'коррупци* в киев*'], with: aid}
+      - 'перепрода* оружи*'
+      - 'оружи* перепрода*'
+      - 'перепрода* вооружени*'
+      - 'перепрода* западн*'
+      - 'перепрода* помощ*'
+      - 'перепрода* техник*'
+      - 'распил* бюджет*'
+      - 'распил* средств*'
+      - 'распил* помощ*'
+      - 'распил* денег'
+      - 'деньги распил*'
+      - {match: ['черн* рын*'], with: ukraine-war}
+      - {match: ['разворовыва*', 'разворован*'], with: [ukraine-war, the-west]}
+    en:
+      - 'stolen aid'
+      - {match: ['corruption in ukraine', 'ukrainian corruption'], with: aid}
+      - {match: ['black market*', 'resold', 'resell*'], with: ukraine-war}
+      - {match: ['embezzl*'], with: [ukraine-war, the-west]}
 
   - id: forced-mobilization
     label: {en: "Ukraine's 'forced mobilisation'", fi: "Ukrainan ”pakkomobilisaatio”", sv: "Ukrainas ”tvångsmobilisering”"}
@@ -211,8 +500,16 @@ framings:
       en: Stories of Ukrainian men seized for the army ('busification'), meant to demoralise and discredit.
       fi: Tarinoita ukrainalaismiesten väkivaltaisesta kutsunnasta armeijaan (”bussifikaatio”), joiden tarkoitus on lannistaa ja mustamaalata.
       sv: Berättelser om ukrainska män som tas med våld till armén (”bussifiering”), avsedda att demoralisera och misskreditera.
+    checked: {n: 25, fit: 25, date: '2026-09-27'}
     ru: ['принудительн* мобилизац*', 'насильственн* мобилизац*', 'бусификац*', 'бусифицир*', 'людолов*', 'тцк', 'отлов* мужчин*']
-    en: ['forced mobili*', 'forcible mobili*', 'forcibly mobili*', 'busification', 'press-gang*', 'press gang*', 'tcc']
+    en:
+      - 'forced mobili*'
+      - 'forcible mobili*'
+      - 'forcibly mobili*'
+      - 'busification'
+      - 'press-gang*'
+      - 'press gang*'
+      - {match: ['tcc'], with: ukraine-war}
 
   - id: liberation
     label: {en: "'Liberation' & 'new regions'", fi: "”Vapauttaminen” ja ”uudet alueet”", sv: "”Befrielse” och ”nya regioner”"}
@@ -220,8 +517,35 @@ framings:
       en: Occupation described as 'liberation'; annexed Ukrainian land as Russia's 'new regions'.
       fi: Miehitys kuvataan ”vapauttamisena”; liitetyt Ukrainan alueet Venäjän ”uusina alueina”.
       sv: Ockupation beskrivs som ”befrielse”; annekterad ukrainsk mark som Rysslands ”nya regioner”.
-    ru: ['освобожд* населенн*', 'освобожден* населенн*', 'освободил* населенн*', 'освободил* село', 'освободил* поселок', 'освобожденн* территор*', 'нов* регион*', 'воссоединени*']
-    en: ['liberat* the settlement*', 'liberat* the village*', 'liberat* the town*', 'liberated territor*', 'new regions', 'new russian regions', 'reunification']
+    checked: {n: 25, fit: 23, date: '2026-09-27'}
+    # "New regions" but not "a new regional format"; "reunification" of Crimea and Donbas with Russia,
+    # not of families or of Ireland.
+    ru:
+      - 'освобожд* населенн*'
+      - 'освобожден* населенн*'
+      - 'освободил* населенн*'
+      - 'освободил* село'
+      - 'освободил* поселок'
+      - 'освобожденн* территор*'
+      - 'нов* регион'
+      - 'нов* региона'
+      - 'нов* регионе'
+      - 'нов* региону'
+      - 'нов* регионом'
+      - 'нов* регионы'
+      - 'нов* регионов'
+      - 'нов* регионам'
+      - 'нов* регионами'
+      - 'нов* регионах'
+      - {match: ['воссоединени*'], with: annexed-regions}
+    en:
+      - 'liberat* the settlement*'
+      - 'liberat* the village*'
+      - 'liberat* the town*'
+      - 'liberated territor*'
+      - 'new regions'
+      - 'new russian regions'
+      - {match: ['reunification'], with: annexed-regions}
 
   - id: slurs
     label: {en: "Dehumanising labels", fi: "Epäinhimillistävät nimitykset", sv: "Avhumaniserande benämningar"}
@@ -229,7 +553,9 @@ framings:
       en: Slurs and dehumanising labels for Ukrainians and their soldiers ('militants'), commonest in hardline outlets.
       fi: Ukrainalaisista ja heidän sotilaistaan (”taistelijat”) käytetyt herjat ja epäinhimillistävät nimitykset, yleisimpiä kovan linjan medioissa.
       sv: Skällsord och avhumaniserande benämningar på ukrainare och deras soldater (”militanter”), vanligast i hårdföra kanaler.
-    ru: ['хохл*', 'свидомит*', 'всушник*', 'укробоевик*', 'укровоенн*', 'укры', 'укров', 'укропы', 'укропов', 'нацики', 'украинск* боевик*', 'боевик* всу']
+    checked: {n: 25, fit: 25, date: '2026-09-27'}
+    # The slur's forms, not the surname Хохлов or Khokhloma painting.
+    ru: ['хохол', 'хохла', 'хохлу', 'хохлы', 'хохлам', 'хохлами', 'хохлах', 'хохлушк*', 'хохляцк*', 'хохлятск*', 'свидомит*', 'всушник*', 'укробоевик*', 'укровоенн*', 'укры', 'укров', 'укропы', 'укропов', 'нацики', 'украинск* боевик*', 'боевик* всу']
     en: ['khokhol*', 'ukronazi*', 'ukrainian militants', 'kiev* militants']
 
 topics:
@@ -318,3 +644,9 @@ topics:
     label: {en: Migrants, fi: Siirtolaiset, sv: Migranter}
     ru: ['мигрант*']
     en: ['migrant*']
+  # Split from "Nuclear threats" on 27 September 2026: most mentions of nuclear weapons are news about
+  # Iran, arms control or France's deterrent, not sabre-rattling.
+  - id: nuclear
+    label: {en: Nuclear weapons, fi: Ydinaseet, sv: Kärnvapen}
+    ru: ['ядерн* оружи*', 'ядерн* сдерживани*', 'ядерн* испытани*', 'ядерн* арсенал*', 'ядерн* боеголовк*', 'ядерн* держав*', 'нераспространени*']
+    en: ['nuclear weapon*', 'nuclear deterrence', 'nuclear test*', 'nuclear arsenal*', 'nuclear warhead*', 'nuclear-armed', 'non-proliferation']

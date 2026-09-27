@@ -61,6 +61,120 @@ def test_lexicon_file_compiles_and_tags():
     assert "collective-west" in body and "кураторы" in body["collective-west"]
 
 
+def test_a_group_needs_its_context_and_skips_excluded_phrases():
+    contexts = ["украин*", "всу"]
+    lex = Lexicon([Narrative(id="n", family="framing", label={}, about={}, patterns={"ru": [
+        {"match": ["теракт*"], "with": ["x"], "ctx": contexts},
+        {"match": ["вброс*"], "not": ["вброс* бюллетен*"]},
+    ]})])
+    assert lex.find("В Дагестане боевик получил срок за подготовку теракта", "ru") == {}
+    assert "n" in lex.find("СК завел дело о теракте после атаки ВСУ", "ru")
+    assert "n" in lex.find("СК завел дело о теракте", "ru", extra="Беспилотник ВСУ атаковал город")
+    assert lex.find("Памфилова прокомментировала вброс бюллетеней", "ru") == {}
+    assert "n" in lex.find("Вброс бюллетеней и вбросы о мобилизации", "ru")      # the second one counts
+    # in a full text the context must be close enough to appear in the snippet
+    far = "Теракт. " + "Слово " * 40 + "ВСУ"
+    assert lex.find(far, "ru", window=50) == {} and "n" in lex.find(far, "ru")
+    head, body = lex.tag("Заголовок", "", far.replace("Теракт.", "Про ВСУ и теракт."), "ru")
+    assert "ВСУ" in body["n"]
+
+
+def test_the_lexicon_file_resolves_contexts_and_topics():
+    narratives = {n.id: n for n in load_lexicon()}
+    groups = [p for p in narratives["terrorism"].patterns["ru"] if not isinstance(p, str)]
+    assert groups and "всу" in groups[0]["ctx"]
+    public = narratives["terrorism"].public()["patterns"]["ru"]
+    assert all(isinstance(p, str) or "ctx" not in p for p in public)     # the site gets names, not lists
+    lex = Lexicon(list(narratives.values()))
+    assert "terrorism" not in lex.find("ЦРУ рассекретило сводки о подготовке к терактам 11 сентября", "ru")
+    assert "liberation" in lex.find("После воссоединения с Россией жители Херсонской области голосуют", "ru")
+    assert "liberation" not in lex.find("Россия и Украина готовят воссоединение семей", "ru")
+
+
+LEXICON_TEXTS = [
+    ("ru", "Киевский режим готовит провокацию в Донбассе", ""),
+    ("ru", "В Дагестане боевик получил 15 лет за подготовку теракта", ""),
+    ("ru", "СК завел дело о теракте после атак ВСУ на Нижнекамск", ""),
+    ("ru", "Захарова прокомментировала теракты против членов избиркомов", "Удары украинских дронов"),
+    ("ru", "472 квартиры повреждены при атаке БПЛА на Новороссийск", ""),
+    ("ru", "Жители Донбасса и Новороссии впервые после воссоединения с Россией выбирают депутатов", ""),
+    ("ru", "Памфилова прокомментировала вброс бюллетеней на участке в Коми", ""),
+    ("ru", "Путин: вбросы о мобилизации – задуманная информационная операция", ""),
+    ("ru", "ФСБ рассекретила документы о злодеяниях немецких фашистов под Сталинградом", ""),
+    ("ru", "Россия должна разгромить нацистскую Украину, чтобы избежать столкновения с Западом", ""),
+    ("ru", "Победа над фашизмом в Европе: ветераны вспоминают", ""),
+    ("ru", "Депутат Аксаков предупредил о фейковом аккаунте от его имени", ""),
+    ("ru", "Памфилова: фейки о недопуске наблюдателей не подтвердились", ""),
+    ("ru", "Нелегитимный президент Украины Владимир Зеленский отстранил генпрокурора", ""),
+    ("ru", "Росавиация назвала нелегитимным заявление Украины о воздушном пространстве", ""),
+    ("ru", "Ёлки-палки: НАЦИСТЫ на Украине и неонацисты в Европе", ""),
+    ("ru", "Лавров: устранение первопричин конфликта необходимо", ""),
+    ("ru", "Однако первопричина проблем с иммунитетом — в питании", ""),
+    ("ru", "Хохлы, хохлушка и Георгий Хохлов", ""),
+    ("ru", "Washington Examiner: США нечего противопоставить ракете «Буревестник»", ""),
+    ("ru", "Жильцы кооператива «Буревестник» просят защитить их дачи", ""),
+    ("ru", "Спецоперация продолжается, заявил участник СВО", ""),
+    ("ru", "Он вернулся к своим после смены политического курса", ""),
+    ("ru", "Сменивший пол активист и смена пола в Европе", ""),
+    ("ru", "Текст статьи. " + "Слово " * 30 + "теракт на рынке, " + "слово " * 30 + "атака ВСУ", ""),
+    ("en", "Kiev regime staged a provocation, Moscow says", ""),
+    ("en", "Ukrainian troops staged 53 shelling attacks", ""),
+    ("en", "Report proves the Bucha massacre was staged by Kiev", ""),
+    ("en", "Germany forgets it lost WWII, still acting like Nazis", ""),
+    ("en", "Europe's support for the Nazi regime in Kiev is a disgrace", ""),
+    ("en", "Revolut hands data over after fake government requests", ""),
+    ("en", "Terrorist attack in Pakistan kills 12", ""),
+    ("en", "Kiev's terrorist attack on Bryansk condemned", ""),
+]
+
+
+def test_python_and_browser_match_the_same_words():
+    """site/assets/js/lexicon.js must count exactly what woland/lexicon.py counts."""
+    from woland.config import load_contexts
+    narratives = load_lexicon()
+    lex = Lexicon(narratives)
+    meta = {"narratives": [n.public() for n in narratives], "contexts": load_contexts()}
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node not installed")
+    url = (ROOT / "site" / "assets" / "js" / "lexicon.js").as_uri()
+    script = (f"import * as L from '{url}';\n"
+              "const [meta, texts] = JSON.parse(await new Response(process.stdin).text());\n"
+              "const lex = L.compileLexicon(meta.narratives, meta.contexts);\n"
+              "console.log(JSON.stringify(texts.map(([lang, t, e]) => [L.find(lex, t, lang, e), L.find(lex, t, lang, e, 50)])));")
+    out = subprocess.run([node, "--input-type=module", "-e", script], input=json.dumps([meta, LEXICON_TEXTS]),
+                         capture_output=True, text=True, encoding="utf-8", check=True)
+    js = json.loads(out.stdout)
+    for (lang, t, e), (whole, windowed) in zip(LEXICON_TEXTS, js):
+        py = {k: list(v) for k, v in lex.find(t, lang, extra=e).items()}
+        py50 = {k: list(v) for k, v in lex.find(t, lang, extra=e, window=50).items()}
+        assert whole == py and windowed == py50, t
+
+
+def test_the_glossary_corrects_names_only_where_the_russian_has_them():
+    from woland.glossary import Glossary
+    g = Glossary()
+    assert g.fix("Уиткофф прилетел в Москву", "Whitkoff arrived in Moscow") == "Witkoff arrived in Moscow"
+    assert g.fix("Трамп послал Зеленского к Маску", "Trump sent Zelensky to the Mask") == "Trump sent Zelensky to the Musk"
+    assert g.fix("Маска для лица защитит от гриппа", "Mask for face will protect") == "Mask for face will protect"
+    assert g.fix("Старейший луна-парк закрылся", "Moon park closed") == "Amusement park closed"
+    assert g.fix("Раскрыто условие окончания СВО", "The end of the SBO") == "The end of the SVO"
+    assert g.fix("Глава СВР и участники СВО", "SVR head and SVO participants") == "SVR head and SVO participants"
+    assert g.fix("СК Великобритании", "UK police") == "UK police"                    # the United Kingdom
+    assert g.fix("Сальдо торгового баланса выросло", "Balance of trade grew") == "Balance of trade grew"
+    assert g.fix("Власти Запорожья", "Zaporizhzhzhia, Zaporizhzhia") == "Zaporizhzhia, Zaporizhzhia"
+    assert g.fix("Погода в Москве", "Mask and SBO") == "Mask and SBO"               # nothing to correct
+
+
+def test_rising_words_group_word_forms_by_lemma():
+    from woland.textproc import headline_words
+    keys = lambda t: [k for _, _, k in headline_words(t)]
+    assert keys("Козлов заявил") == keys("Задержан Козлова")[1:] == ["козлов"]      # one surname, two cases
+    assert "медведев" in keys("Медведев предупредил") and "медведь" in keys("Медведи вышли к селу")
+    assert keys("ТАСС: часть рейсов задержана")[0] != "тасс"                      # outlets' names left out
+    assert "part" not in keys("Lavrov to take part in talks")
+
+
 def test_snippet_is_short_and_centred():
     text = "слово " * 100 + "ЦЕЛЬ" + " слово" * 100
     i = text.index("ЦЕЛЬ")

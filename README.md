@@ -4,21 +4,22 @@
 
 Woland reads the Russian state and pro-Kremlin press every day, from **1 September 2026** onwards, and keeps
 a searchable, citable record of what it published: every headline, its lead, when it appeared, and which
-propaganda framings it invokes. It is made for researchers, journalists and activists, and runs entirely on
+propaganda framings its words match. It is made for researchers, journalists and activists, and runs entirely on
 GitHub: GitHub Actions collects, the repository stores, GitHub Pages publishes.
 
 The website has five chapters (and an interface in English, Finnish and Swedish):
 
 | | Page | What it shows |
 |---|---|---|
-| I | **Today** — *Black Magic and Its Exposure* | the day's volume, which framings were used and how that compares with the previous weeks, words suddenly rising in headlines, who published what |
-| II | **Narratives** — *There Were Doings at Griboyedov's* | one framing or topic over time: overall, by type of outlet, at home vs. abroad, by outlet, outlet × day heatmap, recent examples, and the exact patterns used |
-| III | **Archive** — *Manuscripts Don't Burn* | full-text search over every headline and lead (all word forms; English queries also hit machine-translated Russian headlines), timeline, per-outlet counts, CSV export |
-| IV | **Outlets** — *Satan's Great Ball* | the 23 outlets: owner, language, EU-blocking status, how Woland reads them, what they lean on, collection health |
+| I | **Today** — *Black Magic and Its Exposure* | the last completed day: its volume, which framings its articles matched and how that compares with the previous weeks (beside the usual share), which outlets were not collected, words suddenly rising in headlines (grouped into events), who published what |
+| II | **Narratives** — *There Were Doings at Griboyedov's* | one framing or topic over time, on completed days: overall (with the articles and outlets behind every share), by type of outlet, at home vs. abroad, by outlet, outlet × day heatmap (not collected ≠ no articles), optionally only the outlets collected every day; recent examples, the exact patterns and how many of a sample of matches fit the definition |
+| III | **Archive** — *Manuscripts Don't Burn* | full-text search over every headline and lead (all word forms; English queries also hit machine-translated Russian headlines and either spelling of place names), active filters as chips, timeline, per-outlet counts, CSV export |
+| IV | **Outlets** — *Satan's Great Ball* | the 23 outlets: owner, language, EU-blocking status, how Woland reads them, what is known about gaps, headline-only records, what they lean on, collection day by day, the log of collection runs |
 | ❦ | **Method** — *Epilogue* | methodology, limitations, citation, data access, legal notes, the full lexicon |
 
 Every article can be opened in the original, in the Internet Archive (important: many of these sites are
-blocked in the EU) and cited in APA, Chicago or BibTeX, with a content fingerprint.
+blocked in the EU) and cited in APA, Chicago or BibTeX, with a content fingerprint; its *Details* show how Woland
+obtained it and which words made it count under a framing.
 
 ---
 
@@ -75,12 +76,19 @@ From then on everything is automatic:
   between requests, backs off when a site says it is being asked too often, and **never** tries to get around
   bot checks or CAPTCHAs: TASS's Russian service, which refuses automated readers, is read through its own
   public feed only, and so is the Kremlin, whose feed carries the full texts.
-* **Framings** (`config/lexicon.yaml`, `woland/lexicon.py`) — 24 propaganda framings and 21 neutral topics, each
-  a list of Russian and English word patterns (`нацист*`, `киевск* режим*`, `сво`). Headlines and leads are
-  matched at build time, so lexicon edits apply to the whole archive; full-text matches are recorded when an
-  article is collected, with a short snippet as evidence.
-* **Translation** (`woland/translate.py`) — Russian headlines are translated to English offline with the
-  open Argos Translate / OPUS-MT model through CTranslate2. No API keys, no cost.
+* **Framings** (`config/lexicon.yaml`, `woland/lexicon.py`) — 24 propaganda framings and 22 neutral topics, each
+  a list of Russian and English word patterns (`нацист*`, `киевск* режим*`, `сво`). A pattern can count only
+  *with* a context (`теракт*` only next to words about Ukraine and the war) or *not* inside given phrases
+  (`вброс*` but not `вброс* бюллетен*`). Headlines and leads are matched at build time, so lexicon edits apply to
+  the whole archive; full-text matches are recorded when an article is collected, with a short snippet as
+  evidence. `site/assets/js/lexicon.js` applies the same rules in the browser to show which words matched. A
+  random sample of each framing's matches was read in September 2026: [`docs/lexicon-audit.md`](docs/lexicon-audit.md).
+* **Translation** (`woland/translate.py`, `woland/glossary.py`) — Russian headlines are translated to English
+  offline with the open Argos Translate / OPUS-MT model through CTranslate2. No API keys, no cost. Names and terms
+  the model gets wrong (Witkoff, Kallas, the SVO) are corrected by `config/glossary.yaml` when the site is built;
+  `data/` keeps the model's own output.
+* **Rising words** (`woland/build.py`, `woland/textproc.py`) — headline words grouped by dictionary form
+  (pymorphy3 for Russian, Snowball stems otherwise) and, when they share most of their headlines, into one event.
 * **The site** (`site/`, `woland/build.py`) — plain HTML, CSS and JavaScript modules; no framework, no build
   tool. Search runs in the browser against a static inverted index sharded by month and by word, so only a
   few small gzip files are downloaded per query. Unchanged months are cached between builds.
@@ -96,8 +104,9 @@ python -m http.server 8000 --directory _site         # open http://localhost:800
 ```
 
 Other commands: `backfill 2026-09-01 2026-09-10` (a date range; add `--wayback` for the Internet Archive sources),
-`poll`, `translate`, `probe ria --date 2026-09-23` (tries one outlet and prints what would be stored) and `check`
-(discovers yesterday's articles for every outlet and reads a few: a health table). `--outlets ria,tass --limit 20`
+`poll`, `translate`, `probe ria --date 2026-09-23` (tries one outlet and prints what would be stored), `check`
+(discovers yesterday's articles for every outlet and reads a few: a health table) and `mtcheck` (what the
+translation glossary corrects, and translations of its names that still look wrong). `--outlets ria,tass --limit 20`
 narrows any run. Collection runs may work side by side on different outlets (state files are merged, not overwritten).
 
 ### Tests
@@ -110,11 +119,13 @@ WOLAND_LIVE=1 .venv/bin/python -m pytest -m live -q # also read every outlet for
 
 * `tests/test_discovery.py` — listings, paged feeds, sitemap indexes and Internet Archive lookups, against canned pages
 * `tests/test_collect.py` — what is kept or rejected, saving progress, merging state, which days are planned
-* `tests/test_site.py` — builds a small site and runs the website's own search code on it in Node (word forms,
-  `*`, `-`, `OR`, filters, English queries over translations); checks that every interface string exists in
+* `tests/test_site.py` — builds a small site and runs the website's own search and citation code on it in Node
+  (word forms, `*`, `-`, `OR`, filters, English queries over corrected translations and either spelling, unique
+  BibTeX keys, record ids), checks completed days and coverage codes; checks that every interface string exists in
   English, Finnish and Swedish and that every JavaScript module parses
 * `tests/test_data.py` — every record in `data/` is well-formed, filed under the right day and outlet, and unique
-* `tests/test_woland.py` — dates, lexicon, extraction, tokeniser parity between Python and the browser, a build
+* `tests/test_woland.py` — dates, lexicon (contexts, exclusions, and the same matches in Python and the browser),
+  the translation glossary, rising-word lemmas, extraction, tokeniser parity between Python and the browser, a build
 * `tests/test_live.py` — the real outlets (off unless `WOLAND_LIVE=1`)
 
 **In the EU:** internet providers block many of these domains at the DNS level under the sanctions broadcasting
@@ -127,9 +138,15 @@ own situation.
 * **Outlets** — `config/outlets.yaml`. Every source type and option is explained at the top of the file.
   To add an outlet, copy an entry with a similar site structure, then check it with
   `python -m woland probe <id> --date <yesterday>` and `python -m woland check --outlets <id>`.
-* **Lexicon** — `config/lexicon.yaml`. Headline and lead matches are recomputed for the whole archive at the
-  next build. Body-text matches cannot be recomputed for new patterns (the text is not stored); removed or
-  narrowed patterns are dropped automatically because stored snippets are re-checked.
+* **Lexicon** — `config/lexicon.yaml` (the syntax, contexts and exclusions are explained at its top). Headline
+  and lead matches are recomputed for the whole archive at the next build. Body-text matches cannot be recomputed
+  for new patterns (the text is not stored); removed or narrowed patterns are dropped automatically because stored
+  snippets are re-checked. After changing a framing, read a fresh sample of its matches and update its `checked`
+  entry (see `docs/lexicon-audit.md`).
+* **Translation glossary** — `config/glossary.yaml`: a Russian name or term, what the model writes instead, and
+  the right English. Applied at the next build; check with `python -m woland mtcheck`.
+* **Outlet notes** — the optional `note` of an outlet in `config/outlets.yaml` (in English, Finnish and Swedish)
+  is shown on the Outlets page: what readers should know about its coverage.
 * **Start date** — `WOLAND_START` (default `2026-09-01`).
 * **Search window** — GitHub Pages sites must stay under 1 GB. The search index is published for the latest
   `WOLAND_SEARCH_MONTHS` months (default 18, roughly 40 MB a month); daily digests and charts always cover
@@ -161,8 +178,12 @@ consider moving older years to a release archive.
 
 ## Limitations
 
-* Framing detection is lexical. Articles quoting, reporting or rebutting a claim are counted too — every
-  number links to the articles so they can be checked.
+* Framing detection is lexical: the site reports *pattern matches*. Articles quoting, reporting or rebutting a
+  claim are counted too — every number links to the articles, and each article shows the words that matched. In a
+  first check of 25 random matches per framing, 537 of 600 fit the definitions, from 16 of 25 ("enemies within")
+  to 25 of 25 (`docs/lexicon-audit.md`); that check still needs a specialist's review.
+* The current day, and the previous one until the nightly run has gathered it, are *still being collected*: the
+  site leaves them out of comparisons and averages unless asked, and marks them where they are shown.
 * TASS's Russian service is read from its feed only (headline, lead, time) and starts on the day hourly reading
   begins: its pages, sitemaps and even `robots.txt` answer 403, the Internet Archive's copies are the same 403,
   and the feed holds only about three hours. TASS's English service (tass.com) is complete.

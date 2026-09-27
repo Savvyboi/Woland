@@ -1,7 +1,7 @@
 // Chapter III: the searchable archive.
 import {
-  $, el, t, tl, META, loadMeta, initChrome, fillFooter, fmtInt, fmtPct, fmtDay, outlet, narrative, narrativeAt,
-  groupVar, articleCard, showError, addDays, archiveUrl, downloadCSV, GROUPS,
+  $, el, t, tl, META, loadMeta, initChrome, fillFooter, fmtInt, fmtPct, fmtDay, outlet, narrative,
+  groupVar, articleCard, showError, addDays, downloadCSV, GROUPS, isOpenDay, recordOf, recordId,
 } from "./core.js";
 import { search, loadDocs } from "./search.js";
 import { columnChart, barList, withTable, tableOf } from "./charts.js";
@@ -12,6 +12,7 @@ const status = $("#status");
 const area = $("#results-area");
 const PAGE = 20;
 const EXPORT_MAX = 2000;
+const EMPTY = { q: "", from: "", to: "", o: "", l: "", k: "", order: "new" };
 let current = null, shown = 0, norm = "count";
 
 function fillSelects() {
@@ -43,6 +44,42 @@ function readForm() {
 }
 const isEmpty = (s) => !s.q && !s.from && !s.to && !s.o && !s.l && !s.k;
 
+/** What the current search is, as removable chips. */
+function renderChips(s) {
+  let box = $("#chips");
+  if (!box) {
+    box = el("div", { class: "chips", id: "chips", role: "group", "aria-label": t("archive.chips") });
+    $("#filters").after(box);
+  }
+  const chips = [];
+  const chip = (label, value, key) => {
+    const b = el("button", { type: "button", class: "chip", "aria-label": t("archive.chip.remove", { what: `${label}: ${value}` }) },
+      el("span", { class: "k" }, `${label}: `), value, el("span", { class: "x", "aria-hidden": "true" }, " ×"));
+    b.addEventListener("click", () => { const s2 = { ...readForm(), [key]: key === "order" ? "new" : "" }; writeForm(s2); go(s2); });
+    chips.push(b);
+  };
+  if (s.q) chip(t("archive.chip.words"), s.q, "q");
+  if (s.from) chip(t("archive.from"), fmtDay(s.from), "from");
+  if (s.to) chip(t("archive.to"), fmtDay(s.to), "to");
+  if (s.o) chip(t("archive.outlets"), outlet(s.o).name, "o");
+  if (s.l) chip(t("archive.language"), t(`lang.${s.l}`), "l");
+  if (s.k) chip(narrative(s.k)?.family === "topic" ? t("col.topic") : t("col.framing"), tl(narrative(s.k)?.label), "k");
+  if (s.order === "old") chip(t("archive.sort"), t("archive.sort.old"), "order");
+  box.hidden = !chips.length;
+  box.replaceChildren(...chips);
+}
+
+/** What a result count covers: words are looked for in headlines and leads, a framing also in full texts. */
+function scopeNote(s) {
+  const notes = [];
+  if (s.q) notes.push(t("archive.scope.words"));
+  if (s.k) notes.push(t("archive.scope.framing"));
+  if (s.q && s.k) notes.push(t("archive.scope.both"));
+  const open = (s.to || META.last) > (META.complete_through || META.last);
+  if (open) notes.push(t("archive.scope.open", { day: fmtDay(META.complete_through) }));
+  return notes.join(" ");
+}
+
 function daysBetween(a, b) {
   const out = [];
   for (let d = a; d <= b; d = addDays(d, 1)) out.push(d);
@@ -54,12 +91,13 @@ function renderCharts(res, s) {
   const days = daysBetween(first < META.first ? META.first : first, last > META.last ? META.last : last);
   const counts = days.map((d) => res.byDay.get(d) || 0);
   const shares = days.map((d, i) => { const tt = res.dayTotals.get(d); return tt ? counts[i] / tt : 0; });
+  const totals = days.map((d) => res.dayTotals.get(d) || 0);
   const plate = $("#timeline-plate");
   const box = $("#timeline");
   const draw = () => {
     const fresh = el("div", { dataset: { clickable: "1" } });
     box.replaceChildren(fresh);
-    columnChart(fresh, { days, values: norm === "count" ? counts : shares,
+    columnChart(fresh, { days, values: norm === "count" ? counts : shares, isOpen: isOpenDay,
       format: norm === "count" ? fmtInt : (v) => fmtPct(v, 1), label: t("archive.timeline.sub") });
     fresh.addEventListener("pick", (e) => { const s2 = { ...readForm(), from: e.detail, to: e.detail }; writeForm(s2); go(s2); });
   };
@@ -74,8 +112,11 @@ function renderCharts(res, s) {
   $("#pl2").textContent = `${t("plate")} II`;
   plate.querySelectorAll(".table-wrap").forEach((n) => n.remove());
   [...plate.querySelectorAll(".plate-tools .linkish")].forEach((n) => n.remove());
-  withTable(plate, box, () => tableOf(days, [{ label: t("archive.count"), values: counts }, { label: t("archive.share"), values: shares }],
-    (v) => (v < 1 && v > 0 ? fmtPct(v, 1) : fmtInt(v))));
+  withTable(plate, box, () => tableOf(days, [
+    { label: t("archive.count"), values: counts, fmt: fmtInt },
+    { label: t("col.all"), values: totals, fmt: fmtInt },
+    { label: t("archive.share"), values: shares, fmt: (v) => fmtPct(v, 1) },
+  ], fmtInt, (i) => (isOpenDay(days[i]) ? t("day.open.short") : "")));
   const by = [...res.byOutlet.entries()].sort((a, b) => b[1] - a[1]).map(([i, v]) => {
     const o = META.outlets[i];
     return { label: o.name, value: v, color: groupVar(o.group), title: t(`group.${o.group}`),
@@ -95,6 +136,10 @@ async function showMore() {
   btn.disabled = false;
 }
 
+// The export carries the same fields as the record in the citation dialog (core.js: recordOf).
+const CSV_FIELDS = ["id", "published", "outlet", "outlet_id", "language", "title", "title_en_mt", "lead", "url", "archive",
+  "framings", "topics", "in_text_only", "source", "body_words", "retrieved", "fingerprint"];
+
 async function exportCSV() {
   const btn = $("#export");
   btn.disabled = true;
@@ -103,13 +148,11 @@ async function exportCSV() {
   for (let i = 0; i < hits.length; i += 200) {
     btn.textContent = `${t("archive.export")} … ${Math.round((i / hits.length) * 100)}%`;
     for (const d of await loadDocs(hits.slice(i, i + 200))) {
-      const o = outlet(d.o);
-      rows.push([new Date(d.ts * 1000).toISOString(), o.name, o.lang, d.t, d.te || "", d.d || "", d.u, archiveUrl(d.u, d.ts),
-        d.ks.map((k) => narrativeAt(k)?.id).filter(Boolean).join("; "), d.h || "", d.r || ""]);
+      const rec = recordOf(d, await recordId(d));
+      rows.push(CSV_FIELDS.map((k) => (Array.isArray(rec[k]) ? rec[k].join("; ") : rec[k])));
     }
   }
-  downloadCSV(`woland-${new Date().toISOString().slice(0, 10)}.csv`,
-    ["published_utc", "outlet", "language", "headline", "headline_en_machine", "lead", "url", "archive_url", "narratives", "fingerprint", "retrieved"], rows);
+  downloadCSV(`woland-${new Date().toISOString().slice(0, 10)}.csv`, CSV_FIELDS, rows);
   btn.disabled = false;
   exportLabel();
 }
@@ -123,6 +166,7 @@ async function go(s, push = true) {
     const qs = new URLSearchParams(Object.entries(s).filter(([k, v]) => v && !(k === "order" && v === "new")));
     history.pushState(null, "", `${location.pathname}${qs.toString() ? `?${qs}` : ""}`);
   }
+  renderChips(s);
   if (isEmpty(s)) {
     area.hidden = true;
     status.textContent = t("archive.idle", { start: fmtDay(META.start) });
@@ -141,10 +185,15 @@ async function go(s, push = true) {
     return;
   }
   area.style.opacity = "";
-  if (!current.total) { area.hidden = true; status.textContent = t("archive.none"); return; }
+  if (!current.total) {
+    area.hidden = true;
+    status.replaceChildren(t("archive.none"), " ", el("span", { class: "syntax" }, scopeNote(s)));
+    return;
+  }
   area.hidden = false;
   status.textContent = "";
   $("#count").textContent = current.total === 1 ? t("archive.results.one") : t("archive.results", { n: fmtInt(current.total) });
+  $("#scope").textContent = scopeNote(s);
   exportLabel();
   renderCharts(current, s);
   $("#results").replaceChildren();
@@ -162,7 +211,7 @@ async function start() {
     writeForm(s);
     form.addEventListener("submit", (e) => { e.preventDefault(); go(readForm()); });
     for (const id of ["from", "to", "outlet", "lang-f", "narr", "order"]) $(`#${id}`).addEventListener("change", () => go(readForm()));
-    $("#clear").addEventListener("click", () => { const e = { q: "", from: "", to: "", o: "", l: "", k: "", order: "new" }; writeForm(e); go(e); });
+    $("#clear").addEventListener("click", () => { writeForm(EMPTY); go({ ...EMPTY }); });
     $("#more").addEventListener("click", showMore);
     $("#export").addEventListener("click", exportCSV);
     window.addEventListener("popstate", () => { const p = readParams(); writeForm(p); go(p, false); });

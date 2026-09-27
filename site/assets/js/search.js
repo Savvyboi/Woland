@@ -12,6 +12,16 @@ const RU_ENDINGS = ["иями", "ями", "ами", "иях", "ях", "ах", "�
   "ых", "их", "ую", "юю", "ов", "ев", "ом", "ем", "ам", "ям", "ия", "ья", "ье", "ьи", "ью", "а", "я", "о", "е", "ы", "и", "у", "ю", "ь"];
 const EN_ENDINGS = ["ing", "ies", "ied", "es", "ed", "ly", "s", "'s"];
 
+// English spellings of the same place or name: a search for one finds the others. The English-language
+// outlets write "Kiev" and "Kharkov", the machine translations mostly "Kharkiv" and "Zaporizhzhia".
+const SPELLINGS = [
+  ["kyiv", "kiev"], ["kharkiv", "kharkov"], ["odesa", "odessa"], ["zaporizhzhia", "zaporozhye", "zaporizhia"],
+  ["luhansk", "lugansk"], ["donbas", "donbass"], ["mykolaiv", "nikolaev", "nikolayev"], ["dnipro", "dnepr", "dnieper"],
+  ["dnipropetrovsk", "dnepropetrovsk"], ["chernihiv", "chernigov"], ["lviv", "lvov"], ["bakhmut", "artemovsk", "artyomovsk"],
+  ["zelensky", "zelenskyy", "zelenskiy"], ["kherson", "herson"], ["sumy", "sumi"],
+];
+const VARIANTS = new Map(SPELLINGS.flatMap((group) => group.map((w) => [w, group.filter((x) => x !== w)])));
+
 const bucket = (s) => shardOf(s, META.search.nb);
 
 function decode(deltas) {
@@ -57,8 +67,10 @@ export function parseQuery(q) {
     const toks = tokenize(body).filter((w) => !stop.has(w));
     if (!toks.length) { joinNext = false; continue; }
     const alt = toks.map((w, i) => ({ w, prefix: prefix && i === toks.length - 1 }));
-    if (joinNext && !neg && clauses.length && !clauses[clauses.length - 1].neg) clauses[clauses.length - 1].alts.push(alt);
-    else clauses.push({ neg, alts: [alt] });
+    const alts = [alt];
+    if (toks.length === 1 && !prefix) for (const v of VARIANTS.get(toks[0]) || []) alts.push([{ w: v, prefix: false }]);
+    if (joinNext && !neg && clauses.length && !clauses[clauses.length - 1].neg) clauses[clauses.length - 1].alts.push(...alts);
+    else clauses.push({ neg, alts });
     joinNext = false;
   }
   return clauses;

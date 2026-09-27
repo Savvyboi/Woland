@@ -324,6 +324,7 @@ a.tag:hover, button.tag:hover { border-color: var(--gilt-dim); color: var(--text
 
 /* narratives page */
 .layout-side { display: grid; grid-template-columns: 17rem 1fr; gap: 2rem; align-items: start; }
+.layout-side > * { min-width: 0; }  /* wide charts scroll inside their plate instead of widening the page */
 .side { position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow: auto; border-right: 1px solid var(--rule); padding-right: 1rem; }
 .side h3 { font: 500 .74rem/1.2 var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--text-3); margin: 1.2rem 0 .4rem; }
 .side ul { list-style: none; margin: 0; padding: 0; }
@@ -352,7 +353,6 @@ a.tag:hover, button.tag:hover { border-color: var(--gilt-dim); color: var(--text
 .cov .f { background: #7d8aa8; }
 .cov .m { background: var(--ink-3); outline: 1px solid var(--rule-2); outline-offset: -1px; }
 .cov-legend { display: flex; flex-wrap: wrap; gap: .3rem .9rem; font: .76rem/1.3 var(--sans); color: var(--text-3); }
-.cov-legend span::before { content: ""; display: inline-block; width: 9px; height: 12px; margin-right: .35rem; vertical-align: -1px; border-radius: 1px; background: var(--k); }
 
 /* dialog (citations) */
 dialog { background: var(--ink-2); color: var(--text); border: 1px solid var(--rule-2); border-radius: var(--radius); max-width: min(40rem, calc(100vw - 2rem)); padding: 1.2rem 1.3rem; box-shadow: 0 30px 90px rgba(0,0,0,.6); }
@@ -374,6 +374,104 @@ dialog h2 { font: 500 1.5rem/1.2 var(--display); margin: 0 0 .8rem; }
 @keyframes dots { 0% { width: 0; } 100% { width: 1em; } }
 .notice { border-left: 3px solid var(--crimson); background: var(--ink-1); padding: .7rem 1rem; font: .9rem/1.5 var(--sans); color: var(--text-2); margin: 1rem 0; }
 
+/* ── Compact chapter openings (after the first visit) and jump links ───────── */
+.chapter-head .jump { margin: 1rem 0 0; font: .85rem/1.3 var(--sans); }
+.chapter-head .jump a { color: var(--text-3); }
+.chapter-head .jump a:hover { color: var(--gilt-text); }
+.chapter-head.compact { padding: 1.2rem 0 .2rem; display: flex; align-items: baseline; justify-content: center; flex-wrap: wrap; gap: .2rem .9rem; }
+.chapter-head.compact .chapter-no { margin: 0; }
+.chapter-head.compact h1 { font-size: clamp(1.5rem, 3vw, 1.9rem); }
+.chapter-head.compact .fleuron, .chapter-head.compact .epigraph, .chapter-head.compact .jump { display: none; }
+.chapter-head .reveal { font-size: .78rem; }
+
+/* ── The lede: the drop cap stays inside it, so what follows starts below ─── */
+.lede.dropcap { display: flow-root; }
+.cov-note { max-width: var(--measure); margin: .8rem auto 0; font: .88rem/1.5 var(--sans); color: var(--text-2); }
+
+/* ── Article details: how Woland got it, and why it is counted ──────────── */
+.article details.prov { margin-top: .35rem; font: .82rem/1.45 var(--sans); color: var(--text-2); }
+.article details.prov summary { cursor: pointer; color: var(--text-3); width: max-content; }
+.article details.prov summary:hover { color: var(--gilt-text); }
+.article details.prov[open] summary { margin-bottom: .35rem; }
+.article details.prov dl { display: grid; grid-template-columns: max-content 1fr; gap: .25rem .9rem; margin: 0; padding: .55rem .7rem;
+  background: var(--ink-1); border: 1px solid var(--rule); border-radius: var(--radius); }
+.article details.prov dt { color: var(--text-3); }
+.article details.prov dd { margin: 0; }
+.article details.prov code { font-size: .78rem; }
+.article details.prov .note, .article details.prov .missing { color: var(--text-3); }
+.article details.prov .why { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
+.article details.prov .why .where { color: var(--text-3); margin-right: .35rem; }
+.article details.prov .why q { display: block; margin-top: .15rem; font: .88rem/1.45 var(--serif); color: var(--text-2); quotes: "«" "»"; }
+mark.hit { background: linear-gradient(transparent 55%, rgba(207, 78, 70, .45) 55%); color: inherit; }
+:root[data-theme="day"] mark.hit { background: linear-gradient(transparent 55%, rgba(184, 65, 58, .3) 55%); }
+
+/* ── Today: change beside the usual share; rising words that can be put away ─ */
+.ledger .change { display: inline-flex; flex-direction: column; align-items: flex-end; gap: .1rem; }
+.ledger .change small { font: .72rem/1.2 var(--sans); color: var(--text-3); white-space: nowrap; }
+.ledger tr.details .syntax { margin: .6rem 0 .3rem; }
+.trend-table { font: .82rem/1.4 var(--sans); margin: .2rem 0 .6rem; }
+.trend-table summary { cursor: pointer; color: var(--text-3); }
+.trend-table .table-wrap { max-height: 16rem; }
+.words li { grid-template-columns: minmax(6rem, auto) 1fr auto auto; }
+.words .hide-word { font-size: .76rem; }
+.words li.put-away .w { color: var(--text-3); }
+.put-away-list { margin-top: .6rem; font: .85rem/1.4 var(--sans); color: var(--text-3); }
+.put-away-list summary { cursor: pointer; }
+.daynav .open-mark { display: block; font: .75rem/1.3 var(--sans); color: var(--crimson-text); letter-spacing: 0; text-align: center; margin-top: .2rem; }
+
+/* ── Archive: active filters and what a search covers ───────────────────── */
+.chips { display: flex; flex-wrap: wrap; gap: .4rem; margin: -.4rem 0 .8rem; }
+.chip { font: .8rem/1.2 var(--sans); color: var(--text); background: var(--ink-2); border: 1px solid var(--rule-2); border-radius: 999px;
+  padding: .3rem .7rem; cursor: pointer; }
+.chip .k { color: var(--text-3); }
+.chip .x { color: var(--text-3); }
+.chip:hover { border-color: var(--gilt-dim); }
+.chip:hover .x { color: var(--crimson-text); }
+.scope { margin: -.6rem 0 1rem; max-width: 52rem; }
+
+/* ── Charts: days still being collected, and what a share is a share of ─── */
+.chart .line.open { stroke-dasharray: 3 3; opacity: .75; }
+.chart .dot.open { fill: var(--ink-1); stroke-width: 1.5; }
+.chart .col.open { opacity: .45; }
+.tooltip .tt-note { margin-top: .3rem; color: var(--text-3); }
+.tooltip .tt-note.open { color: var(--crimson-text); }
+.table-view tr.open th small, .table-view tr.open td { color: var(--text-3); }
+.scale .key-none::before, .scale .key-missing::before { content: ""; display: inline-block; width: 10px; height: 10px; margin: 0 .3rem 0 .6rem;
+  vertical-align: -1px; border-radius: 2px; border: 1px solid var(--rule); }
+.scale .key-missing::before { border-color: var(--rule-2);
+  background: repeating-linear-gradient(45deg, var(--text-3) 0 1px, transparent 1px 4px); }
+.window-note { margin-top: -.6rem; }
+.field.check { flex-direction: row; align-items: center; gap: .45rem; font-size: .82rem; color: var(--text-2); cursor: pointer; }
+.field.check input { min-width: 0; width: 1rem; height: 1rem; accent-color: var(--gilt); }
+.lexicon-card .pats .group { display: inline; background: none; padding: 0; }
+.lexicon-card .pats .group small { font: .78rem/1.5 var(--sans); color: var(--text-3); }
+.lexicon-card .audit { font: .85rem/1.5 var(--sans); margin: .4rem 0; color: var(--text-2); }
+.lexicon-card .audit.none { color: var(--text-3); }
+.lexicon-table .group { margin-top: .35rem; }
+.lexicon-table .group small { font: .76rem/1.4 var(--sans); color: var(--text-3); }
+
+/* ── Outlets: notes, collection state, the run log ──────────────────────── */
+.outlet-card .note { font: .84rem/1.45 var(--sans); color: var(--text-2); margin: 0; padding-left: .6rem; border-left: 2px solid var(--rule-2); }
+.outlet-card .notyet { color: var(--crimson-text); }
+.cov .open { outline: 1px dashed var(--text-2); outline-offset: -1px; opacity: .7; }
+.cov-sum { margin: .25rem 0 0; }
+.cov-table { font: .8rem/1.4 var(--sans); color: var(--text-3); }
+.cov-table summary { cursor: pointer; }
+.cov-table .table-wrap { max-height: 14rem; }
+.cov-legend { margin-top: .8rem; }
+.cov-legend span::before { content: ""; display: inline-block; width: 9px; height: 12px; margin-right: .35rem; vertical-align: -1px; border-radius: 1px; }
+.cov-legend .k-c::before { background: #0ca30c; }
+.cov-legend .k-p::before { background: #fab219; }
+.cov-legend .k-f::before { background: #7d8aa8; }
+.cov-legend .k-m::before { background: var(--ink-3); outline: 1px solid var(--rule-2); outline-offset: -1px; }
+.cov-legend .k-open::before { background: transparent; outline: 1px dashed var(--text-2); outline-offset: -1px; }
+
+/* ── Citation dialog: what the fields mean ──────────────────────────────── */
+dialog h3 { font: 600 .95rem/1.3 var(--serif); margin: 1.2rem 0 .4rem; }
+.cite-fields { display: grid; grid-template-columns: max-content 1fr; gap: .3rem .9rem; font: .82rem/1.45 var(--sans); color: var(--text-2); margin: 0 0 1rem; }
+.cite-fields dt { color: var(--text-3); }
+.cite-fields dd { margin: 0; }
+
 @media (max-width: 860px) {
   .layout-side { grid-template-columns: 1fr; }
   .side { position: static; max-height: none; border-right: 0; border-bottom: 1px solid var(--rule); padding: 0 0 1rem; }
@@ -389,7 +487,12 @@ dialog h2 { font: 500 1.5rem/1.2 var(--display); margin: 0 0 .8rem; }
   .toc .num { display: none; }
   .bars li { grid-template-columns: 6.5rem 1fr 3.4rem; }
   .ledger .hide-sm, .ledger .name small, .ledger .share-bar { display: none; }
-  .ledger td, .ledger th { padding-left: .3rem; padding-right: .3rem; }
+  .article details.prov dl, .cite-fields { grid-template-columns: 1fr; }
+  .ledger .change small { white-space: normal; max-width: 4.6rem; text-align: right; font-size: .68rem; }
+  .ledger th { letter-spacing: .04em; }
+  .words li { grid-template-columns: 1fr auto auto; }
+  .words .n { grid-column: 1 / -1; }
+  .ledger td, .ledger th { padding-left: .2rem; padding-right: .2rem; }
   .ledger .name { font-size: .95rem; }
   .chapter-head h1 { font-size: 1.9rem; }
   .tile .value { font-size: 1.6rem; }

@@ -7,6 +7,7 @@
   build     build the static website into _site/
   probe     try one outlet on one day and print what Woland would store
   check     can every outlet still be read? (discovery + a few article pages per outlet)
+  mtcheck   what the translation glossary (config/glossary.yaml) corrects, and what it still misses
 """
 from __future__ import annotations
 
@@ -67,6 +68,8 @@ def main(argv=None):
     p = sub.add_parser("check")
     p.add_argument("--outlets", help="comma-separated outlet ids (default: all, including disabled ones)")
     p.add_argument("--date", type=date.fromisoformat, help="day to look at (default: yesterday)")
+    p = sub.add_parser("mtcheck")
+    p.add_argument("--days", type=int, help="only the last N days (default: the whole archive)")
 
     a = ap.parse_args(argv)
     logging.basicConfig(level=logging.DEBUG if a.verbose else logging.INFO,
@@ -122,6 +125,16 @@ def main(argv=None):
     if a.cmd == "check":
         from .check import main as check_main
         return check_main(_outlets(a.outlets, include_disabled=True), a.date or today_msk() - timedelta(days=1))
+
+    if a.cmd == "mtcheck":
+        from .glossary import report
+        from .store import available_days, outlets_on, read_day
+        days = available_days()
+        if a.days:
+            days = days[-a.days:]
+        ru = {o.id for o in load_outlets(include_disabled=True) if o.lang == "ru"}
+        print(report(r for d in days for o in outlets_on(d) if o in ru for r in read_day(d, o)))
+        return 0
 
     if a.cmd == "probe":
         from .collect import build_record

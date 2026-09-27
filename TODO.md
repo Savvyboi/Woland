@@ -76,21 +76,34 @@ collected by a local backfill from Finland (with `WOLAND_DOH=1` behind the EU DN
 
 ## 4. Analysis and content (needs a person with the expertise)
 
-- [ ] **Lexicon.** The 24 framings and 21 topics in `config/lexicon.yaml` are a first draft. Matching is
-      lexical: articles that quote or rebut a claim count too. Review patterns and add examples; consider
-      marking quotations.
-- [ ] **Rising words** group word forms by Snowball stem, so unrelated words can merge (Медведев and медведь,
-      "bear", share the stem *медвед*). Consider lemmatisation (pymorphy3) for this feature.
+- [ ] **Lexicon review.** A first pass read 25 random matches of each framing (27 September 2026, made by an AI
+      assistant): 537 of 600 fit the definitions after the fixes it led to — see `docs/lexicon-audit.md`, with
+      every excerpt and verdict in `docs/lexicon-audit-sample.csv`. It needs a specialist's second reading, and
+      its "still to do" list: the remaining wordings of the foreign-agent label ("enemies within", 16 of 25),
+      Trump's "fake news" and scams ("Western fakes", 17 of 25), the R-280 "Novorossiya" highway, the US P-8
+      Poseidon, and whether the "genocide of the Soviet people" memory campaign belongs under "'Genocide' of
+      Russians". After changing a framing, read a fresh sample and update its `checked` entry. Matching stays
+      lexical: consider marking quotations.
+- [ ] **Rising words** now group Russian words by lemma (pymorphy3) and group words that share their headlines
+      into events. The English list stays thin (TASS English and RT give ~200 headlines a day): consider a
+      longer baseline or a higher threshold for English.
+- [ ] **Translation glossary** (`config/glossary.yaml`, 24 entries): run `python -m woland mtcheck` now and then
+      and add the names it shows still mistranslated.
 - [ ] **Finnish and Swedish** need a native speaker's check: `site/assets/js/i18n.js` and the FI/SV halves of
-      `site/method.html` — including the paragraphs added on 25–26 September (sites that refuse
-      automated readers, the Internet Archive, *headline only* records, where leads come from) and the
-      strings `article.listed` / `article.listed.title`.
+      `site/method.html` — including the paragraphs added on 25–26 September (sites that refuse automated
+      readers, the Internet Archive, *headline only* records, where leads come from), the strings
+      `article.listed` / `article.listed.title`, and everything added on 27 September: the Method sections on
+      matching, measures, machine translation, searching and citing; the strings for article details, citations,
+      completed days, coverage, rising words, archive filters and the collection log; the outlet notes
+      (`note` in `config/outlets.yaml`) and the context labels in `config/lexicon.yaml`.
 - [ ] **Legal**: most of these outlets fall under the EU broadcasting ban. Woland shows headlines, leads
       (≤ 240 characters) and snippets (≤ ~170) for analysis; the README flags this, but it is not legal
       advice.
 
 ## 5. Site
 
-- [ ] Outlets page: show how many of each outlet's records are headline only, and a short completeness
-      note per outlet (e.g. "TASS Russian: from 24 September, feed only").
-- [ ] Outlets page: the coverage legend sits beside the drop-capped lede instead of below it.
+- [ ] **Coverage status of backfilled days.** A backfill that starts on the first day has no earlier days to
+      compare with, so `run_collection` marked Zvezda's empty 22–23 September "complete". The site now shows
+      such days as not collected (`woland/build.py: coverage_codes`); `collect.py` should compare with the days
+      around, not only those before.
+- [ ] Load time was not measured. (Phone width was checked on 27 September at 375px: every page fits.)

@@ -1,0 +1,50 @@
+# Corrections to the machine translation of Russian headlines (woland/translate.py), for names and
+# terms the model gets wrong. They are applied when the site is built, to the whole archive at once;
+# the model's own output stays in data/ (the field `te`). Search, exports and citations use the
+# corrected text.
+#
+#   ru:     a regular expression that must match the Russian headline (case-sensitive: names are
+#           capitalised, and "сальдо" is a balance while "Сальдо" is a governor)
+#   not:    (optional) a regular expression; when it matches the Russian headline the entry is skipped
+#   wrong:  what the model writes instead: regular expressions matched against whole words of the
+#           translation, case-sensitively
+#   en:     the right rendering
+#
+# `python -m woland mtcheck` counts, for every entry, how many translations it corrects and how many
+# still lack the right rendering (new mistakes to add here).
+
+entries:
+
+  # People
+  - {ru: 'Уиткофф', wrong: ['Whitkoff', 'Whitcoff', 'Witcoff', 'Witchoff', 'Whitchoff', 'Uitkoff'], en: 'Witkoff'}
+  - {ru: 'Каллас', wrong: ['Callas'], en: 'Kallas'}
+  - {ru: 'Пезешкиан', wrong: ['Pezeshkin', 'Peseshkin', 'Peseshkian', 'Pezeshkiyan', 'Pezeshkyan'], en: 'Pezeshkian'}
+  - {ru: 'Арагчи', wrong: ['Aragchi', 'Araqchi'], en: 'Araghchi'}
+  - {ru: 'Вадефул', wrong: ['Vadeful\w*', 'Wadeful\w*', 'Vadefuhl'], en: 'Wadephul'}
+  - {ru: 'Стубб', wrong: ['Stubb[a-z]+'], en: 'Stubb'}
+  - {ru: 'Мединск', wrong: ['Medina', 'Medinski'], en: 'Medinsky'}
+  - {ru: 'Хинштейн', wrong: ['Hinstein', 'Khinstein'], en: 'Khinshtein'}
+  - {ru: 'Лукашенк', wrong: ['Lukashenka'], en: 'Lukashenko'}
+  - {ru: '\bМаск(а|у|ом|е)?\b', not: '(?i)маск\w*\s+(для|из|с|от|на\s+лиц)\b|(медицинск|защитн|карнавальн|косметическ|противогазов)\w*\s+маск', wrong: ['Mask'], en: 'Musk'}
+  - {ru: '\bСальдо\b', not: '(?i)сальдо\s+(торгов|внешне|бюджет|счет|сч[её]т|платеж|операц|текущ|миграц)', wrong: ['Balance', 'balance', 'Baldo'], en: 'Saldo'}
+
+  # Institutions and abbreviations
+  - {ru: '\bСВО\b', not: '\bСВР\b', wrong: ['SBO', 'NWO', 'CBO', 'SVR'], en: 'SVO'}
+  - {ru: '\bВСУ\b', wrong: ['APU'], en: 'AFU'}
+  - {ru: '\bСК\b', not: 'Британ|Великобритан|Лондон|Соединенн\w+ Королевств', wrong: ['SK RF', 'SK', 'UK'], en: 'Investigative Committee'}
+  - {ru: 'Росгвардейц', wrong: ['Rosgvardeyts\w*', 'Rosgvardeits\w*', 'Regardie officers'], en: 'Rosgvardia officers'}
+  - {ru: 'Росгварди', wrong: ['Regardie', 'Rosgvardiya', 'Rosguard'], en: 'Rosgvardia'}
+  - {ru: '\bТЦК\b', wrong: ['TCK', 'TsK', 'TSK', 'shopping cent(?:er|re)s?'], en: 'TCC'}
+
+  # Weapons
+  - {ru: 'Геран[иьея]', wrong: ['Gerani', 'Heran\w*', 'Gueran\w*', 'Geranium\w*'], en: 'Geran drones'}
+
+  # Places: one spelling each, so that an English search finds them all
+  - {ru: 'Запорож', wrong: ['Zaporozh\w*', 'Zaporizh(?!zhia(?!\w))\w*'], en: 'Zaporizhzhia'}
+  - {ru: 'Харьков', wrong: ['Kharkov'], en: 'Kharkiv'}
+  - {ru: 'Днепропетровск', wrong: ['Dnepropetrovsk'], en: 'Dnipropetrovsk'}
+  - {ru: 'Красноармейск', wrong: ['Krasnoarmeisk'], en: 'Krasnoarmeysk'}
+  - {ru: 'Буч[аиеу]\b', wrong: ['Buche', 'Buchi', 'Buchu'], en: 'Bucha'}
+
+  # Ordinary words
+  - {ru: '[Лл]уна-парк', wrong: ['moon park', 'Moon park', 'Moon Park', 'lunar park', 'Lunar park'], en: 'amusement park'}

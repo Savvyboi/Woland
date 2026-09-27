@@ -9,6 +9,7 @@
 #   eu_blocked  true if the site is blocked in the EU under the sanctions broadcasting ban
 #               (observed via ISP-level DNS blocking in Finland, 24 Sept 2026)
 #   about       one-sentence description in en / fi / sv
+#   note        (optional) what readers should know about its coverage, in en / fi / sv (Outlets page)
 #   fetch       true  = open every article page (headline, lead, full text for narrative tagging)
 #               false = feed-only: the article pages refuse automated readers (JavaScript bot checks or
 #                       errors, which Woland does not try to get around), so only the outlet's own feed is used
@@ -73,6 +74,10 @@ outlets:
       en: Russia's central state news agency (Russian-language service).
       fi: Venäjän keskeinen valtiollinen uutistoimisto (venäjänkielinen palvelu).
       sv: Rysslands centrala statliga nyhetsbyrå (ryskspråkig tjänst).
+    note:
+      en: 'Read from its own feed only, which holds about three hours of news and cannot be read backwards: collected from 24 September 2026, when hourly reading began. About 05:00–21:00 Moscow time on 25 September is missing.'
+      fi: 'Luetaan vain median omasta syötteestä, jossa on noin kolmen tunnin uutiset ja jota ei voi lukea takautuvasti: kerätty 24.9.2026 alkaen, jolloin tunneittainen lukeminen alkoi. 25.9. puuttuu noin klo 5–21 Moskovan aikaa.'
+      sv: 'Läses bara från mediets eget flöde, som rymmer ungefär tre timmars nyheter och inte kan läsas i efterhand: insamlat från den 24 september 2026, då läsningen varje timme började. Cirka 05.00–21.00 Moskvatid den 25 september saknas.'
     # Article pages, sitemaps and robots.txt answer 403 ("if you are not a bot…"), and the Internet
     # Archive's copies are the same 403 page. The feed holds about three hours of news and cannot be read
     # backwards, so it is read every hour and TASS's Russian service starts with the first hourly run.
@@ -108,6 +113,10 @@ outlets:
       en: Official newspaper of the Russian government, in which laws are promulgated.
       fi: Venäjän hallituksen virallinen sanomalehti, jossa lait julkaistaan.
       sv: Den ryska regeringens officiella tidning, där lagar kungörs.
+    note:
+      en: 'Its DDoS shield answers bursts of requests with a CAPTCHA, which Woland never solves: its pages are read slowly, and headlines and leads come from its feed every hour in the meantime.'
+      fi: 'Sen palvelunestosuoja vastaa pyyntöryöppyihin CAPTCHA-tehtävällä, jota Woland ei koskaan ratkaise: sivut luetaan hitaasti, ja otsikot ja ingressit saadaan sillä välin syötteestä tunneittain.'
+      sv: 'Dess DDoS-skydd svarar på skurar av förfrågningar med en CAPTCHA, som Woland aldrig löser: sidorna läses långsamt, och rubriker och ingresser hämtas under tiden från flödet varje timme.'
     tz_fix: true   # rg.ru labels Moscow time as UTC
     # Behind Qrator, which answers bursts of requests with a CAPTCHA page (HTTP 401) for a while: read it
     # gently. Its feed (~6 hours, headlines and leads) is not challenged and is read every hour, so that
@@ -131,6 +140,10 @@ outlets:
       en: Daily newspaper and news site owned by the National Media Group.
       fi: Päivälehti ja uutissivusto, jonka omistaa National Media Group.
       sv: Dagstidning och nyhetssajt som ägs av National Media Group.
+    note:
+      en: 'About 1,500 of its items are videos without text, and so without a lead.'
+      fi: 'Noin 1 500 sen jutuista on videoita ilman tekstiä, joten niillä ei ole ingressiä.'
+      sv: 'Omkring 1 500 av dess inslag är videor utan text och saknar därför ingress.'
     article: '^https://iz\.ru/\d+/[^?#]+$'
     sources:
       - {type: sitemap_index, url: 'https://iz.ru/sitemap.xml', child: '/export/sitemap/(last|\d+)/xml$', order: desc, max_children: 4}
@@ -163,6 +176,10 @@ outlets:
       en: TV channel and news site of the Russian Ministry of Defence.
       fi: Venäjän puolustusministeriön televisiokanava ja uutissivusto.
       sv: Det ryska försvarsministeriets tv-kanal och nyhetssajt.
+    note:
+      en: 'Early September 2026 comes from the Internet Archive''s captures (about 70% of its news); 22–23 September are missing.'
+      fi: 'Syyskuun 2026 alku on peräisin Internet Archiven tallenteista (noin 70 % uutisista); 22.–23.9. puuttuvat.'
+      sv: 'Början av september 2026 kommer från Internet Archives sparade sidor (ungefär 70 % av nyheterna); 22–23 september saknas.'
     poll: true
     article: '^https?://(www\.)?tvzvezda\.ru/news/[^?#]+\.html$'
     sources:
@@ -183,6 +200,10 @@ outlets:
       en: Official website of the President of Russia; the reference point for the Kremlin's own line.
       fi: Venäjän presidentin virallinen verkkosivusto – vertailukohta Kremlin omalle linjalle.
       sv: Rysslands presidents officiella webbplats – referenspunkt för Kremls egen linje.
+    note:
+      en: 'Most records from September 2026 have no lead, because the feed''s summaries were empty; later records take the opening paragraph of the feed''s full text.'
+      fi: 'Useimmista syyskuun 2026 tietueista puuttuu ingressi, koska syötteen tiivistelmät olivat tyhjiä; myöhemmät tietueet käyttävät syötteen koko tekstin ensimmäistä kappaletta.'
+      sv: 'De flesta posterna från september 2026 saknar ingress eftersom flödets sammanfattningar var tomma; senare poster tar första stycket ur flödets fullständiga text.'
     poll: true
     fetch: false   # article pages answer 403 to automated readers; the Atom feed carries the full text
     feed_fulltext: true
@@ -241,6 +262,10 @@ outlets:
       en: Mass-circulation tabloid with one of Russia's largest online audiences.
       fi: Laajalevikkinen iltapäivälehti, jolla on yksi Venäjän suurimmista verkkoyleisöistä.
       sv: Kvällstidning med en av Rysslands största publiker på nätet.
+    note:
+      en: '1–22 September 2026 comes from the Internet Archive''s captures (about 60% of its online news): KP''s own listings reach back only two days.'
+      fi: '1.–22.9.2026 on peräisin Internet Archiven tallenteista (noin 60 % verkkouutisista): KP:n omat listaukset ulottuvat vain kaksi päivää taaksepäin.'
+      sv: '1–22 september 2026 kommer från Internet Archives sparade sidor (ungefär 60 % av nätnyheterna): KP:s egna listor når bara två dagar bakåt.'
     article: '^https://www\.kp\.ru/(online/news|daily/\d+)/\d+/$'
     sources:
       # news_*: the newest 1,000 online news (about two days); main_*: newspaper articles (about two weeks)
@@ -282,6 +307,10 @@ outlets:
       en: Popular Moscow tabloid and national news site.
       fi: Suosittu moskovalainen iltapäivälehti ja valtakunnallinen uutissivusto.
       sv: Populär Moskvatabloid och rikstäckande nyhetssajt.
+    note:
+      en: 'MK allows about 15 pages a minute, so many of its articles are kept headline only until later nightly runs read their pages.'
+      fi: 'MK sallii noin 15 sivua minuutissa, joten moni sen artikkeleista on toistaiseksi vain otsikko, kunnes myöhemmät yöajot lukevat sivut.'
+      sv: 'MK tillåter ungefär 15 sidor i minuten, så många av dess artiklar finns tills vidare bara som rubrik tills senare nattliga körningar läser sidorna.'
     rate: 4.0   # answers more than ~15 pages a minute with 429 "too many requests"
     article: '^https://www\.mk\.ru/[a-z0-9/-]+/\d{4}/\d{2}/\d{2}/[^/?#]+\.html$'
     sources:
@@ -397,6 +426,10 @@ outlets:
       en: International English-language brand of Rossiya Segodnya (formerly Sputnik News).
       fi: Rossija Segodnjan kansainvälinen englanninkielinen brändi (aiemmin Sputnik News).
       sv: Rossija Segodnjas internationella engelskspråkiga varumärke (tidigare Sputnik News).
+    note:
+      en: 'Blocked on the network in Finland where Woland was set up, so only GitHub''s servers can collect it.'
+      fi: 'Estetty Suomessa siinä verkossa, jossa Woland perustettiin, joten vain GitHubin palvelimet voivat kerätä sitä.'
+      sv: 'Blockerad i det finländska nätverk där Woland sattes upp, så bara GitHubs servrar kan samla in den.'
     article: '^https://sputnikglobe\.com/\d{8}/[^/]+\.html$'
     sources:
       - {type: sitemap, per: day, url: 'https://sputnikglobe.com/sitemap_article.xml?date_start={ymd}&date_end={ymd}'}
@@ -413,6 +446,10 @@ outlets:
       en: Orthodox-nationalist outlet founded by the sanctioned businessman Konstantin Malofeev.
       fi: Ortodoksis-nationalistinen media, jonka perusti pakotteiden alainen liikemies Konstantin Malofejev.
       sv: Ortodox-nationalistisk kanal grundad av den sanktionerade affärsmannen Konstantin Malofejev.
+    note:
+      en: '1–8 September 2026 holds noticeably fewer articles a day than later days; its monthly sitemap may be incomplete for them.'
+      fi: '1.–8.9.2026 on selvästi vähemmän artikkeleita päivässä kuin myöhempinä päivinä; sen kuukausittainen sivukartta voi olla niiltä osin puutteellinen.'
+      sv: '1–8 september 2026 har märkbart färre artiklar per dag än senare dagar; dess månatliga webbplatskarta kan vara ofullständig för dem.'
     article: '^https://tsargrad\.tv/(news|articles|materials|investigations)/(?!rubric/)[^?#]+$'
     sources:
       - {type: sitemap, per: month, url: 'https://tsargrad.tv/xml/sitemap-{y}-{m}.xml.gz'}
@@ -461,6 +498,10 @@ outlets:
       en: News agency with a nationalist editorial line. Currently refuses automated access.
       fi: Nationalistisen linjan uutistoimisto. Estää tällä hetkellä automaattisen pääsyn.
       sv: Nyhetsbyrå med nationalistisk linje. Nekar för närvarande automatiserad åtkomst.
+    note:
+      en: 'Refuses every automated request, its feed and robots.txt included, and the Internet Archive holds only error pages for its news: not collected.'
+      fi: 'Torjuu kaikki automaattiset pyynnöt, myös syötteen ja robots.txt-tiedoston, eikä Internet Archivessa ole sen uutisista kuin virhesivuja: ei kerätä.'
+      sv: 'Nekar alla automatiserade förfrågningar, även flödet och robots.txt, och Internet Archive har bara felsidor för dess nyheter: samlas inte in.'
     article: '^https://regnum\.ru/(news|article)/\d+$'
     sources:
       - {type: rss, url: 'https://regnum.ru/rss'}

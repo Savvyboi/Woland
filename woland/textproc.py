@@ -75,3 +75,64 @@ def is_stop(token: str) -> bool:
 def index_terms(text: str) -> list[tuple[str, str]]:
     """(surface form, stem) pairs for indexing, stop words removed."""
     return [(t, stem(t)) for t in tokens(text) if not is_stop(t)]
+
+
+# ── "Rising words" ────────────────────────────────────────────────────────────
+# Words that fill headlines every day without saying what the day was about, and the outlets' own names
+# ("ТАСС: …"). Only "rising words" leaves them out; the search index keeps them.
+RISING_STOP = set("""
+part parts start starts started begin begins began set sets take takes took taking make makes made making
+see sees seen show shows showed shown discuss discusses discussed hold holds held get gets got give gives
+gave keep keeps come comes came go goes going went put puts bring brings need needs want wants plan plans
+planned ready possible likely due key major main top high low big old next latest former level issue issues
+side sides case cases way ways number numbers point points place places move moves step steps work works
+working use uses used using help helps helped continue continues continued remain remains remained become
+becomes became return returns returned receive receives received offer offers offered consider considers
+considered expect expects expected note notes noted stress stresses stressed confirm confirms confirmed
+reveal reveals revealed warn warns warned urge urges urged name names named ask asks asked tell meet meets
+met calls call called let lets run runs time times today yesterday tomorrow country countries world
+region regions city cities head chief official officials leader leaders president minister ministry
+тасс риа иносми царьград tass ria inosmi tsargrad sputnik lenta известия izvestia
+""".split())
+
+_WORD = re.compile(r"[^\W_]+")
+_NAMEY = frozenset({"Surn", "Name", "Patr", "Geox", "Orgn", "Trad"})
+_morph = None
+
+
+def _analyzer():
+    global _morph
+    if _morph is None:
+        import pymorphy3
+        _morph = pymorphy3.MorphAnalyzer()
+    return _morph
+
+
+@lru_cache(maxsize=400_000)
+def lemma(form: str, capitalised: bool) -> str:
+    """Dictionary form of a Russian word (pymorphy3). A capitalised word prefers a name's reading
+    (Козлова → козлов, the surname), a lower-case one any other (козлов → козел, the goat); a word the
+    dictionary does not know falls back to its Snowball stem, which treats all its forms alike."""
+    parses = _analyzer().parse(form)
+    preferred = [p for p in parses if bool(_NAMEY & p.tag.grammemes) == capitalised]
+    p = (preferred or parses)[0]
+    return normalize(p.normal_form) if p.is_known else stem(form)
+
+
+def headline_words(title: str) -> list[tuple[int, str, str]]:
+    """(position, surface form, key) for the words of a headline that "rising words" counts: the lemma of
+    a Russian word, the Snowball stem of any other; numbers, short and stop words, outlets' names left out.
+    Positions count every word of the headline, so that neighbours can be recognised."""
+    out = []
+    for i, m in enumerate(_WORD.finditer(title)):
+        surface = m.group()
+        form = normalize(surface)
+        if form.isdigit() or len(form) < 3 or is_stop(form) or form in RISING_STOP:
+            continue
+        if _CYR.search(form):
+            key = lemma(form, surface[:1].isupper() and not surface.isupper())
+        else:
+            key = stem(form)
+        if key not in RISING_STOP:
+            out.append((i, surface, key))
+    return out

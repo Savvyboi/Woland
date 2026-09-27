@@ -41,6 +41,7 @@ class Outlet:
     feed_fulltext: bool = False  # feed-only, but the feed carries complete texts
     cookies: dict = field(default_factory=dict)  # cookies an anonymous visitor's browser holds for this site
     headline: str = "meta"  # where the headline is read: meta (og:title …) or h1
+    note: dict = field(default_factory=dict)  # what readers should know about its coverage (en / fi / sv)
 
     @property
     def host(self) -> str:
@@ -75,7 +76,7 @@ class Outlet:
             "id": self.id, "name": self.name, "name_ru": self.name_ru, "lang": self.lang,
             "group": self.group, "home": self.home, "about": self.about,
             "eu_blocked": self.eu_blocked, "method": self.method,
-            "enabled": self.enabled,
+            "enabled": self.enabled, "note": self.note or None,
         }
 
 
@@ -96,7 +97,7 @@ def load_outlets(path: Path | None = None, include_disabled: bool = False) -> li
             eu_blocked=bool(o.get("eu_blocked", False)), coverage_sitemap=o.get("coverage_sitemap"),
             tz_fix=bool(o.get("tz_fix", False)), parallel=max(1, int(o.get("parallel", 2))),
             feed_fulltext=bool(o.get("feed_fulltext", False)), cookies=dict(o.get("cookies") or {}),
-            headline=o.get("headline", "meta"),
+            headline=o.get("headline", "meta"), note=o.get("note") or {},
         )
         if outlet.enabled or include_disabled:
             outlets.append(outlet)
@@ -112,22 +113,63 @@ class Narrative:
     family: str  # framing | topic
     label: dict
     about: dict
-    patterns: dict = field(default_factory=dict)  # lang -> [pattern, ...]
+    # lang -> [pattern, ...]; an item is a pattern string, or a group
+    # {"match": [patterns], "with": [context names], "not": [phrases], "ctx": [the context names' patterns]}
+    patterns: dict = field(default_factory=dict)
+    checked: dict = field(default_factory=dict)  # a random sample of matches, read: {n, fit, date} (docs/lexicon-audit.md)
 
     def public(self) -> dict:
+        pats = {lang: [p if isinstance(p, str) else {k: v for k, v in p.items() if k != "ctx"} for p in ps]
+                for lang, ps in self.patterns.items()}
         return {"id": self.id, "family": self.family, "label": self.label, "about": self.about,
-                "patterns": self.patterns}
+                "patterns": pats, "checked": self.checked or None}
+
+
+def _as_list(v) -> list:
+    return [] if v is None else [v] if isinstance(v, str) else list(v)
+
+
+def load_contexts(path: Path | None = None) -> dict:
+    """Named word lists that a pattern group can require nearby (`with:` in lexicon.yaml): the lexicon's own
+    `contexts`, and every topic under its id."""
+    raw = yaml.safe_load((path or CONFIG_DIR / "lexicon.yaml").read_text(encoding="utf-8"))
+    out = {}
+    for t in raw.get("topics", []):
+        out[t["id"]] = {"label": t["label"], "ru": list(t.get("ru", [])), "en": list(t.get("en", []))}
+    for cid, c in (raw.get("contexts") or {}).items():
+        if cid in out:
+            raise ValueError(f"lexicon.yaml: context {cid!r} has the same id as a topic")
+        out[cid] = {"label": c.get("label", {}), "ru": list(c.get("ru", [])), "en": list(c.get("en", []))}
+    return out
 
 
 def load_lexicon(path: Path | None = None) -> list[Narrative]:
     raw = yaml.safe_load((path or CONFIG_DIR / "lexicon.yaml").read_text(encoding="utf-8"))
+    contexts = load_contexts(path)
     out = []
     for family, key in (("framing", "framings"), ("topic", "topics")):
         for n in raw.get(key, []):
-            out.append(Narrative(
-                id=n["id"], family=family, label=n["label"], about=n.get("about", {}),
-                patterns={lang: list(n.get(lang, [])) for lang in ("ru", "en")},
-            ))
+            patterns = {}
+            for lang in ("ru", "en"):
+                items = []
+                for p in n.get(lang, []) or []:
+                    if isinstance(p, str):
+                        items.append(p)
+                        continue
+                    names = _as_list(p.get("with"))
+                    unknown = [c for c in names if c not in contexts]
+                    if unknown or not _as_list(p.get("match")):
+                        raise ValueError(f"lexicon.yaml, {n['id']}: bad pattern group {p!r} (unknown: {unknown})")
+                    group = {"match": _as_list(p["match"])}
+                    if names:
+                        group["with"] = names
+                        group["ctx"] = [w for c in names for w in contexts[c][lang]]
+                    if p.get("not"):
+                        group["not"] = _as_list(p["not"])
+                    items.append(group)
+                patterns[lang] = items
+            out.append(Narrative(id=n["id"], family=family, label=n["label"], about=n.get("about", {}),
+                                 patterns=patterns, checked=n.get("checked") or {}))
     ids = [n.id for n in out]
     if len(ids) != len(set(ids)):
         raise ValueError("duplicate narrative ids in lexicon.yaml")

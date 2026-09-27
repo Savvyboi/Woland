@@ -1,14 +1,15 @@
 """Building the static website into _site/.
 
     _site/                       copy of site/ (HTML, CSS, JS)
-    _site/data/meta.json         outlets, narratives, date range, run health
-    _site/data/series.json       daily counts per outlet, and per narrative per outlet
-    _site/data/coverage.json     collection status for every outlet and day
+    _site/data/meta.json         outlets, narratives, date range, the last completed day, run health
+    _site/data/series.json       daily counts per outlet and per narrative per outlet; collection status
+    _site/data/coverage.json     collection details for every outlet and day
     _site/data/days/<date>.json  the daily digest: narratives, rising words, examples
     _site/data/search/…          a static full-text index, one folder per month (gzip files)
 
 Months are cached in .cache/build/<YYYY-MM>/ and only rebuilt when their articles, the previous
-month, the lexicon or this builder change: a daily build only redoes the current month.
+month, the lexicon, the translation glossary or this builder change: a daily build only redoes the
+current month.
 """
 from __future__ import annotations
 
@@ -20,22 +21,25 @@ import os
 import shutil
 import time
 from collections import Counter, defaultdict
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
-from .config import ROOT, START_DATE, load_lexicon, load_outlets
+from .config import ROOT, START_DATE, load_contexts, load_lexicon, load_outlets
+from .glossary import Glossary
 from .lexicon import Lexicon
 from .store import available_days, day_dir, load_coverage, load_runs, read_day
-from .textproc import STOP_EN, STOP_RU, index_terms, is_stop, stem, tokens
-from .util import iso_utc, parse_dt, truncate
+from .textproc import STOP_EN, STOP_RU, headline_words, index_terms
+from .util import MSK, iso_utc, parse_dt, today_msk, truncate
 
 log = logging.getLogger("woland.build")
 
-BUILD_VERSION = "3"
+BUILD_VERSION = "4"
 NB = 128          # index buckets per month
 BLOCK = 100       # documents per block file
 BASELINE_DAYS = 28
 RISING_BASELINE = 14
+RISING_MIN = {"ru": 6, "en": 5}  # headlines a word needs on the day to be considered "rising"
+RISING_SHOWN = 12                 # events listed per language
 EXAMPLES = 6
 SEARCH_LEAD = 180  # characters of the lead kept in search documents (the archive keeps up to 240)
 # GitHub Pages sites must stay under 1 GB: publish the search index for the most recent months only.
@@ -112,6 +116,15 @@ class MonthIndex:
         dump_gz(sdir / "m.json.gz", {"n": len(self.docs), "days": self.day_starts, "o": "".join(self.codes)})
 
 
+def display_form(forms: Counter, key: str) -> str:
+    """How to write a rising word: its dictionary form if the headlines used it, otherwise their
+    commonest form; lower case unless nearly every use was capitalised (a name)."""
+    same = Counter({f: c for f, c in forms.items() if f.lower().replace("ё", "е") == key})
+    best = (same or forms).most_common(1)[0][0]
+    capitalised = sum(c for f, c in forms.items() if f[:1].isupper())
+    return best if capitalised >= 0.8 * sum(forms.values()) else best.lower()
+
+
 class Builder:
     def __init__(self, out_dir: Path, base_url: str = ""):
         self.out = out_dir
@@ -124,24 +137,34 @@ class Builder:
         self.nidx = {n.id: i for i, n in enumerate(self.narratives)}
         self.lex = Lexicon(self.narratives)
         self.lex_fp = self.lex.fingerprint()
+        self.glossary = Glossary()
 
     # ── per-record work ───────────────────────────────────────────────────────
     def narratives_of(self, rec: dict) -> tuple[list[int], dict[int, str]]:
         lang = self.olang.get(rec["o"], "ru")
-        ids = set(self.lex.find(rec.get("t", ""), lang)) | set(self.lex.find(rec.get("d", ""), lang))
+        t, d = rec.get("t", ""), rec.get("d", "")
+        ids = set(self.lex.find(t, lang, extra=d)) | set(self.lex.find(d, lang, extra=t))
         snippets = {}
         for nid, snip in (rec.get("kb") or {}).items():
             # Body matches were recorded with the lexicon of the day they were collected. Re-check the
             # snippet against today's patterns, so narrowing or removing a pattern cleans the archive.
-            if nid in self.nidx and nid not in ids and nid in self.lex.find(snip, lang):
+            if nid in self.nidx and nid not in ids and nid in self.lex.find(snip, lang, extra=f"{t} {d}"):
                 snippets[self.nidx[nid]] = snip
         ks = sorted({self.nidx[i] for i in ids} | set(snippets))
         return ks, snippets
 
+    def corrected(self, rec: dict) -> dict:
+        """The record with its machine translation run through the glossary (config/glossary.yaml)."""
+        if not rec.get("te"):
+            return rec
+        te = self.glossary.fix(rec["t"], rec["te"])
+        return rec if te == rec["te"] else {**rec, "te": te}
+
     # ── months ────────────────────────────────────────────────────────────────
     def month_key(self, month: str, days: list[date], prev_key: str) -> str:
-        h = hashlib.sha1(f"{BUILD_VERSION}|{self.lex_fp}|{prev_key}|{[o.id for o in self.outlets]}".encode())
-        for src in ("build.py", "lexicon.py", "textproc.py"):  # code changes invalidate the cache too
+        h = hashlib.sha1(f"{BUILD_VERSION}|{self.lex_fp}|{self.glossary.fingerprint()}|{prev_key}|"
+                         f"{[o.id for o in self.outlets]}".encode())
+        for src in ("build.py", "lexicon.py", "textproc.py", "glossary.py"):  # code changes invalidate the cache too
             h.update((Path(__file__).parent / src).read_bytes())
         for d in days:
             for p in sorted(day_dir(d).glob("*.jsonl")):
@@ -161,7 +184,7 @@ class Builder:
             recs = []
             for oid in sorted(p.stem for p in day_dir(d).glob("*.jsonl")):
                 if oid in self.oidx:
-                    recs.extend(read_day(d, oid))
+                    recs.extend(self.corrected(r) for r in read_day(d, oid))
             recs.sort(key=lambda r: (r["p"], r["o"], r["u"]))
             idx.day_starts.append([d.isoformat(), len(idx.docs)])
             summary[d.isoformat()] = self.day_aggregates(recs, idx)
@@ -170,7 +193,7 @@ class Builder:
             key = d.isoformat()
             history[key] = summary[key]
             dump(cdir / "days" / f"{key}.json", self.digest(d, history))
-        slim = {k: {kk: vv for kk, vv in v.items() if kk != "stem_ex"} for k, v in summary.items()}
+        slim = {k: {kk: vv for kk, vv in v.items() if kk not in ("stem_ex", "posts")} for k, v in summary.items()}
         dump(cdir / "summary.json", slim)
         log.info("month %s: %d documents, %d stems, %.1fs", month, len(idx.docs), len(idx.postings),
                  time.monotonic() - t0)
@@ -178,9 +201,12 @@ class Builder:
 
     def day_aggregates(self, recs: list[dict], idx: "MonthIndex") -> dict:
         totals = Counter()
+        listed = Counter()
         framed = 0
         nar = defaultdict(Counter)
         df = {"ru": Counter(), "en": Counter()}
+        posts = {"ru": defaultdict(list), "en": defaultdict(list)}   # word → the day's headlines using it
+        heads = {"ru": 0, "en": 0}
         form_counts = {"ru": defaultdict(Counter), "en": defaultdict(Counter)}
         stem_ex = {"ru": {}, "en": {}}
         examples = defaultdict(list)
@@ -188,6 +214,7 @@ class Builder:
             o = r["o"]
             lang = self.olang.get(o, "ru")
             totals[o] += 1
+            listed[o] += self.headline_only(r)
             ks, snips = self.narratives_of(r)
             for k in ks:
                 nar[self.narratives[k].id][o] += 1
@@ -197,22 +224,22 @@ class Builder:
             lead = r.get("d", "")
             doc = [self.oidx[o], ts, r["t"], r.get("te", ""), truncate(lead, SEARCH_LEAD), r["u"], ks,
                    {str(k): v for k, v in snips.items()}, r.get("h", ""), (r.get("r") or "")[:10], r.get("a", ""),
-                   self.headline_only(r)]
+                   self.headline_only(r), r.get("w", 0)]
             text = " ".join(x for x in (r["t"], r.get("d", ""), r.get("te", "")) if x)
             idx.add(doc, self.oidx[o], index_terms(text))
-            # rising words: document frequency of stems in headlines
+            # rising words: in how many of the day's headlines each word (lemma) occurs, and which
+            n = heads[lang]
+            heads[lang] += 1
             seen = set()
-            for t in tokens(r["t"]):
-                if is_stop(t) or t.isdigit() or len(t) < 3:
+            for _, surface, key in headline_words(r["t"]):
+                form_counts[lang][key][surface] += 1
+                if key in seen:
                     continue
-                st = stem(t)
-                form_counts[lang][st][t] += 1
-                if st in seen:
-                    continue
-                seen.add(st)
-                df[lang][st] += 1
-                if st not in stem_ex[lang] or (not stem_ex[lang][st].get("te") and r.get("te")):
-                    stem_ex[lang][st] = self.example(r, None)
+                seen.add(key)
+                df[lang][key] += 1
+                posts[lang][key].append(n)
+                if key not in stem_ex[lang] or (not stem_ex[lang][key].get("te") and r.get("te")):
+                    stem_ex[lang][key] = self.example(r, None)
             for k in ks:  # narrative examples
                 ex = examples[self.narratives[k].id]
                 if len(ex) < 40:
@@ -227,18 +254,21 @@ class Builder:
                 if len(picked) >= EXAMPLES:
                     break
             chosen[nid] = picked
-        forms = {lang: {st: c.most_common(1)[0][0] for st, c in fc.items() if st in df[lang]}
+        forms = {lang: {k: display_form(c, k) for k, c in fc.items() if df[lang][k] >= RISING_MIN[lang]}
                  for lang, fc in form_counts.items()}
-        return {"totals": dict(totals), "framed": framed, "nar": {k: dict(v) for k, v in nar.items()},
+        return {"totals": dict(totals), "listed": {o: v for o, v in listed.items() if v}, "framed": framed,
+                "nar": {k: dict(v) for k, v in nar.items()},
                 "df": {lang: dict(c) for lang, c in df.items()}, "forms": forms,
-                "examples": chosen, "stem_ex": stem_ex}
+                "examples": chosen, "stem_ex": stem_ex,
+                "posts": {lang: {k: v for k, v in p.items() if len(v) >= RISING_MIN[lang]} for lang, p in posts.items()}}
 
     def headline_only(self, r: dict) -> int:
         """1 for an outlet whose pages Woland reads, when this article's page has not been read (yet)."""
         return int(r.get("via") == "feed" and self.ofetch.get(r["o"], False))
 
     def example(self, r: dict, snippet: str | None) -> dict:
-        ex = {"o": r["o"], "t": r["t"], "u": r["u"], "p": r["p"][11:16], "id": r["id"]}
+        ex = {"o": r["o"], "t": r["t"], "u": r["u"], "p": r["p"][11:16], "id": r["id"],
+              "h": r.get("h", ""), "r": (r.get("r") or "")[:10], "w": r.get("w", 0)}
         if r.get("te"):
             ex["te"] = r["te"]
         if self.headline_only(r):
@@ -254,30 +284,41 @@ class Builder:
         total = sum(today["totals"].values())
         past = [history[k] for k in sorted(history) if k < key][-BASELINE_DAYS:]
         past_total = [sum(p["totals"].values()) for p in past]
-        spark_days = [history[k] for k in sorted(history) if k <= key][-30:]
+        spark_keys = [k for k in sorted(history) if k <= key][-30:]
+
+        def count(day, nid):
+            return sum(day["nar"].get(nid, {}).values())
 
         def share(day, nid):
             t = sum(day["totals"].values())
-            return (sum(day["nar"].get(nid, {}).values()) / t) if t else 0.0
+            return (count(day, nid) / t) if t else 0.0
 
         narratives = []
         for n in self.narratives:
-            cnt = sum(today["nar"].get(n.id, {}).values())
+            cnt = count(today, n.id)
             s = cnt / total if total else 0.0
-            base = None
+            base = base_n = None
             if past and sum(past_total):
-                base = sum(sum(p["nar"].get(n.id, {}).values()) for p in past) / sum(past_total)
+                hits = sum(count(p, n.id) for p in past)
+                base = hits / sum(past_total)
+                base_n = hits / len(past)
             narratives.append({
                 "id": n.id, "n": cnt, "share": round(s, 5),
                 "base": None if base is None else round(base, 5),
+                "base_n": None if base_n is None else round(base_n, 1),
                 "by": today["nar"].get(n.id, {}),
-                "spark": [round(share(x, n.id), 5) for x in spark_days],
+                "spark": [round(share(history[k], n.id), 5) for k in spark_keys],
+                "spark_n": [count(history[k], n.id) for k in spark_keys],
                 "ex": today["examples"].get(n.id, []),
             })
-        return {"date": key, "total": total, "totals": today["totals"], "framed": today.get("framed", 0),
-                "narratives": narratives, "rising": self.rising(d, history), "days": len(past) + 1}
+        return {"date": key, "total": total, "totals": today["totals"], "listed": today.get("listed", {}),
+                "framed": today.get("framed", 0), "narratives": narratives, "spark_from": spark_keys[0],
+                "rising": self.rising(d, history), "days": len(past) + 1}
 
     def rising(self, d: date, history: dict) -> dict:
+        """Words far more common in the day's headlines than over the previous two weeks, grouped into
+        events: words that appear in largely the same headlines ("Сьюзан" and "Сарандон"; "Домодедово",
+        "обслуживает" and "согласованию") are shown together."""
         key = d.isoformat()
         today = history[key]
         past = [history[k] for k in sorted(history) if k < key][-RISING_BASELINE:]
@@ -291,22 +332,46 @@ class Builder:
             if not n_past:
                 out[lang] = []
                 continue
-            min_count = 6 if lang == "ru" else 3
             scored = []
-            for st, c in today["df"][lang].items():
-                if c < min_count:
+            for w, c in today["df"][lang].items():
+                if c < RISING_MIN[lang]:
                     continue
-                base = sum(p["df"][lang].get(st, 0) for p in past) / len(past)
+                base = sum(p["df"][lang].get(w, 0) for p in past) / len(past)
                 score = ((c + 0.5) / n_today) / ((base + 0.5) / n_past)
                 if score >= 2.0:
-                    scored.append((score, c, base, st))
+                    scored.append((score, c, base, w))
             scored.sort(reverse=True)
-            items = []
-            for score, c, base, st in scored[:15]:
-                items.append({"w": today["forms"][lang].get(st, st), "n": c, "base": round(base, 2),
-                              "x": round(score, 1), "ex": today["stem_ex"][lang].get(st)})
-            out[lang] = items
+            posts = today["posts"][lang]
+            groups: list[list] = []
+            for cand in scored[:40]:
+                heads = set(posts.get(cand[3], ()))
+                for g in groups:
+                    lead = g[0][1]
+                    if len(heads & lead) >= 0.6 * min(len(heads), len(lead)):
+                        g.append((cand, heads))
+                        break
+                else:
+                    groups.append([(cand, heads)])
+            out[lang] = [self.rising_item(g, today, lang) for g in groups[:RISING_SHOWN]]
         return out
+
+    def rising_item(self, group: list, today: dict, lang: str) -> dict:
+        (score, c, base, lead), lead_heads = group[0]
+        ex = today["stem_ex"][lang].get(lead)
+        union = set().union(*(h for _, h in group))
+        pos = {}
+        for i, _, k in headline_words(ex["t"]) if ex else ():
+            pos.setdefault(k, i)
+        members = sorted(group, key=lambda m: pos.get(m[0][3], 999))
+        words = [today["forms"][lang].get(m[0][3], m[0][3]) for m in members]
+        label = words[0]
+        for (m, prev) in zip(members[1:], members):
+            a, b = pos.get(prev[0][3]), pos.get(m[0][3])
+            label += (" " if a is not None and b is not None and b == a + 1 else " · ") + today["forms"][lang].get(m[0][3], m[0][3])
+        # the search behind the link: the words that nearly all the event's headlines share
+        common = [today["forms"][lang].get(m[0][3], m[0][3]) for m in members if len(m[1]) >= 0.8 * len(union)]
+        return {"w": label, "k": lead, "words": words, "q": " ".join(common) or words[0],
+                "n": c, "base": round(base, 2), "x": round(score, 1), "ex": ex}
 
     # ── assembly ──────────────────────────────────────────────────────────────
     def run(self):
@@ -339,8 +404,9 @@ class Builder:
             # keep only what later digests need
             keep = sorted(history)[-max(BASELINE_DAYS, RISING_BASELINE, 30) - 1:]
             history = {k: history[k] for k in keep} if month != month_list[-1] else history
-        self.write_series(days)
-        self.write_meta(days, month_list[-SEARCH_MONTHS:])
+        cov = load_coverage()
+        self.write_series(days, cov)
+        self.write_meta(days, month_list[-SEARCH_MONTHS:], cov)
         log.info("site built in %.1fs → %s", time.monotonic() - t0, self.out)
 
     def copy_site(self):
@@ -357,7 +423,7 @@ class Builder:
             page.write_text(html, encoding="utf-8", newline="\n")
         (self.out / ".nojekyll").write_text("")
 
-    def write_series(self, days: list[date]):
+    def write_series(self, days: list[date], cov: dict):
         ids = [o.id for o in self.outlets]
         totals = {o: [0] * len(days) for o in ids}
         nar = {n.id: {o: [0] * len(days) for o in ids} for n in self.narratives}
@@ -376,7 +442,51 @@ class Builder:
             "days": [d.isoformat() for d in days],
             "totals": {o: v for o, v in totals.items() if any(v)},
             "nar": {nid: {o: v for o, v in by.items() if any(v)} for nid, by in nar.items()},
+            "cov": self.coverage_codes(days, totals, cov),
         })
+
+    def coverage_codes(self, days: list[date], totals: dict, cov: dict) -> dict[str, str]:
+        """One letter per outlet and day: c complete, p partial, f read from the outlet's feed only,
+        m not collected at all (as opposed to collected and empty). A feed-only day with no articles means
+        the feed was not read in time (TASS's Russian service before hourly reading began)."""
+        out = {}
+        for o in self.outlets:
+            by = cov.get(o.id, {})
+            busy = sorted(v for v in totals[o.id] if v)
+            typical = busy[len(busy) // 2] if busy else 0
+            row = []
+            for i, d in enumerate(days):
+                e = by.get(d.isoformat())
+                n = totals[o.id][i]
+                if e is None:
+                    row.append("p" if n else "m")
+                elif not n and (e.get("status") == "feed" or typical >= 20):
+                    # nothing at all from an outlet that usually publishes dozens a day is a gap in
+                    # collection, whatever the state file says (a backfill from the first day had no
+                    # earlier days to compare with)
+                    row.append("m")
+                else:
+                    row.append({"complete": "c", "partial": "p", "feed": "f"}.get(e.get("status"), "p"))
+            if o.enabled or any(totals[o.id]) or any(ch != "m" for ch in row):
+                out[o.id] = "".join(row)
+        return out
+
+    def complete_through(self, days: list[date]) -> str | None:
+        """The last day that a full collection run has gathered after the day was over (Moscow time).
+        Later days are still being collected: the nightly run reads the previous day only after
+        midnight. Without any record of such runs (a fresh copy), every day before today counts."""
+        if not days:
+            return None
+        ends = []
+        for r in load_runs():
+            if r.get("mode") not in ("daily", "backfill") or not r.get("at"):
+                continue
+            started = parse_dt(r["at"]).astimezone(MSK).date()
+            reach = [date.fromisoformat(v["range"][1]) for v in r.get("outlets", {}).values() if v.get("range")]
+            if reach:
+                ends.append(min(started - timedelta(days=1), max(reach)))
+        done = max(ends) if ends else today_msk() - timedelta(days=1)
+        return min(done, days[-1]).isoformat()
 
     def _summary_for(self, d: date) -> dict:
         month = f"{d:%Y-%m}"
@@ -387,20 +497,22 @@ class Builder:
                 self._summary_cache[month] = json.load(fh)
         return self._summary_cache[month].get(d.isoformat(), {})
 
-    def write_meta(self, days: list[date], months: list[str]):
-        cov = load_coverage()
-        per_outlet = defaultdict(lambda: {"n": 0, "days": 0, "first": None, "last": None})
+    def write_meta(self, days: list[date], months: list[str], cov: dict):
+        per_outlet = defaultdict(lambda: {"n": 0, "days": 0, "first": None, "last": None, "listed": 0})
         for d in days:
-            for o, v in self._summary_for(d).get("totals", {}).items():
+            summary = self._summary_for(d)
+            for o, v in summary.get("totals", {}).items():
                 s = per_outlet[o]
                 s["n"] += v
                 s["days"] += 1
                 s["first"] = s["first"] or d.isoformat()
                 s["last"] = d.isoformat()
+            for o, v in summary.get("listed", {}).items():
+                per_outlet[o]["listed"] += v
         outlets = []
         for o in self.outlets:
             info = o.public()
-            info.update(per_outlet.get(o.id, {"n": 0, "days": 0, "first": None, "last": None}))
+            info.update(per_outlet.get(o.id, {"n": 0, "days": 0, "first": None, "last": None, "listed": 0}))
             outlets.append(info)
         compact_cov = {}
         for oid, by_day in cov.items():
@@ -408,21 +520,27 @@ class Builder:
                                     {"complete": "c", "partial": "p", "feed": "f"}.get(v.get("status"), "p")]
                                 for d, v in sorted(by_day.items())}
         dump(self.out / "data" / "coverage.json", compact_cov)
-        runs = load_runs()[-12:]
+        # runs.json is appended to as runs finish, and several runs overlap: list them by start time
+        runs = sorted((r for r in load_runs() if r.get("at")), key=lambda r: r["at"])[-12:]
         repo = os.environ.get("GITHUB_REPOSITORY")
+        contexts = load_contexts()
         dump(self.out / "data" / "meta.json", {
             "generated": iso_utc(), "version": BUILD_VERSION, "base_url": self.base_url,
             "repo": f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/{repo}" if repo else None,
             "start": START_DATE.isoformat(),
             "first": days[0].isoformat() if days else None,
             "last": days[-1].isoformat() if days else None,
+            "complete_through": self.complete_through(days),
             "articles": sum(s["n"] for s in per_outlet.values()),
             "outlets": outlets,
             "narratives": [dict(n.public(), idx=i) for i, n in enumerate(self.narratives)],
+            "contexts": contexts,
             "search": {"months": months, "nb": NB, "block": BLOCK, "codes": CODES,
                        "stop": sorted(STOP_RU | STOP_EN)},
             "lexicon": self.lex_fp,
+            "glossary": len(self.glossary.entries),
             "runs": [{"at": r.get("at"), "mode": r.get("mode"), "seconds": r.get("seconds"),
+                      "outlets": sorted(r.get("outlets", {})),
                       "new": sum(v.get("new", 0) for v in r.get("outlets", {}).values()),
                       "problems": {k: (v.get("aborted") or "; ".join(v.get("errors", [])) or v.get("error"))
                                    for k, v in r.get("outlets", {}).items()

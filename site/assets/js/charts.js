@@ -30,6 +30,11 @@ function dateTicks(days, width) {
   return idx;
 }
 
+/** Replace a tooltip's content; absent parts (null) are left out rather than written as "null". */
+function fill(tip, ...kids) {
+  tip.replaceChildren(...kids.flat().filter((k) => k !== null && k !== undefined && k !== false));
+}
+
 function tooltipBox(container) {
   let tip = container.querySelector(":scope > .tooltip");
   if (!tip) { tip = el("div", { class: "tooltip", role: "status" }); tip.hidden = true; container.append(tip); }
@@ -63,11 +68,16 @@ export function withTable(plate, chartNode, tableFn) {
   tools.append(btn);
 }
 
-export function tableOf(days, series, fmt) {
+/** A chart's numbers as a table, one row per day. Each column may bring its own format (`fmt`); `rowNote(i)`
+ *  marks a row (a day still being collected, say). */
+export function tableOf(days, series, fmt, rowNote) {
   return el("table", { class: "table-view" },
-    el("thead", {}, el("tr", {}, el("th", {}, ""), ...series.map((sr) => el("th", {}, sr.label)))),
-    el("tbody", {}, days.map((d, i) => el("tr", {}, el("th", { scope: "row" }, fmtDay(d)),
-      ...series.map((sr) => el("td", {}, sr.values[i] === null || sr.values[i] === undefined ? "–" : fmt(sr.values[i])))))));
+    el("thead", {}, el("tr", {}, el("th", { scope: "col" }, t("table.day")), ...series.map((sr) => el("th", { scope: "col" }, sr.label)))),
+    el("tbody", {}, days.map((d, i) => {
+      const note = rowNote ? rowNote(i) : "";
+      return el("tr", { class: note ? "open" : null }, el("th", { scope: "row" }, fmtDay(d), note ? el("small", {}, ` ${note}`) : null),
+        ...series.map((sr) => el("td", {}, sr.values[i] === null || sr.values[i] === undefined ? "–" : (sr.fmt || fmt)(sr.values[i]))));
+    })));
 }
 
 function responsive(container, draw) {
@@ -87,7 +97,7 @@ function responsive(container, draw) {
  * Line chart over days.
  * series: [{label, color, values, width=2, dots=false, dim=false}]
  */
-export function lineChart(container, { days, series, yFormat, height = 240, legend = true, yMax }) {
+export function lineChart(container, { days, series, yFormat, height = 240, legend = true, yMax, tipExtra, openFrom }) {
   container.classList.add("chart");
   if (legend && series.filter((x) => !x.hideLegend).length > 1) {
     container.before(el("div", { class: "legend" }, series.filter((x) => !x.hideLegend).map((sr) =>
@@ -115,12 +125,25 @@ export function lineChart(container, { days, series, yFormat, height = 240, lege
     for (const sr of series) {
       const g = s("g", {});
       if (sr.line !== false) {
+        // days still being collected are drawn dashed, apart from the rest
+        const cut = openFrom === undefined || openFrom === null ? days.length : openFrom;
         let d = "", pen = false;
         sr.values.forEach((v, i) => {
+          if (i >= cut) return;
           if (v === null || v === undefined) { pen = false; return; }
           d += `${pen ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`;
           pen = true;
         });
+        if (cut < days.length) {
+          let dd = "", pen2 = false;
+          for (let i = Math.max(0, cut - 1); i < days.length; i++) {
+            const v = sr.values[i];
+            if (v === null || v === undefined) { pen2 = false; continue; }
+            dd += `${pen2 ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`;
+            pen2 = true;
+          }
+          if (dd) g.append(s("path", { class: "line open", d: dd, style: `stroke:${sr.color};stroke-width:${sr.width || 2}` }));
+        }
         if (sr.area && d) {
           const pts = sr.values.map((v, i) => (v === null || v === undefined ? null : [x(i), y(v)])).filter(Boolean);
           if (pts.length > 1) g.append(s("path", { class: "area", style: `fill:${sr.color}`,
@@ -131,7 +154,9 @@ export function lineChart(container, { days, series, yFormat, height = 240, lege
       if (sr.dots || days.length < 3) {
         sr.values.forEach((v, i) => {
           if (v === null || v === undefined) return;
-          g.append(s("circle", { class: "dot", cx: x(i), cy: y(v), r: sr.r || 3, style: `fill:${sr.color}` }));
+          const open = openFrom !== undefined && openFrom !== null && i >= openFrom;
+          g.append(s("circle", { class: open ? "dot open" : "dot", cx: x(i), cy: y(v), r: sr.r || 3,
+            style: open ? `stroke:${sr.color}` : `fill:${sr.color}` }));
         });
       }
       svg.append(g);
@@ -144,10 +169,13 @@ export function lineChart(container, { days, series, yFormat, height = 240, lege
     const tip = tooltipBox(container);
     const show = (i) => {
       cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.setAttribute("visibility", "visible");
-      tip.replaceChildren(el("div", { class: "tt-head" }, fmtDay(days[i], true)),
+      const open = openFrom !== undefined && openFrom !== null && i >= openFrom;
+      fill(tip, el("div", { class: "tt-head" }, fmtDay(days[i], true)),
         ...series.filter((sr) => !sr.hideTip).map((sr) => el("div", { class: "tt-row" },
           el("b", {}, sr.values[i] === null || sr.values[i] === undefined ? "–" : yFormat(sr.values[i])),
-          el("span", { class: "key", style: { background: sr.color } }), sr.label)));
+          el("span", { class: "key", style: { background: sr.color } }), sr.label)),
+        tipExtra ? el("div", { class: "tt-note" }, tipExtra(i)) : null,
+        open ? el("div", { class: "tt-note open" }, t("day.open.short")) : null);
       placeTip(tip, container, x(i) * container.clientWidth / W, m.t);
     };
     const hide = () => { cross.setAttribute("visibility", "hidden"); tip.hidden = true; };
@@ -169,7 +197,7 @@ export function lineChart(container, { days, series, yFormat, height = 240, lege
 }
 
 /** Daily columns (one hue). */
-export function columnChart(container, { days, values, format, height = 170, color = "var(--gilt)", label }) {
+export function columnChart(container, { days, values, format, height = 170, color = "var(--gilt)", label, isOpen }) {
   container.classList.add("chart");
   responsive(container, (W) => {
     const H = height, m = { l: 40, r: 8, t: 8, b: 24 };
@@ -200,12 +228,15 @@ export function columnChart(container, { days, values, format, height = 170, col
       const path = h > 0
         ? `M${x0},${m.t + ih}V${y0 + r}Q${x0},${y0} ${x0 + r},${y0}H${x0 + bw - r}Q${x0 + bw},${y0} ${x0 + bw},${y0 + r}V${m.t + ih}Z`
         : "";
-      const g = s("g", { class: "col", tabindex: "0", role: "img", "aria-label": `${fmtDay(d)}: ${format(v)}` },
+      const open = isOpen ? isOpen(d) : false;
+      const g = s("g", { class: open ? "col open" : "col", tabindex: "0", role: "img",
+        "aria-label": `${fmtDay(d)}: ${format(v)}${open ? ` (${t("day.open.short")})` : ""}` },
         s("rect", { x: m.l + band * i, y: m.t, width: band, height: ih, fill: "transparent" }),
         path ? s("path", { d: path, style: `fill:${color}` }) : null);
       const show = () => {
-        tip.replaceChildren(el("div", { class: "tt-head" }, fmtDay(d, true)),
-          el("div", { class: "tt-row" }, el("b", {}, format(v)), label || ""));
+        fill(tip, el("div", { class: "tt-head" }, fmtDay(d, true)),
+          el("div", { class: "tt-row" }, el("b", {}, format(v)), label || ""),
+          open ? el("div", { class: "tt-note open" }, t("day.open.short")) : null);
         placeTip(tip, container, cx * container.clientWidth / W, y0 * container.clientWidth / W - 30);
       };
       g.addEventListener("pointerenter", show);
@@ -221,15 +252,19 @@ export function columnChart(container, { days, values, format, height = 170, col
 
 const SEQ = ["var(--seq-0)", "var(--seq-1)", "var(--seq-2)", "var(--seq-3)", "var(--seq-4)", "var(--seq-5)", "var(--seq-6)"];
 
-/** Outlet × day heatmap on the sequential (gilt) ramp. rows: [{label, values, sub}] */
-export function heatmap(container, { days, rows, format, cell = 14 }) {
+/** Outlet × day heatmap on the sequential (gilt) ramp. rows: [{label, values, sub, states}]; the state "m" marks a
+ *  day the outlet was not collected at all, drawn apart from a day on which it published nothing. */
+export function heatmap(container, { days, rows, format, cell = 14, isOpen }) {
   container.classList.add("chart");
   const max = Math.max(1e-9, ...rows.flatMap((r) => r.values.filter((v) => v !== null)));
   const labelW = 150, top = 22;
   const avail = Math.floor((container.clientWidth - labelW - 8) / Math.max(1, days.length)) - 2;
   const cw = Math.max(6, Math.min(days.length <= 14 ? 26 : cell, avail || cell));
   const W = labelW + days.length * (cw + 2) + 4, H = top + rows.length * (cell + 2) + 4;
-  const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: "img", style: "max-width:none;width:auto" });
+  const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: "group", style: "max-width:none;width:auto",
+    "aria-label": t("narratives.heat") });
+  svg.append(s("defs", {}, s("pattern", { id: "hatch", width: 4, height: 4, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" },
+    s("line", { x1: 0, y1: 0, x2: 0, y2: 4, style: "stroke:var(--text-3);stroke-width:1" }))));
   const tip = tooltipBox(container);
   const step = (v) => (v === null || v === undefined ? null : v <= 0 ? 0 : 1 + Math.min(5, Math.floor((v / max) * 5.999)));
   const every = Math.max(1, Math.ceil(56 / (cw + 2)));  // one date label per ~56px
@@ -241,12 +276,18 @@ export function heatmap(container, { days, rows, format, cell = 14 }) {
     svg.append(s("text", { x: labelW - 8, y: yy + cell - 3, "text-anchor": "end" }, row.label));
     row.values.forEach((v, i) => {
       const k = step(v);
+      const missing = !!(row.states && row.states[i] === "m");
+      const open = isOpen ? isOpen(days[i]) : false;
+      const what = missing ? t("cov.m.long") : v === null ? t("heat.none") : format(v);
       const rect = s("rect", { x: labelW + i * (cw + 2), y: yy, width: cw, height: cell, rx: 2,
-        style: k === null ? "fill:transparent;stroke:var(--rule);stroke-width:1" : `fill:${SEQ[k]}`,
-        tabindex: "0", role: "img", "aria-label": `${row.label}, ${fmtDay(days[i])}: ${v === null ? "–" : format(v)}` });
+        class: missing ? "cell-missing" : open ? "cell-open" : null,
+        style: missing ? "fill:url(#hatch);stroke:var(--rule-2);stroke-width:1"
+          : k === null ? "fill:transparent;stroke:var(--rule);stroke-width:1" : `fill:${SEQ[k]}`,
+        tabindex: "0", role: "img", "aria-label": `${row.label}, ${fmtDay(days[i])}: ${what}${open ? ` (${t("day.open.short")})` : ""}` });
       const show = () => {
-        tip.replaceChildren(el("div", { class: "tt-head" }, `${row.label} · ${fmtDay(days[i])}`),
-          el("div", { class: "tt-row" }, el("b", {}, v === null ? "–" : format(v)), row.sub ? row.sub[i] : ""));
+        fill(tip, el("div", { class: "tt-head" }, `${row.label} · ${fmtDay(days[i])}`),
+          el("div", { class: "tt-row" }, el("b", {}, what), !missing && row.sub ? row.sub[i] : ""),
+          open ? el("div", { class: "tt-note open" }, t("day.open.short")) : null);
         const r = rect.getBoundingClientRect(), c = container.getBoundingClientRect();
         placeTip(tip, container, r.left - c.left + container.scrollLeft, r.top - c.top - 40);
       };
@@ -258,20 +299,23 @@ export function heatmap(container, { days, rows, format, cell = 14 }) {
     });
   });
   const wrap = el("div", { class: "heatmap-wrap" }, svg);
-  const scale = el("div", { class: "scale" }, "0", el("span", { class: "ramp" }, SEQ.map((c) => el("span", { style: { background: c } }))), format(max));
+  const scale = el("div", { class: "scale" }, "0", el("span", { class: "ramp" }, SEQ.map((c) => el("span", { style: { background: c } }))), format(max),
+    el("span", { class: "key-none" }, t("heat.none")), el("span", { class: "key-missing" }, t("cov.m.long")));
   container.replaceChildren(wrap, scale, tip);
 }
 
-export function sparkline(values, { width = 110, height = 26, color = "var(--gilt)", label = "" } = {}) {
+export function sparkline(values, { width = 110, height = 26, color = "var(--gilt)", label = "", openFrom } = {}) {
   const vals = values.map((v) => (v === null || v === undefined ? 0 : v));
   const max = Math.max(1e-9, ...vals);
   const x = (i) => (vals.length === 1 ? width / 2 : 2 + (i / (vals.length - 1)) * (width - 6));
   const y = (v) => height - 3 - (v / max) * (height - 6);
   const d = vals.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
   const last = vals.length - 1;
+  const open = openFrom !== undefined && openFrom !== null && last >= openFrom;
   return s("svg", { class: "spark", viewBox: `0 0 ${width} ${height}`, width, height, role: "img", "aria-label": label },
+    s("title", {}, label),
     s("path", { d, fill: "none", style: `stroke:${color};stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round;opacity:.9` }),
-    s("circle", { cx: x(last), cy: y(vals[last]), r: 2.5, style: `fill:${color}` }));
+    s("circle", { cx: x(last), cy: y(vals[last]), r: 2.5, style: open ? `fill:var(--ink-1);stroke:${color};stroke-width:1.5` : `fill:${color}` }));
 }
 
 /** Horizontal bars (HTML). items: [{label, value, title, href, dim}] */
