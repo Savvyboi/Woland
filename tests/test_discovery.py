@@ -9,7 +9,8 @@ import pytest
 import requests
 
 from woland.config import Outlet
-from woland.discover import (discover, source_html_list, source_rss, source_sitemap_index, source_wayback)
+from woland.discover import (SourceError, discover, source_html_list, source_rss, source_sitemap_index,
+                             source_wayback)
 from woland.net import Fetcher
 from woland.util import MSK
 
@@ -172,6 +173,30 @@ def test_wayback_prefix_with_date_placeholders(fake):
     assert "url=tvzvezda.ru%2Fnews%2F20269" in f.calls[0]
 
 
+def test_wayback_asks_one_prefix_per_section_and_notes_the_first_capture(fake):
+    first, later = datetime(2026, 9, 3, 13, 5, 9, tzinfo=MSK), datetime(2026, 9, 3, 20, tzinfo=MSK)
+
+    def answer(url):
+        section = re.search(r"url=www\.mk\.ru%2F(\w+)%2F", url).group(1)
+        u = f"https://www.mk.ru/{section}/2026/09/03/story.html"
+        return cdx([[u, stamp(later)], [u.replace("https://", "http://"), stamp(first)]])
+
+    f = fake({re.compile(r"cdx"): answer})
+    got = source_wayback(f, {"prefix": ["www.mk.ru/politics/{y}/{mm}/", "www.mk.ru/social/{y}/{mm}/"],
+                             "per": "month"}, DAY, DAY)
+    assert sorted((c.url, c.capture) for c in got) == [
+        ("https://www.mk.ru/politics/2026/09/03/story.html", "20260903100509"),   # the first capture, in UTC
+        ("https://www.mk.ru/social/2026/09/03/story.html", "20260903100509")]
+    assert [re.search(r"url=([^&]+)", c).group(1) for c in f.calls] == \
+        ["www.mk.ru%2Fpolitics%2F2026%2F09%2F", "www.mk.ru%2Fsocial%2F2026%2F09%2F"]
+    # the index times out for one section: the others still count; only if all fail is the source broken
+    f = fake({re.compile(r"cdx.*politics"): 504, re.compile(r"cdx"): answer})
+    got = source_wayback(f, {"prefix": ["www.mk.ru/politics/{y}/{mm}/", "www.mk.ru/social/{y}/{mm}/"]}, DAY, DAY)
+    assert [c.url for c in got] == ["https://www.mk.ru/social/2026/09/03/story.html"]
+    with pytest.raises(SourceError):
+        source_wayback(fake({re.compile(r"cdx"): 504}), {"prefix": ["www.mk.ru/politics/{y}/{mm}/"]}, DAY, DAY)
+
+
 # ── sitemap indexes ───────────────────────────────────────────────────────────
 def test_sitemap_index_skips_stale_children_and_respects_max_children(fake):
     index = ("<sitemapindex>"
@@ -207,6 +232,11 @@ def test_discover_merges_sources_and_keeps_going_after_a_failure(fake):
     assert len(cands) == 1 and cands[0].title == "Заголовок" and cands[0].lead == "Лид"
     assert len(errors) == 1 and "broken.xml" in errors[0]
     assert not any("archive.org" in c for c in f.calls)       # the wayback source is for backfills only
+    # ... unless it is read on every run: then what it knows (the capture) joins what the others found
+    f = fake({"https://t.ru/rss": feed, re.compile(r"cdx"): cdx([["https://t.ru/a/1", "20260903081500"]])})
+    o = outlet([{"type": "rss", "url": "https://t.ru/rss"}, {"type": "wayback", "prefix": "t.ru/a/", "every_run": True}])
+    cands, errors = discover(f, o, DAY, DAY)
+    assert [(c.title, c.capture) for c in cands] == [("Заголовок", "20260903081500")] and not errors
 
 
 # ── cookies are scoped to the outlet's own site ───────────────────────────────

@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 
+from . import net
 from .config import START_DATE, Outlet, load_lexicon, load_outlets
 from .discover import Candidate, discover, parse_sitemap
 from .extract import clean_lead, clean_title, extract, first_paragraph, published_from_url
@@ -99,15 +100,34 @@ def build_record(o: Outlet, c: Candidate, info: dict | None) -> tuple[dict, str]
     rec["w"] = len(body.split())
     rec["h"] = fingerprint(body or f"{title} {lead}")
     rec["r"] = iso_utc()
+    if info and info.get("capture"):
+        rec["ar"] = info["capture"]  # read from the Internet Archive's copy made then, not from the outlet
     rec["via"] = "page" if info else "feed"
     return rec, body
 
 
+# The raw page as the Internet Archive captured it (id_: without the Archive's own frame and links).
+ARCHIVE_COPY = "https://web.archive.org/web/{ts}id_/{url}"
+ARCHIVE_GAP = 4.0  # seconds at least between two requests for the Archive's copies
+
+
 def _fetch_page(o: Outlet, c: Candidate, fetchers: list, local: threading.local):
-    """Fetch and read one article page. Returns (info or None, failure reason or None, HTTP status, error)."""
+    """Fetch and read one article page: from the outlet, or — when the outlet does not answer at all
+    (MK and Sputnik from GitHub's servers) and the Internet Archive has captured the page — from the
+    Archive's copy. Returns (info or None, failure reason or None, HTTP status, error)."""
     if not hasattr(local, "fetcher"):
         local.fetcher = o.fetcher()
         fetchers.append(local.fetcher)
+    if net.HEALTH.down(o.host):
+        if not c.capture:  # nothing to fall back on: another run will try the outlet again
+            return None, "down", None, f"{o.host} does not answer"
+        r = local.fetcher.get(ARCHIVE_COPY.format(ts=c.capture, url=c.url), gap=max(o.rate, ARCHIVE_GAP))
+        if not r.ok:  # the copy, not the article, is missing or unreachable: try again another time
+            return None, "archive", None, r.error or f"archive: {r.status}"
+        info = extract(r.text, c.url, o.headline)
+        if info:
+            info["capture"] = c.capture
+        return (info, None, r.status, None) if info else (None, "unparsable", r.status, None)
     r = local.fetcher.get(c.url)  # (it slows down by itself when the site asks it to)
     if not r.ok or r.challenged():
         return None, ("bot-check" if r.ok else (str(r.status) if r.status else "network")), r.status, r.error
@@ -214,7 +234,8 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict,
                     if id(c) not in new:
                         run.stats["upgrade_gone"] += 1  # the headline is all there is left of it
                 elif fail != "unparsable":
-                    streak += 1
+                    # (an outlet known not to answer, with no Archive copy of the page, is not refusing)
+                    streak += fail != "down"
                     if id(c) in new:
                         unread.append(c)
                 continue

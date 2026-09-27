@@ -172,6 +172,7 @@ own situation.
 | `r` | when Woland retrieved it (UTC) |
 | `kb` | framings found **only** in the body text, each with a snippet of ≤ ~170 characters |
 | `via` | `page` (article page read) or `feed` (from the outlet's own feed, sitemap or listing only: for feed-only outlets always; for the others a *headline-only* record, kept when the page could not be read and completed by a later run) |
+| `ar` | only when the page was read from the Internet Archive's copy because the outlet did not answer Woland: the time of that capture, `YYYYMMDDhhmmss` UTC (the copy is at `https://web.archive.org/web/<ar>/<u>`) |
 
 `data/state/coverage.json` records, for every outlet and day, how many articles were stored, how many the
 outlet's own listings announced, how many are still headline only (`h`), and whether the day is complete.
@@ -211,7 +212,9 @@ consider moving older years to a release archive.
   has error pages for its news, so it is disabled. Sputnik is blocked from Finnish networks and did not answer
   GitHub's servers either on 27 September 2026; neither did MK, which answers from Finland. A site that does not
   answer is left alone for a quarter of an hour after three failed connections, so that it does not hold up the
-  run. Other sites may start blocking; `check.yml` and the Outlets page show it.
+  run, and meanwhile the articles the Internet Archive has captured are read from its copies (about 95% of MK's, a
+  day or two late; some 15–30 of Sputnik's a day), each marked so in its details and citation. Other sites may
+  start blocking; `check.yml` and the Outlets page show it.
 * Machine translations are serviceable, not authoritative.
 
 What is still open — data gaps, planned fixes, reviews that need a person — is listed in [`TODO.md`](TODO.md).

@@ -17,6 +17,8 @@ Record fields (short names keep the archive small):
     h   content fingerprint (sha256, 16 hex)  r   retrieved at (UTC)
     kb  narratives found only in the body text, with a short snippet as evidence
     via how the article was obtained: page (article page read) or feed (outlet's own feed)
+    ar  when the page was read from the Internet Archive's copy (the outlet did not answer): the
+        capture's time, YYYYMMDDhhmmss (UTC), as in https://web.archive.org/web/<ar>/<u>
 """
 from __future__ import annotations
 

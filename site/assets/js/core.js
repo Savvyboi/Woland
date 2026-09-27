@@ -143,6 +143,13 @@ export function archiveUrl(url, ts) {
   const stamp = ts ? new Date(ts * 1000).toISOString().replace(/[-:T]/g, "").slice(0, 14) : "2";
   return `https://web.archive.org/web/${stamp}/${url}`;
 }
+/** The Internet Archive's copy of an article: the very capture Woland read, if it read one (doc.ar), or
+ *  the Archive's capture nearest to publication. */
+export function copyUrl(doc) {
+  return doc.ar ? `https://web.archive.org/web/${doc.ar}/${doc.u}` : archiveUrl(doc.u, doc.ts);
+}
+/** The day of an Archive capture (YYYYMMDDhhmmss) as YYYY-MM-DD. */
+const captureDay = (ar) => `${ar.slice(0, 4)}-${ar.slice(4, 6)}-${ar.slice(6, 8)}`;
 export function translateUrl(url) {
   return `https://translate.google.com/translate?sl=auto&tl=${lang}&u=${encodeURIComponent(url)}`;
 }
@@ -232,24 +239,25 @@ export function showError(container, err) {
 /** Normalise a search-index document array. */
 export function fromIndex(a) {
   return { o: outletAt(a[0])?.id, ts: a[1], t: a[2], te: a[3], d: a[4], u: a[5], ks: a[6] || [],
-           sn: a[7] || {}, h: a[8], r: a[9], a: a[10], f: a[11] || 0, w: a[12] };
+           sn: a[7] || {}, h: a[8], r: a[9], a: a[10], f: a[11] || 0, w: a[12], ar: a[13] || "" };
 }
 /** Normalise a digest example. */
 export function fromExample(ex, dayIso, narrId) {
   const ts = Math.floor(new Date(`${dayIso}T${ex.p || "12:00"}:00+03:00`).getTime() / 1000);
   const k = narrId ? narrative(narrId)?.idx : undefined;
   return { o: ex.o, ts, t: ex.t, te: ex.te, u: ex.u, id: ex.id, ks: k !== undefined ? [k] : [],
-           sn: ex.s && k !== undefined ? { [k]: ex.s } : {}, f: ex.f || 0, h: ex.h, r: ex.r, w: ex.w };
+           sn: ex.s && k !== undefined ? { [k]: ex.s } : {}, f: ex.f || 0, h: ex.h, r: ex.r, w: ex.w, ar: ex.ar || "" };
 }
 
-/** How Woland obtained a record: page (read in full), notext (page read, but it had no text), feed (the
- *  outlet's feed only), feedtext (its feed, with the full text) or listed (headline only: the page is
- *  still to be read). */
+/** How Woland obtained a record: page (read in full), notext (page read, but it had no text), archive (the
+ *  page as the Internet Archive captured it: the outlet did not answer), feed (the outlet's feed only),
+ *  feedtext (its feed, with the full text) or listed (headline only: the page is still to be read). */
 export function sourceOf(doc) {
   const o = outlet(doc.o);
   if (o.method === "feed") return "feed";
   if (o.method === "feedtext") return "feedtext";
   if (doc.f) return "listed";
+  if (doc.ar) return "archive";
   return doc.w === 0 ? "notext" : "page";
 }
 
@@ -316,11 +324,12 @@ function provenance(doc) {
   const o = outlet(doc.o);
   const src = sourceOf(doc);
   const row = (label, ...value) => [el("dt", {}, label), el("dd", {}, ...value)];
-  const fpNote = doc.h ? t(src === "page" ? "prov.fp.text" : "prov.fp.head") : t("prov.missing.fp");
+  const fpNote = doc.h ? t(src === "page" || src === "archive" ? "prov.fp.text" : "prov.fp.head") : t("prov.missing.fp");
   const why = whyCounted(doc, o);
   return [
     el("dl", {},
-      row(t("prov.source"), t(`prov.${src}`, { n: fmtInt(doc.w || 0) })),
+      row(t("prov.source"), t(`prov.${src}`, { n: fmtInt(doc.w || 0), date: doc.ar ? fmtDay(captureDay(doc.ar)) : "" }),
+        doc.ar ? [" ", el("a", { href: copyUrl(doc), rel: "noopener noreferrer", target: "_blank" }, `${t("article.archive")} ↗`)] : null),
       row(t("prov.retrieved"), doc.r ? fmtDay(doc.r.slice(0, 10)) : el("span", { class: "missing" }, t("prov.missing.r"))),
       row(t("prov.fingerprint"), doc.h ? el("code", {}, doc.h) : null, el("span", { class: "note" }, ` ${fpNote}`)),
       why.length ? row(t("prov.why"), el("ul", { class: "why" }, why)) : null),
@@ -362,7 +371,7 @@ export function articleCard(doc, opts = {}) {
   const links = el("div", { class: "links" },
     el("a", { href: doc.u, rel: "noopener noreferrer nofollow", target: "_blank" },
       `${t("article.original")} ↗`, blocked ? el("span", { class: "sr-only" }, ` (${t("article.eu")})`) : null),
-    el("a", { href: archiveUrl(doc.u, doc.ts), rel: "noopener noreferrer", target: "_blank" }, `${t("article.archive")} ↗`),
+    el("a", { href: copyUrl(doc), rel: "noopener noreferrer", target: "_blank" }, `${t("article.archive")} ↗`),
     o.lang !== lang ? el("a", { href: translateUrl(doc.u), rel: "noopener noreferrer nofollow", target: "_blank" }, `${t("article.translate")} ↗`) : null,
     el("button", { class: "linkish", type: "button", onclick: () => openCite(doc) }, t("article.cite")),
   );
@@ -407,7 +416,8 @@ export function mskStamp(ts) {
 }
 
 const SOURCE_EN = { page: "article page", notext: "article page, no text", feed: "outlet's feed",
-                    feedtext: "outlet's feed, full text", listed: "headline only" };
+                    feedtext: "outlet's feed, full text", listed: "headline only",
+                    archive: "article page as captured by the Internet Archive" };
 
 /** The article as one structured record: the JSON in the citation dialog and each row of a CSV export. */
 export function recordOf(doc, id) {
@@ -416,7 +426,7 @@ export function recordOf(doc, id) {
   return {
     id: id || null, outlet: o.name, outlet_id: doc.o, language: o.lang,
     published: mskStamp(doc.ts), title: doc.t, title_en_mt: doc.te || null, lead: doc.d || null,
-    url: doc.u, archive: archiveUrl(doc.u, doc.ts),
+    url: doc.u, archive: copyUrl(doc), archive_capture_read: doc.ar || null,
     source: SOURCE_EN[sourceOf(doc)], body_words: doc.w ?? null,
     retrieved: doc.r || null, fingerprint: doc.h || null,
     framings: tags.filter((n) => n.family === "framing").map((n) => n.id),
@@ -431,9 +441,10 @@ export function citations(doc, id) {
   const y = mskISO(doc.ts).slice(0, 4);
   const monthEn = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Moscow", month: "long" }).format(d);
   const dayN = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Moscow", day: "numeric" }).format(d);
-  const arch = archiveUrl(doc.u, doc.ts);
+  const arch = copyUrl(doc);
   const tr = doc.te && o.lang !== "en" ? ` [${doc.te}]` : "";
-  const retrieved = doc.r ? `Retrieved ${doc.r.slice(0, 10)} via Woland` : "Via Woland";
+  const copy = doc.ar ? ` from the Internet Archive's copy of ${captureDay(doc.ar)}` : "";
+  const retrieved = doc.r ? `Retrieved ${doc.r.slice(0, 10)}${copy} via Woland` : `Via Woland${copy}`;
   const fp = doc.h ? `, content fingerprint ${doc.h}` : "";
   const apa = `${o.name}. (${y}, ${monthEn} ${dayN}). ${doc.t}${tr}. ${doc.u} (archived: ${arch}). ${retrieved} (${siteUrl()})${fp}.`;
   const chicago = `${o.name}. “${doc.t}”${tr}. ${monthEn} ${dayN}, ${y}. ${doc.u}. ${retrieved}${fp}.`;
@@ -473,8 +484,8 @@ export async function openCite(doc) {
   const day = mskISO(doc.ts);
   const fields = el("dl", { class: "cite-fields" },
     el("dt", {}, t("prov.retrieved")), el("dd", {}, doc.r ? t("cite.f.retrieved", { date: doc.r.slice(0, 10) }) : t("cite.f.noretrieved")),
-    el("dt", {}, t("prov.fingerprint")), el("dd", {}, doc.h ? t(src === "page" ? "cite.f.fp" : "cite.f.fphead") : t("cite.f.nofp")),
-    el("dt", {}, t("prov.source")), el("dd", {}, t(`prov.${src}`, { n: fmtInt(doc.w || 0) })),
+    el("dt", {}, t("prov.fingerprint")), el("dd", {}, doc.h ? t(src === "page" || src === "archive" ? "cite.f.fp" : "cite.f.fphead") : t("cite.f.nofp")),
+    el("dt", {}, t("prov.source")), el("dd", {}, t(`prov.${src}`, { n: fmtInt(doc.w || 0), date: doc.ar ? fmtDay(captureDay(doc.ar)) : "" })),
     id ? [el("dt", {}, t("cite.f.id")), el("dd", {}, el("code", {}, id), " ",
       t("cite.f.file", { file: `data/articles/${day.slice(0, 4)}/${day.slice(5, 7)}/${day.slice(8, 10)}/${doc.o}.jsonl` }))] : null);
   dialog.replaceChildren(

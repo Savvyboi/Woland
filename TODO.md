@@ -6,23 +6,29 @@ Open work for future sessions, most urgent first. State of the archive when this
 | Outlet | Articles | Note |
 |---|---:|---|
 | RIA, RT (both), Izvestia, Vesti, Lenta, Life, Gazeta.ru, AiF, Parlamentskaya Gazeta, TASS English, Tsargrad, Ukraina.ru, InoSMI, Rossiyskaya Gazeta, the Kremlin (both) | | complete from their own sitemaps and listings |
-| MK | 14,343 | **nothing since 26 September**: GitHub cannot reach it (below); 6,324 records still *headline only* |
+| MK | 14,343 | **nothing since 26 September** (GitHub cannot reach it): now read from the Internet Archive's copies (§1); 6,324 records still *headline only* |
 | KP | 6,066 | early September: only what the Internet Archive captured (~60% of online news) |
 | Zvezda | 1,936 | early September from the Internet Archive (~70%); **22–23 September missing** |
 | TASS (Russian) | 1,163 | feed only, from 24 September; hours lost on 25–27 September (the feed was read too rarely) |
-| Sputnik | 0 | no answer from Finland (blocked) nor from GitHub (27 September) |
+| Sputnik | 0 | no answer from Finland (blocked) nor from GitHub: now read from the Internet Archive's copies, some 15–30 a day (§1) |
 | Regnum | — | disabled: 403 to everything, including robots.txt and its feed |
 
 ## 1. Unreachable outlets and GitHub's schedule (decided 28 September 2026)
 
 - [ ] **MK does not answer GitHub's servers.** On 27 September every connection from GitHub timed out (28
-      requests, 34 minutes); from Finland MK answers normally. Decided: accept the gap (MK's note on the Outlets
-      page says so), and read its pages as the Internet Archive captured them if that proves viable. MK stays in
-      the nightly run, so collection resumes by itself if MK answers again; a host that does not answer now costs
-      a few minutes, not half an hour. The weekly *Check outlets* run (Mondays 09:05 Moscow time) shows whether
-      the block lasts.
-- [ ] **Sputnik answers neither Finland nor GitHub.** Decided: the Internet Archive's copies of its pages if
-      viable (the same route as for MK).
+      requests, 34 minutes); from Finland MK answers normally. Decided: accept the gap, and read its pages from
+      the Internet Archive's copies — which proved viable: of MK's articles of 1–25 September the Archive had
+      captured 90–99% a day, half within ~18 hours of the day's start, and its copies read exactly like the pages.
+      Done on 28 September: a `wayback` source read on every run (`every_run`, one prefix per section); while the
+      outlet does not answer, pages come from the copies and the record carries `ar` (shown in the article's
+      details and citation). **Watch the first nightly runs**: ~1,300 articles of 26–28 September first, then the
+      ~6,300 headline-only records, at ~1,000–1,350 pages per 90-minute run (4 s between requests to the
+      Archive), and whether web.archive.org answers GitHub's servers. MK stays in the run as it is, so it is read
+      directly again once it answers.
+- [ ] **Sputnik answers neither Finland nor GitHub.** Decided: the Archive's copies, as for MK — done. They hold
+      only some 15–30 of its articles a day (587 in September): a partial sample, marked so in its note, its days
+      partial. (Tested from Finland, where Sputnik is blocked as it is from GitHub: 64 articles of 25–27
+      September read in eight minutes.)
 - [ ] **Hourly feeds ran five times in twenty hours** on 27 September: GitHub starts scheduled jobs late or drops
       them. The poll is now scheduled every 15 minutes and skips a turn when the feeds were read less than
       40 minutes before (`--min-gap`). Decided: carry on with that, without an outside trigger (a cron service

@@ -25,6 +25,7 @@ class Candidate:
     body: str = ""  # some feeds carry the full text
     author: str = ""
     via: str = ""
+    capture: str = ""  # when the Internet Archive captured the page (YYYYMMDDhhmmss), if it did
 
 
 _PLACEHOLDER = re.compile(r"\{(y|m|mm|d|dd|ymd|msk_start|msk_end|n)\}")
@@ -372,11 +373,13 @@ def _first_captures(rows) -> dict[str, datetime]:
 
 
 def source_wayback(fetcher, src, start, end):
-    """Backfill helper: article URLs the Internet Archive has captured. Only the URLs are used; the
-    articles themselves are then read from the outlet like any other. Three ways to ask:
+    """Article URLs the Internet Archive has captured, each with the time of its first capture. The
+    articles are then read from the outlet like any other, or, when the outlet does not answer, from the
+    Archive's copy (woland/collect.py). Three ways to ask:
 
       prefix with placeholders   one query per period (per: month), for URLs that carry their date,
-                                 e.g. tvzvezda.ru/news/{y}{m} → tvzvezda.ru/news/20269…
+                                 e.g. tvzvezda.ru/news/{y}{m} → tvzvezda.ru/news/20269…; `prefix` may be
+                                 a list (one per section of the site)
       walk                       for sequential numeric ids: start at the oldest id listed on the page
                                  `walk` (a live sitemap or feed) and step down in blocks of `block` ids
                                  until a block was captured before the range began
@@ -386,7 +389,8 @@ def source_wayback(fetcher, src, start, end):
     """
     lower, upper = _bounds(start, end)
     earliest, latest = lower - timedelta(days=1), upper + timedelta(days=int(src.get("late", 5)))
-    prefix = src["prefix"]
+    prefixes = src["prefix"] if isinstance(src["prefix"], list) else [src["prefix"]]
+    prefix = prefixes[0]
     first: dict[str, datetime] = {}
     if src.get("walk"):
         r = fetcher.get(src["walk"])
@@ -413,15 +417,23 @@ def source_wayback(fetcher, src, start, end):
             times = sorted(got.values())
             if times[len(times) // 2] < earliest:
                 break  # most of this block was captured before the range: older blocks are older still
-    elif "{" in prefix:
-        for p in periods(src.get("per", "month"), start, end):
-            first.update(_first_captures(_cdx(fetcher, url=fill(prefix, p), matchType="prefix",
-                                              collapse="urlkey", limit=50000)))
     else:
-        first.update(_first_captures(_cdx(fetcher, url=prefix, matchType="prefix", collapse="urlkey",
-                                          limit=50000, **{"from": f"{start:%Y%m%d}",
-                                                          "to": f"{end + timedelta(days=2):%Y%m%d}"})))
-    return [Candidate(url=u, hint=None, via="wayback") for u, t in first.items() if earliest <= t <= latest]
+        # one query per prefix and period; one that fails (the index times out now and then) costs its own
+        # part only
+        queries = [{"url": fill(pre, p)} for pre in prefixes for p in periods(src.get("per", "month"), start, end)] \
+            if "{" in prefix else \
+            [{"url": pre, "from": f"{start:%Y%m%d}", "to": f"{end + timedelta(days=2):%Y%m%d}"} for pre in prefixes]
+        failed = []
+        for q in queries:
+            try:
+                first.update(_first_captures(_cdx(fetcher, matchType="prefix", collapse="urlkey", limit=50000, **q)))
+            except SourceError as exc:
+                failed.append(str(exc))
+                log.warning("%s", exc)
+        if failed and len(failed) == len(queries):
+            raise SourceError("; ".join(failed[:3]))
+    return [Candidate(url=u, hint=None, via="wayback", capture=t.strftime("%Y%m%d%H%M%S"))
+            for u, t in first.items() if earliest <= t <= latest]
 
 
 class SourceError(Exception):
@@ -441,15 +453,15 @@ def discover(fetcher: Fetcher, outlet, start: date, end: date, *, feeds_only: bo
              backfill: bool = False) -> tuple[list[Candidate], list[str]]:
     """All candidates for the date range, merged by URL. Returns (candidates, error messages).
 
-    backfill: also read sources that only make sense for older days (the Wayback Machine,
-    deeper feed pages)."""
+    backfill: also read sources that only make sense for older days (the Wayback Machine, deeper feed
+    pages), unless a source says it is read on every run (`every_run`)."""
     merged: dict[str, Candidate] = {}
     errors = []
     for src in outlet.sources:
         kind = src["type"]
         if feeds_only and (kind != "rss" or src.get("backfill_only")):
             continue
-        if (kind == "wayback" or src.get("backfill_only")) and not backfill:
+        if (kind == "wayback" or src.get("backfill_only")) and not backfill and not src.get("every_run"):
             continue
         try:
             found = HANDLERS[kind](fetcher, src, start, end)
@@ -465,7 +477,7 @@ def discover(fetcher: Fetcher, outlet, start: date, end: date, *, feeds_only: bo
             if prev is None:
                 merged[c.url] = c
             else:  # keep the richest information from every source
-                for f in ("title", "lead", "section", "body", "author"):
+                for f in ("title", "lead", "section", "body", "author", "capture"):
                     if not getattr(prev, f) and getattr(c, f):
                         setattr(prev, f, getattr(c, f))
                 if prev.hint is None:

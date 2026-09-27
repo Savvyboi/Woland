@@ -51,6 +51,8 @@ def built_site(tmp_path_factory):
                        "t": t, "w": 100, "h": "0" * 16, "r": "2026-09-24T00:00:00Z", "via": "page"}
                 if "погоду" in t:  # a headline-only record: the page could not be read
                     rec.update(w=0, via="feed")
+                if "staged" in t:  # read from the Internet Archive's copy: the outlet did not answer
+                    rec["ar"] = f"{d:%Y%m%d}093000"
                 if te:
                     rec["te"] = te
                 recs.append(rec)
@@ -151,12 +153,18 @@ def test_citations_have_unique_keys_and_the_records_fields(built_site):
         assert r["published"].startswith("2026-09-01T") and r["published"].endswith("+03:00")
     weather = next(x["record"] for x in out if x["record"]["title"].startswith("Синоптики"))
     assert weather["source"] == "headline only" and weather["body_words"] == 0
+    staged = next(x for x in out if x["record"]["title"].startswith("Kiev regime staged"))
+    assert staged["record"]["source"] == "article page as captured by the Internet Archive"
+    assert staged["record"]["archive_capture_read"] == "20260901093000"
+    assert staged["record"]["archive"] == f"https://web.archive.org/web/20260901093000/{staged['record']['url']}"
+    assert "from the Internet Archive's copy of 2026-09-01" in staged["bib"]
 
 
 def test_digest_examples_carry_what_a_citation_needs(built_site):
     dg = json.loads((built_site / "data" / "days" / "2026-09-03.json").read_text(encoding="utf-8"))
     ex = next(n for n in dg["narratives"] if n["id"] == "kyiv-regime")["ex"]
     assert ex and all(e["h"] == "0" * 16 and e["r"] == "2026-09-24" and e["w"] == 100 for e in ex)
+    assert [e.get("ar") for e in ex if e["o"] == "rt"] == ["20260903093000"]    # read from the Archive's copy
     assert dg["spark_from"] == "2026-09-01" and len(dg["narratives"][0]["spark_n"]) == 3
 
 

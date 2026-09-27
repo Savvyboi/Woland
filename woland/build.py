@@ -254,6 +254,8 @@ class Builder:
             doc = [self.oidx[o], ts, r["t"], r.get("te", ""), truncate(lead, SEARCH_LEAD), r["u"], ks,
                    {str(k): v for k, v in snips.items()}, r.get("h", ""), (r.get("r") or "")[:10], r.get("a", ""),
                    self.headline_only(r), r.get("w", 0)]
+            if r.get("ar"):
+                doc.append(r["ar"])  # read from the Internet Archive's copy
             text = " ".join(x for x in (r["t"], r.get("d", ""), r.get("te", "")) if x)
             idx.add(doc, self.oidx[o], index_terms(text))
             # rising words: in how many of the day's headlines each word (lemma) occurs, and which
@@ -300,6 +302,8 @@ class Builder:
               "h": r.get("h", ""), "r": (r.get("r") or "")[:10], "w": r.get("w", 0)}
         if r.get("te"):
             ex["te"] = r["te"]
+        if r.get("ar"):
+            ex["ar"] = r["ar"]
         if self.headline_only(r):
             ex["f"] = 1
         if snippet:

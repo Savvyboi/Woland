@@ -24,10 +24,13 @@
 #                                ({n}) or continued from the oldest item seen so far ({cursor}, Unix time).
 #                                `item` is a pattern with the named groups url, title, ts or date; dated
 #                                listings are read back until they pass the start of the range
-#                 wayback        article URLs the Internet Archive captured (backfill only); the pages
-#                                themselves are still read from the outlet. `prefix` may carry date
-#                                placeholders (one query per `per` period); `walk` steps down through
-#                                sequential numeric ids, starting below the oldest id listed on that page
+#                 wayback        article URLs the Internet Archive captured (backfill only, unless
+#                                `every_run: true`). The pages themselves are read from the outlet — or,
+#                                while the outlet does not answer at all, from the Archive's copy (the
+#                                record then carries `ar`, the time of the capture). `prefix` (one, or a
+#                                list) may carry date placeholders (one query per `per` period); `walk`
+#                                steps down through sequential numeric ids, starting below the oldest id
+#                                listed on that page
 #               Placeholders: {y} {m} {mm} {d} {dd} {ymd} {msk_start} {msk_end} {n} {cursor}
 #               A source marked backfill_only is only read when collecting days older than the rolling
 #               week that every nightly run looks at again.
@@ -311,9 +314,9 @@ outlets:
       fi: Suosittu moskovalainen iltapäivälehti ja valtakunnallinen uutissivusto.
       sv: Populär Moskvatabloid och rikstäckande nyhetssajt.
     note:
-      en: 'MK allows about 15 pages a minute, so many of its articles are kept headline only until a later run reads their pages. Since 27 September 2026 it has not answered GitHub''s servers, where Woland''s collection runs, so most of its articles from 26 September on are missing for now.'
-      fi: 'MK sallii noin 15 sivua minuutissa, joten moni sen artikkeleista on toistaiseksi vain otsikko, kunnes myöhempi ajo lukee sivut. 27.9.2026 alkaen se ei ole vastannut GitHubin palvelimille, joilla Wolandin keruu toimii, joten suurin osa sen artikkeleista 26.9. alkaen puuttuu toistaiseksi.'
-      sv: 'MK tillåter ungefär 15 sidor i minuten, så många av dess artiklar finns tills vidare bara som rubrik tills en senare körning läser sidorna. Sedan den 27 september 2026 har den inte svarat GitHubs servrar, där Wolands insamling körs, så de flesta av dess artiklar från och med den 26 september saknas tills vidare.'
+      en: 'Since 27 September 2026 MK has not answered GitHub''s servers, where Woland''s collection runs. Its articles are then read from the copies the Internet Archive makes of its pages, which hold about 95% of them a day or two later; each article''s details say so. MK allows about 15 pages a minute, so many of its earlier articles are kept headline only until a later run reads their pages.'
+      fi: 'MK ei ole 27.9.2026 alkaen vastannut GitHubin palvelimille, joilla Wolandin keruu toimii. Sen artikkelit luetaan silloin kopioista, jotka Internet Archive tallentaa sen sivuista; niissä on noin 95 % artikkeleista päivän tai kaksi myöhemmin, ja kunkin artikkelin tiedoissa kerrotaan tästä. MK sallii noin 15 sivua minuutissa, joten moni sen aiemmista artikkeleista on toistaiseksi vain otsikko, kunnes myöhempi ajo lukee sivut.'
+      sv: 'Sedan den 27 september 2026 har MK inte svarat GitHubs servrar, där Wolands insamling körs. Dess artiklar läses då från de kopior som Internet Archive sparar av dess sidor, som rymmer omkring 95 % av dem en dag eller två senare; varje artikels detaljer säger det. MK tillåter ungefär 15 sidor i minuten, så många av dess tidigare artiklar finns tills vidare bara som rubrik tills en senare körning läser sidorna.'
     rate: 4.0   # answers more than ~15 pages a minute with 429 "too many requests"
     # From GitHub's servers every connection timed out on 27 September 2026 (from Finland it answers).
     # A cap, so that a night of completing headline-only records does not delay the website.
@@ -322,6 +325,16 @@ outlets:
     sources:
       - {type: html_list, per: day, url: 'https://www.mk.ru/news/{y}/{m}/{d}/', pages: 1, link: 'https://www\.mk\.ru/[a-z0-9/-]+/{y}/{mm}/{dd}/[^/"?#]+\.html'}
       - {type: sitemap_index, url: 'https://www.mk.ru/sitemap/index.xml', child: '(delta/)?articles_sitemap_\d+_map\.xml$', order: lastmod, max_children: 3}
+      # While MK does not answer, its pages are read from the Internet Archive's copies. Checked against
+      # 1–25 September 2026: the Archive had captured 90–99% of MK's articles of every day, half of them
+      # within 18 hours of the day's start, and its copies read exactly like the pages (one prefix a section).
+      - type: wayback
+        every_run: true
+        per: month
+        prefix: ['www.mk.ru/politics/{y}/{mm}/', 'www.mk.ru/incident/{y}/{mm}/', 'www.mk.ru/social/{y}/{mm}/',
+                 'www.mk.ru/showbiz/{y}/{mm}/', 'www.mk.ru/economics/{y}/{mm}/', 'www.mk.ru/sport/{y}/{mm}/',
+                 'www.mk.ru/science/{y}/{mm}/', 'www.mk.ru/culture/{y}/{mm}/', 'www.mk.ru/moscow/{y}/{mm}/',
+                 'www.mk.ru/mosobl/{y}/{mm}/', 'www.mk.ru/realestate/{y}/{mm}/', 'www.mk.ru/auto/{y}/{mm}/']
 
   - id: lenta
     name: Lenta.ru
@@ -433,13 +446,15 @@ outlets:
       fi: Rossija Segodnjan kansainvälinen englanninkielinen brändi (aiemmin Sputnik News).
       sv: Rossija Segodnjas internationella engelskspråkiga varumärke (tidigare Sputnik News).
     note:
-      en: 'Blocked on the network in Finland where Woland was set up, and it did not answer GitHub''s servers, where the collection runs, either (27 September 2026): not collected so far.'
-      fi: 'Estetty Suomessa siinä verkossa, jossa Woland perustettiin, eikä se vastannut myöskään GitHubin palvelimille, joilla keruu toimii (27.9.2026): ei toistaiseksi kerätty.'
-      sv: 'Blockerad i det finländska nätverk där Woland sattes upp, och den svarade inte heller GitHubs servrar, där insamlingen körs (27 september 2026): inte insamlad hittills.'
-    # Every connection timed out from GitHub's servers on 27 September 2026, as from Finland.
+      en: 'Blocked on the network in Finland where Woland was set up, and it does not answer GitHub''s servers, where the collection runs, either (since 27 September 2026). Only the articles the Internet Archive has captured are read, from its copies: some 15–30 a day in September 2026, a fraction of what Sputnik publishes.'
+      fi: 'Estetty Suomessa siinä verkossa, jossa Woland perustettiin, eikä se vastaa myöskään GitHubin palvelimille, joilla keruu toimii (27.9.2026 alkaen). Vain Internet Archiven tallentamat artikkelit luetaan sen kopioista: syyskuussa 2026 noin 15–30 päivässä, murto-osa Sputnikin julkaisuista.'
+      sv: 'Blockerad i det finländska nätverk där Woland sattes upp, och den svarar inte heller GitHubs servrar, där insamlingen körs (sedan den 27 september 2026). Bara de artiklar som Internet Archive har sparat läses, från dess kopior: omkring 15–30 om dagen i september 2026, en bråkdel av vad Sputnik publicerar.'
+    # Every connection timed out from GitHub's servers on 27 September 2026, as from Finland. The pages the
+    # Internet Archive captured are read from its copies.
     article: '^https://sputnikglobe\.com/\d{8}/[^/]+\.html$'
     sources:
       - {type: sitemap, per: day, url: 'https://sputnikglobe.com/sitemap_article.xml?date_start={ymd}&date_end={ymd}'}
+      - {type: wayback, every_run: true, per: month, prefix: 'sputnikglobe.com/{y}{mm}'}
 
   # ── Hardline and war-focused ────────────────────────────────────────────────
   - id: tsargrad

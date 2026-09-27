@@ -21,7 +21,8 @@ OUTLETS = {o.id: o for o in load_outlets(include_disabled=True)}
 NARRATIVES = {n.id for n in load_lexicon()}
 HEX16 = re.compile(r"^[0-9a-f]{16}$")
 UTC = re.compile(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
-FIELDS = {"id", "o", "u", "p", "m", "t", "te", "d", "s", "g", "a", "w", "h", "r", "kb", "via"}
+FIELDS = {"id", "o", "u", "p", "m", "t", "te", "d", "s", "g", "a", "w", "h", "r", "kb", "via", "ar"}
+CAPTURE = re.compile(r"^20\d{12}$")  # an Internet Archive capture time, YYYYMMDDhhmmss
 
 
 def problems_in(path) -> list[str]:
@@ -86,6 +87,8 @@ def problems_in(path) -> list[str]:
             out.append(f"{where}: bad fingerprint or retrieval time")
         if r["via"] not in ("page", "feed"):
             out.append(f"{where}: via {r['via']}")
+        if "ar" in r and (r["via"] != "page" or not CAPTURE.match(r["ar"])):
+            out.append(f"{where}: bad Internet Archive capture {r['ar']!r}")
         for nid, snip in (r.get("kb") or {}).items():
             if nid not in NARRATIVES:
                 out.append(f"{where}: body match for unknown framing {nid}")

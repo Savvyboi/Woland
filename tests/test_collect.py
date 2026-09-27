@@ -384,6 +384,69 @@ def test_a_slow_outlet_has_its_own_time_budget(fake_site, archive, monkeypatch):
     assert deadlines["t"] is None and deadlines["s"] is not None
 
 
+ARTICLE = """<html><head><meta property="og:title" content="Заголовок статьи">
+<meta property="og:description" content="Лид статьи о событиях дня.">
+<meta property="article:published_time" content="2026-09-10T10:00:00+03:00"></head>
+<body><article><h1>Заголовок статьи</h1><p>Первый абзац статьи о событиях дня, достаточно длинный для текста.</p>
+<p>Второй абзац с подробностями о том, что произошло.</p></article></body></html>"""
+
+
+def test_a_page_is_read_from_the_archive_copy_while_the_outlet_does_not_answer(monkeypatch):
+    import threading
+    from woland import net
+    health = net._HostHealth(limit=1, pause=900)
+    monkeypatch.setattr(net, "HEALTH", health)
+    asked, answer = [], [200]
+
+    class Fetcher:
+        requests = 0
+
+        def get(self, url, gap=None, **kw):
+            asked.append((url, gap))
+            return net.Response(answer[0], url, ARTICLE.encode(), {"content-type": "text/html; charset=utf-8"})
+
+    local = threading.local()
+    local.fetcher = Fetcher()
+    c = Candidate(url="https://t.ru/a/1", capture="20260910081500")
+    info, fail, _, _ = collect._fetch_page(outlet(), c, [], local)          # the outlet answers: read it
+    assert asked[-1] == ("https://t.ru/a/1", None) and not fail and "capture" not in info
+    health.failed("t.ru")                                                     # it stops answering
+    info, fail, _, _ = collect._fetch_page(outlet(), c, [], local)
+    assert asked[-1] == ("https://web.archive.org/web/20260910081500id_/https://t.ru/a/1", 4.0)
+    rec, _ = collect.build_record(outlet(), c, info)
+    assert rec["ar"] == "20260910081500" and rec["via"] == "page" and rec["u"] == "https://t.ru/a/1"
+    assert rec["t"] == "Заголовок статьи" and rec["w"] > 10
+    answer[0] = 404                               # the Archive has no such copy: try again another time
+    assert collect._fetch_page(outlet(), c, [], local)[1:3] == ("archive", None)
+    n = len(asked)
+    info, fail, _, _ = collect._fetch_page(outlet(), Candidate(url="https://t.ru/a/2"), [], local)
+    assert fail == "down" and len(asked) == n                        # nothing captured: it waits for another run
+
+
+def test_while_an_outlet_does_not_answer_pages_without_a_copy_wait_for_another_run(monkeypatch):
+    from woland import net
+    health = net._HostHealth(limit=1, pause=900)
+    health.failed("t.ru")                                        # the outlet does not answer
+    monkeypatch.setattr(net, "HEALTH", health)
+    asked = []
+
+    class Fetcher:
+        requests = 0
+
+        def get(self, url, gap=None, **kw):
+            asked.append(url)
+            return net.Response(200, url, ARTICLE.encode(), {"content-type": "text/html; charset=utf-8"})
+
+    monkeypatch.setattr(Outlet, "fetcher", lambda self, **kw: Fetcher())
+    copies = [Candidate(url=f"https://t.ru/a/{100 + i}", capture="20260910081500") for i in range(5)]
+    monkeypatch.setattr(collect, "discover", lambda *a, **kw: (copies, ["sitemap: https://t.ru/s.xml: NoConnection"]))
+    retry = [stored(i, via="feed") for i in range(20)]           # headline-only records the Archive never captured
+    known = {r["u"]: ("feed", "2026-09-10") for r in retry}
+    run = collect.collect_outlet(outlet(), D, D, LEX, known, {}, retry=retry)
+    assert not run.aborted and run.stats["fail_down"] == 20 and run.stats["stored"] == 5
+    assert len(asked) == 5 and all(u.startswith("https://web.archive.org/web/20260910081500id_/") for u in asked)
+
+
 def test_an_outlet_that_cannot_be_reached_at_all_is_reported_as_such(fake_site):
     fake_site["errors"] = ["html_list: https://t.ru/news/: ConnectTimeout: HTTPSConnectionPool(host='t.ru')",
                            "sitemap_index: https://t.ru/s.xml: NoConnection: t.ru did not answer"]
