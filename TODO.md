@@ -8,7 +8,7 @@ Open work for future sessions, most urgent first. State of the archive when this
 | RIA, RT (both), Izvestia, Vesti, Lenta, Life, Gazeta.ru, AiF, Parlamentskaya Gazeta, TASS English, Tsargrad, Ukraina.ru, InoSMI, Rossiyskaya Gazeta, the Kremlin (both) | | complete from their own sitemaps and listings |
 | MK | 15,678 | GitHub cannot reach it since 27 September: read from the Internet Archive's copies (§1); 5,253 records still *headline only* |
 | KP | 7,046 | early September: only what the Internet Archive captured (~60% of online news) |
-| Zvezda | 2,086 | early September from the Internet Archive (~70%); **22–23 September missing** |
+| Zvezda | 2,334 | early September and 21–23 September from the Internet Archive (~70% of early September) |
 | TASS (Russian) | 2,364 | feeds only, from 24 September; hours lost on 25–29 September, listed on the Outlets page (§1) |
 | Sputnik | 602 | answers neither Finland nor GitHub: some 15–30 a day from the Internet Archive's copies |
 | Regnum | — | from 29 September its feed only (its pages refuse; the feed answers GitHub, not Finland) |
@@ -43,11 +43,6 @@ Open work for future sessions, most urgent first. State of the archive when this
       (robots.txt, in the Archive's copy of 10 September, allows the feed). Watch its first days: the feed's
       reach (~250 items), whether GitHub keeps being let in, and whether its leads (cut off by the feed with
       "...") read well. No backfill is possible: the Internet Archive has only error pages for its news.
-- [ ] **Zvezda 22–23 September**: the Internet Archive had not captured them. Nightly runs retry them (they
-      are thin days); if they never appear, note the gap on the Method page (the outlet note says so already).
-- [ ] **KP early September**: ~60% of its online news came from the Internet Archive walk. KP's own
-      listings reach back only two days, and `/content/api/` is closed by robots.txt. Look for another
-      public listing (rubric pages, print issues under `/daily/<issue>/`).
 
 Done on 29 September:
 - **TASS from GitHub's servers**: the check (29 September, 20:42 UTC) got 403 for an article page, `robots.txt`
@@ -68,6 +63,15 @@ Done on 29 September:
   (`fill_day`: lead, and text count, fingerprint and body matches if the text was missing). Re-reading the
   Kremlin's paged feeds filled the leads of all 170 September records that had none, and found 5 articles
   that had been missed.
+- **KP's early September has no other public listing** (looked on 29 September): `/daily/<n>/`, `/daily/`,
+  `/archive/` and `/online/archive/` are 404; `/online/` and rubric pages (`/politics/`) show only the latest
+  items and page by script through `/content/api/`, which robots.txt closes; the sitemaps hold two days of
+  online news and two weeks of newspaper articles. So 1–22 September stays as the Internet Archive walk left
+  it (~60% of online news), and KP's newspaper articles begin on 10 September.
+- **Zvezda's 22–23 September filled** (248 articles, read from Zvezda's pages; its note no longer calls them
+  missing): the Internet Archive had captured them after all, but the nightly retries never asked it: sources
+  kept for older days were read only when a run reached back *more than one day* before the rolling window
+  (an off-by-one: `beyond_window` in `collect.py` now reads them for any day before it).
 - **Tsargrad's early September is not a gap**: its own monthly sitemaps list mostly 300–470 items a weekday in
   August and until 8 September, 650–830 from 9 September (the note says so now).
 - **Izvestia's video items** (1,727 of 12,271 in September, 1,610 without a lead; their text is a caption of a
@@ -118,7 +122,8 @@ Archive's copy when an outlet does not answer), so MK and Sputnik no longer fail
       September: `narratives.patterns.note` (the `~`), the Method page's sentence on the chance test for rising
       words, and the MK, Sputnik and TASS notes; and on 29 September: TASS's new note, the Method page's TASS
       paragraph and coverage item, and the strings `today.cov.gaps`, `outlets.gaps`, `outlets.gaps.hint`,
-      `outlets.gaps.day`.
+      `outlets.gaps.day`; `article.video` and `article.video.title`; the notes of Izvestia, Tsargrad, KP and
+      Regnum (and Regnum's shorter `about`); the Method page's sentence on Regnum.
 - [ ] **Legal**: most of these outlets fall under the EU broadcasting ban. Woland shows headlines, leads
       (≤ 240 characters) and snippets (≤ ~170) for analysis; the README flags this, but it is not legal
       advice.

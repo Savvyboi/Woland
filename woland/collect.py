@@ -353,6 +353,12 @@ def typical_day(cov: dict, before: date, days: int = 28, through: date | None = 
     return counts[len(counts) // 2] if len(counts) >= 5 else 0
 
 
+def beyond_window(start: date, today: date | None = None) -> bool:
+    """Does a range starting on `start` reach back before the rolling window, i.e. repair an older day? Then
+    the sources kept for older days (the Internet Archive, deep feed pages, full sitemaps) are read too."""
+    return start < (today or today_msk()) - timedelta(days=WINDOW)
+
+
 def plan(outlets: list[Outlet], coverage: dict, catch_up_days: int, window: int = WINDOW) -> dict[str, tuple[date, date]]:
     """Date range per outlet: the rolling window plus the oldest day that is not yet complete, that holds
     far fewer articles than the outlet usually publishes, or whose articles are partly headline only."""
@@ -434,7 +440,7 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
         retry = headline_only(o.id, start, end) if o.fetch and not feeds_only else []
         # Backfill-only sources (the Internet Archive, deep feed pages, full sitemaps) are read only
         # when the range reaches back beyond the rolling window.
-        deep = backfill if backfill is not None else (start < today_msk() - timedelta(days=WINDOW + 1))
+        deep = backfill if backfill is not None else beyond_window(start)
         return collect_outlet(o, start, end, lex, known, seen.get(o.id, {}), feeds_only=feeds_only,
                               backfill=deep, limit=limit, budget=Budget(o.budget, within=budget),
                               sink=sink_for(o), retry=retry)

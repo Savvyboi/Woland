@@ -262,6 +262,19 @@ def test_a_day_far_quieter_than_usual_is_looked_at_again(monkeypatch):
     assert collect.plan([outlet()], small, catch_up_days=45)["t"][0] == date(2026, 10, 14)
 
 
+def test_a_gap_just_before_the_rolling_window_is_looked_up_in_the_internet_archive_too(monkeypatch):
+    """Zvezda's 22–23 September 2026: thin days one day before the window were retried every night without
+    the sources kept for older days, which alone could fill them."""
+    today = date(2026, 9, 29)
+    monkeypatch.setattr(collect, "today_msk", lambda: today)
+    days = [START_DATE + timedelta(days=k) for k in range((today - START_DATE).days)]
+    cov = {"t": {d.isoformat(): {"status": "complete", "n": 80} for d in days}}
+    cov["t"]["2026-09-22"]["n"] = 0
+    start, _ = collect.plan([outlet()], cov, catch_up_days=45)["t"]
+    assert start == date(2026, 9, 22) and collect.beyond_window(start, today)
+    assert not collect.beyond_window(date(2026, 9, 23), today)   # the rolling window itself: today and six days back
+
+
 def test_a_day_is_complete_once_it_is_over_in_moscow():
     at = datetime(2026, 9, 11, 4, 17, tzinfo=MSK)
     assert collect._day_complete(date(2026, 9, 10), at)
