@@ -29,15 +29,16 @@ entries:
   - {ru: '\bСальдо\b', not: '(?i)сальдо\s+(торгов|внешне|бюджет|счет|сч[её]т|платеж|операц|текущ|миграц)', wrong: ['Balance', 'balance', 'Baldo'], en: 'Saldo'}
 
   # Institutions and abbreviations
-  - {ru: '\bСВО\b', not: '\bСВР\b', wrong: ['SBO', 'NWO', 'CBO', 'SVR'], en: 'SVO'}
+  # (SVD is also the sniper rifle, СВД)
+  - {ru: '\bСВО\b', not: '\bСВ[РД]\b', wrong: ['SBO', 'NWO', 'CBO', 'SVR', 'SVD', 'SWO', 'CVO', 'CVD', 'VO'], en: 'SVO'}
   - {ru: '\bВСУ\b', wrong: ['APU'], en: 'AFU'}
-  - {ru: '\bСК\b', not: 'Британ|Великобритан|Лондон|Соединенн\w+ Королевств', wrong: ['SK RF', 'SK', 'UK'], en: 'Investigative Committee'}
+  - {ru: '\bСК\b', not: 'Британ|Великобритан|Лондон|Соединенн\w+ Королевств', wrong: ['SK RF', 'SK', 'UK', 'IC'], en: 'Investigative Committee'}
   - {ru: 'Росгвардейц', wrong: ['Rosgvardeyts\w*', 'Rosgvardeyets\w*', 'Rosgvardeits\w*', 'Regardie officers'], en: 'Rosgvardia officers'}
   - {ru: 'Росгварди', wrong: ['Regardie', 'Rosgvardiya', 'Rosguard'], en: 'Rosgvardia'}
   - {ru: '\bТЦК\b', wrong: ['TCK', 'TsK', 'TSK', 'shopping cent(?:er|re)s?'], en: 'TCC'}
 
   # Weapons
-  - {ru: 'Геран[иьея]', wrong: ['Gerani', 'Heran\w*', 'Gueran\w*', 'Geranium\w*'], en: 'Geran drones'}
+  - {ru: 'Геран[иьея]', wrong: ['Gerani', 'Heran\w*', 'Gueran\w*', 'Geranium\w*', 'Geran(?:ei|ey|ay|s|is|ho|ha|ja|ami|aeus)'], en: 'Geran drones'}
 
   # Places: one spelling each, so that an English search finds them all
   # the Zaporizhstal steelworks and the Zaporozhets car keep their names
@@ -46,7 +47,7 @@ entries:
   - {ru: 'Харьков', wrong: ['Kharkov'], en: 'Kharkiv'}
   - {ru: 'Днепропетровск', wrong: ['Dnepropetrovsk'], en: 'Dnipropetrovsk'}
   - {ru: 'Красноармейск', wrong: ['Krasnoarmeisk'], en: 'Krasnoarmeysk'}
-  - {ru: 'Буч[аиеу]\b', wrong: ['Buche', 'Buchi', 'Buchu', 'Butch'], en: 'Bucha'}
+  - {ru: 'Буч[аиеу]\b', wrong: ['Buche', 'Buchi', 'Buchu', 'Butch', 'Bute', 'Buce', 'Buch', 'Butchu', 'Butcha'], en: 'Bucha'}
 
   # Ordinary words
   - {ru: '[Лл]уна-парк', wrong: ['moon park', 'Moon park', 'Moon Park', 'lunar park', 'Lunar park'], en: 'amusement park'}

@@ -103,7 +103,11 @@ Archive's copy when an outlet does not answer), so MK and Sputnik no longer fail
       matched since 30 September: its body matches were not part of the audited samples.
 - [ ] **Translation glossary** (`config/glossary.yaml`, 25 entries): run `python -m woland mtcheck` now and then.
       It reports only the entries' own words; names missing from the glossary have to be spotted in the
-      translations. Most "still without it" lines are translations that dropped the word altogether.
+      translations. Most "still without it" lines are translations that dropped the word altogether. On 29
+      September the renderings it still missed were counted over the whole archive and added: СК as "IC" (59
+      headlines), СВО as "SVD", "SWO", "CVO", "CVD", "VO" (not with СВД, the rifle), Герань's case forms
+      ("Geranei", "Gerans", …), Буча as "Bute", "Buce", "Buch", "Butchu", "Butcha". Not added: "SC" for СК
+      (it can be a sports complex, "СК «ЦСКА Арена»").
 - [ ] **Finnish and Swedish** need a native speaker's check: `site/assets/js/i18n.js` and the FI/SV halves of
       `site/method.html` — including the paragraphs added on 25–26 September (sites that refuse automated
       readers, the Internet Archive, *headline only* records, where leads come from), the strings
