@@ -151,6 +151,7 @@ def test_citations_have_unique_keys_and_the_records_fields(built_site):
         assert r["id"] == f"{r['outlet_id']}:{short_hash(r['url'])}"   # the id of the record in data/
         assert r["fingerprint"] == "0" * 16 and r["retrieved"] == "2026-09-24" and r["body_words"] in (0, 100)
         assert r["published"].startswith("2026-09-01T") and r["published"].endswith("+03:00")
+        assert r["video"] is False                                  # (only Izvestia's video items are)
     weather = next(x["record"] for x in out if x["record"]["title"].startswith("Синоптики"))
     assert weather["source"] == "headline only" and weather["body_words"] == 0
     staged = next(x for x in out if x["record"]["title"].startswith("Kiev regime staged"))

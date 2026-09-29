@@ -11,7 +11,7 @@ Open work for future sessions, most urgent first. State of the archive when this
 | Zvezda | 2,086 | early September from the Internet Archive (~70%); **22–23 September missing** |
 | TASS (Russian) | 2,364 | feeds only, from 24 September; hours lost on 25–29 September, listed on the Outlets page (§1) |
 | Sputnik | 602 | answers neither Finland nor GitHub: some 15–30 a day from the Internet Archive's copies |
-| Regnum | — | disabled: 403 to everything, including robots.txt and its feed |
+| Regnum | — | from 29 September its feed only (its pages refuse; the feed answers GitHub, not Finland) |
 
 ## 1. Collection on GitHub (watch the next runs)
 
@@ -28,35 +28,32 @@ Open work for future sessions, most urgent first. State of the archive when this
       driver). Decided on 28 September: no outside trigger. Since 29 September TASS is read from its feed for
       news aggregators, which reaches back about twelve hours on a weekday, so a reading every six hours loses
       nothing; the Outlets page lists any hours lost (see §2). If they reappear, reconsider an outside trigger.
-- [ ] **MK's backlog from the Internet Archive.** web.archive.org answers GitHub: the nightly run of 28 September
-      read 1,189 new articles from the copies and completed 84; that of 29 September 146 new and 987 completed
-      (181 pages had no copy yet, retried later). About 5,250 headline-only records remain: some five more
-      nights at MK's 90-minute budget. MK stays in the run as it is, so it is read directly again once it answers.
+- [ ] **MK answers GitHub again** (the check of 29 September, 20:42 UTC, read two of its pages directly). If the
+      nightly runs confirm it, update MK's note (en/fi/sv) and the README, which say it does not answer GitHub.
+      Until then its backlog came from the Internet Archive, which answers GitHub: the nightly run of 28 September
+      read 1,189 new articles from the copies and completed 84; that of 29 September 146 new and 987 completed.
+      5,253 headline-only records remain; at MK's ~15 pages a minute and 90-minute budget, some four nights.
 - [ ] The nightly run (01:17 UTC) started at 06:36 and 06:54 UTC on 27–29 September: late runs cost nothing but a
       later site.
 
 ## 2. Data gaps
 
-- [ ] **TASS (Russian) pages from GitHub.** The check now also tries, for feed-only outlets, an article page,
-      `robots.txt` and the sitemap (report only), and keeps its results in `data/state/check.json`. From
-      Finland all three answered 403 — except once, on 29 September, when all three answered 200 and minutes
-      later 403 again: TASS's shield lets requests through now and then, which is no invitation. If
-      `check.json` shows them readable from GitHub week after week, the sitemaps
-      (`tass.ru/sitemap/sitemap_news*.xml`) could fill 24–29 September. Never get around a bot check.
-- [ ] **Regnum**: re-tested by the same check (disabled outlets are checked too). If it answers, enable it in
-      `config/outlets.yaml` and backfill.
+- [ ] **Regnum, feed only** (enabled on 29 September): the check of 29 September read its feed from GitHub (218
+      items, about a day) while its pages answered 403, as they do from Finland, where the feed answers 403 too
+      (robots.txt, in the Archive's copy of 10 September, allows the feed). Watch its first days: the feed's
+      reach (~250 items), whether GitHub keeps being let in, and whether its leads (cut off by the feed with
+      "...") read well. No backfill is possible: the Internet Archive has only error pages for its news.
 - [ ] **Zvezda 22–23 September**: the Internet Archive had not captured them. Nightly runs retry them (they
       are thin days); if they never appear, note the gap on the Method page (the outlet note says so already).
 - [ ] **KP early September**: ~60% of its online news came from the Internet Archive walk. KP's own
       listings reach back only two days, and `/content/api/` is closed by robots.txt. Look for another
       public listing (rubric pages, print issues under `/daily/<issue>/`).
-- [ ] **Tsargrad**: 1–8 September has ~250–470 articles a day against ~650–780 later. Check whether its
-      monthly sitemap (`tsargrad.tv/xml/sitemap-2026-9.xml.gz`) is incomplete for early September, and
-      whether another listing fills it.
-- [ ] **Izvestia**: ~1,500 video items have no text and so no lead. Decide whether to mark video items
-      (URL `/…/video/…`) in the data and on the site.
 
 Done on 29 September:
+- **TASS from GitHub's servers**: the check (29 September, 20:42 UTC) got 403 for an article page, `robots.txt`
+  and the sitemap, as from Finland (where all three once answered 200 for a few minutes that evening: the shield
+  lets requests through now and then, which is no invitation). TASS stays feed-only; `check.json` keeps
+  watching. The Kremlin's pages answered 200 from GitHub, but its feed carries the full texts anyway.
 - **TASS read from three feeds** (`config/outlets.yaml`): `rss/yandex.xml`, its feed for news aggregators (the
   latest ~650 items, back to 10:00 at 23:00 on a Tuesday, with full texts: everything but sport and science;
   robots.txt allows it), the sport section's (`v2.xml?sections=` + TASS's section id in base64, `MjE3Ng==` =
@@ -71,6 +68,11 @@ Done on 29 September:
   (`fill_day`: lead, and text count, fingerprint and body matches if the text was missing). Re-reading the
   Kremlin's paged feeds filled the leads of all 170 September records that had none, and found 5 articles
   that had been missed.
+- **Tsargrad's early September is not a gap**: its own monthly sitemaps list mostly 300–470 items a weekday in
+  August and until 8 September, 650–830 from 9 September (the note says so now).
+- **Izvestia's video items** (1,727 of 12,271 in September, 1,610 without a lead; their text is a caption of a
+  few dozen words) are labelled "video" on the site, in citations and in CSV exports (`video` in
+  `outlets.yaml`, a URL pattern); decided with the user to keep them in all counts.
 
 ## 3. Engineering
 
@@ -125,5 +127,8 @@ Archive's copy when an outlet does not answer), so MK and Sputnik no longer fail
       585 KB), a page uses about seven (~430 KB) — four times the page itself, though `display=swap` shows the
       text at once.
       An archive search downloads ~600 KB (22 files; "Finland": the month's index file and 20 blocks of ~23 KB,
-      one per result shown), ~0.6 s here, ~3 s on a slow mobile link. Possible gains: fewer font styles
-      (Cormorant 500i/600 and PT Mono appear rarely), smaller search blocks (more files).
+      one per result shown), ~0.6 s here, ~3 s on a slow mobile link. Possible gains: smaller search blocks
+      (more files). Fonts: browsers download only the faces a page uses, so the two styles no page used
+      (Cormorant 600 and italic 500, dropped on 29 September) cost only CSS; PT Mono loads on the Method page
+      alone. Fewer faces per page would mean design changes (translations not in italic, no bold sans in
+      tiles and badges, the epigraphs' Russian lines in another face): the user's decision.

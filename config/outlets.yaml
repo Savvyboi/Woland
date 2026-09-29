@@ -46,6 +46,7 @@
 #   gaps        for a feed-only outlet whose feeds roll over between two readings: {minutes, skip}. A silence
 #               longer than `minutes` between two stored articles (URLs matching the pattern `skip` aside:
 #               sections a feed of their own covers for longer) is shown as hours not collected
+#   video       a pattern for the URLs of video items, whose text is only a caption: labelled "video" on the site
 #   enabled     false = skipped (kept for documentation)
 
 defaults:
@@ -157,10 +158,11 @@ outlets:
       fi: Päivälehti ja uutissivusto, jonka omistaa National Media Group.
       sv: Dagstidning och nyhetssajt som ägs av National Media Group.
     note:
-      en: 'About 1,500 of its items are videos without text, and so without a lead.'
-      fi: 'Noin 1 500 sen jutuista on videoita ilman tekstiä, joten niillä ei ole ingressiä.'
-      sv: 'Omkring 1 500 av dess inslag är videor utan text och saknar därför ingress.'
+      en: 'About one item in seven is a video (labelled so), with only a caption of a few dozen words for text and mostly without a lead.'
+      fi: 'Noin joka seitsemäs juttu on video (merkitty sellaiseksi), jonka tekstinä on vain muutaman kymmenen sanan kuvateksti ja jolta useimmiten puuttuu ingressi.'
+      sv: 'Ungefär vart sjunde inslag är en video (märkt som sådan) med bara en bildtext på några dussin ord som text och oftast utan ingress.'
     article: '^https://iz\.ru/\d+/[^?#]+$'
+    video: '^https://iz\.ru/\d+/video/'   # 1,727 of 12,271 items in September 2026, 1,610 of them without a lead
     sources:
       - {type: sitemap_index, url: 'https://iz.ru/sitemap.xml', child: '/export/sitemap/(last|\d+)/xml$', order: desc, max_children: 4}
 
@@ -479,9 +481,9 @@ outlets:
       fi: Ortodoksis-nationalistinen media, jonka perusti pakotteiden alainen liikemies Konstantin Malofejev.
       sv: Ortodox-nationalistisk kanal grundad av den sanktionerade affärsmannen Konstantin Malofejev.
     note:
-      en: '1–8 September 2026 holds noticeably fewer articles a day than later days; its monthly sitemap may be incomplete for them.'
-      fi: '1.–8.9.2026 on selvästi vähemmän artikkeleita päivässä kuin myöhempinä päivinä; sen kuukausittainen sivukartta voi olla niiltä osin puutteellinen.'
-      sv: '1–8 september 2026 har märkbart färre artiklar per dag än senare dagar; dess månatliga webbplatskarta kan vara ofullständig för dem.'
+      en: 'Published about half as many items a day until 8 September 2026 as from 9 September: its own sitemaps list mostly 300–470 a weekday in August and early September, and 650–830 since. The lower counts of early September are not a gap in collection.'
+      fi: 'Julkaisi 8.9.2026 asti noin puolet vähemmän juttuja päivässä kuin 9.9. alkaen: sen omat sivukartat luettelevat elokuussa ja syyskuun alussa enimmäkseen 300–470 juttua arkipäivänä ja sen jälkeen 650–830. Syyskuun alun pienemmät määrät eivät ole aukko keruussa.'
+      sv: 'Publicerade ungefär hälften så många inslag om dagen fram till den 8 september 2026 som från den 9 september: dess egna webbplatskartor listar mest 300–470 per vardag i augusti och början av september, och 650–830 därefter. De lägre siffrorna i början av september är ingen lucka i insamlingen.'
     article: '^https://tsargrad\.tv/(news|articles|materials|investigations)/(?!rubric/)[^?#]+$'
     sources:
       - {type: sitemap, per: month, url: 'https://tsargrad.tv/xml/sitemap-{y}-{m}.xml.gz'}
@@ -523,17 +525,21 @@ outlets:
     group: hardline
     home: https://regnum.ru
     eu_blocked: false
-    # Answers 403 to every automated request, robots.txt and feed included (September 2026). The Internet
-    # Archive's copies of its news are 403 pages too; only a few long reads per day were archived.
-    enabled: false
+    # Its article pages answer 403 to automated readers, from Finland and from GitHub's servers alike, and
+    # the Internet Archive's copies of its news are 403 pages too. Its feed answers 403 in Finland (robots.txt
+    # as well), but GitHub's servers read it on 29 September 2026: 218 items, about a day. robots.txt (the
+    # Archive's copy of 10 September 2026) closes only /search, /pdfnews/, /pdf/article/ and /sneakpeek.
+    # So, like TASS, it is read from its feed only: headline, lead (cut off by the feed) and time, no texts.
+    fetch: false
+    poll: true
     about:
-      en: News agency with a nationalist editorial line. Currently refuses automated access.
-      fi: Nationalistisen linjan uutistoimisto. Estää tällä hetkellä automaattisen pääsyn.
-      sv: Nyhetsbyrå med nationalistisk linje. Nekar för närvarande automatiserad åtkomst.
+      en: News agency with a nationalist editorial line.
+      fi: Nationalistisen linjan uutistoimisto.
+      sv: Nyhetsbyrå med nationalistisk linje.
     note:
-      en: 'Refuses every automated request, its feed and robots.txt included, and the Internet Archive holds only error pages for its news: not collected.'
-      fi: 'Torjuu kaikki automaattiset pyynnöt, myös syötteen ja robots.txt-tiedoston, eikä Internet Archivessa ole sen uutisista kuin virhesivuja: ei kerätä.'
-      sv: 'Nekar alla automatiserade förfrågningar, även flödet och robots.txt, och Internet Archive har bara felsidor för dess nyheter: samlas inte in.'
+      en: 'Read from its own feed only, which holds about a day of news: collected from 29 September 2026, when its feed first answered Woland (its pages refuse automated readers). Headlines and leads, no texts. The Internet Archive holds only error pages for its news, so earlier days cannot be filled in.'
+      fi: 'Luetaan vain median omasta syötteestä, jossa on noin vuorokauden uutiset: kerätty 29.9.2026 alkaen, jolloin sen syöte ensimmäisen kerran vastasi Wolandille (sen sivut torjuvat automaattiset lukijat). Otsikot ja ingressit, ei tekstejä. Internet Archivessa on sen uutisista vain virhesivuja, joten aiempia päiviä ei voi täydentää.'
+      sv: 'Läses bara från mediets eget flöde, som rymmer ungefär ett dygns nyheter: insamlat från den 29 september 2026, då flödet för första gången svarade Woland (sidorna nekar automatiserade läsare). Rubriker och ingresser, inga texter. Internet Archive har bara felsidor för dess nyheter, så tidigare dagar kan inte fyllas i.'
     article: '^https://regnum\.ru/(news|article)/\d+$'
     sources:
       - {type: rss, url: 'https://regnum.ru/rss'}

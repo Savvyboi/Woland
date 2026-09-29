@@ -241,6 +241,7 @@ a.tag:hover, button.tag:hover { border-color: var(--gilt-dim); color: var(--text
 .badge { font: 700 .62rem/1 var(--sans); letter-spacing: .12em; text-transform: uppercase; padding: .2rem .35rem; border-radius: 2px; border: 1px solid currentColor; }
 .badge.eu { color: var(--crimson-text); }
 .badge.feed { color: var(--text-3); }
+.badge.video { color: var(--text-2); }
 
 /* rising words */
 .words { list-style: none; margin: 0; padding: 0; }

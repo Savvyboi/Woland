@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import re
 import shutil
 import subprocess
 from datetime import date, datetime, timedelta, timezone
@@ -271,6 +272,14 @@ def test_extract_page():
     assert info["published"] == datetime(2026, 9, 23, 0, 6, tzinfo=MSK)
     assert info["tags"] == ["США", "ООН"] and info["author"] == "Иван Петров"
     assert info["section"] == "В мире"
+
+
+def test_izvestias_video_items_are_recognised():
+    iz = next(o for o in load_outlets() if o.id == "iz")
+    video = re.compile(iz.video)  # (the site compiles the same pattern in JavaScript)
+    assert video.search("https://iz.ru/2158617/video/vladimir-putin-obratilsia-k-shkolnikam-i-studentam")
+    assert not video.search("https://iz.ru/2158618/politika/video-s-mesta-sobytii")
+    assert iz.public()["video"] == iz.video
 
 
 def test_cleaners():

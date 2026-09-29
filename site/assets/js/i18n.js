@@ -83,7 +83,7 @@ const S = {
 
     "article.original": "Original", "article.archive": "Archived copy", "article.cite": "Cite",
     "article.translate": "Translate page", "article.eu": "Blocked in the EU", "article.mt": "MT",
-    "article.mt.title": "Machine translation", "article.body": "In the text", "article.feed": "feed only",
+    "article.mt.title": "Machine translation", "article.body": "In the text", "article.feed": "feed only", "article.video": "video", "article.video.title": "A video item: its text is only a caption",
     "article.listed": "headline only",
     "article.listed.title": "So far Woland has only the headline from the outlet's own listing; it will try to read the page again.",
     "cite.title": "Cite this article", "cite.record": "Woland record", "cite.copy": "Copy", "cite.copied": "Copied",
@@ -301,7 +301,7 @@ const S = {
 
     "article.original": "Alkuperäinen", "article.archive": "Arkistokopio", "article.cite": "Viittaa",
     "article.translate": "Käännä sivu", "article.eu": "Estetty EU:ssa", "article.mt": "KK",
-    "article.mt.title": "Konekäännös", "article.body": "Tekstissä", "article.feed": "vain syöte",
+    "article.mt.title": "Konekäännös", "article.body": "Tekstissä", "article.feed": "vain syöte", "article.video": "video", "article.video.title": "Videojuttu: sen tekstinä on vain kuvateksti",
     "article.listed": "vain otsikko",
     "article.listed.title": "Wolandilla on toistaiseksi vain otsikko median omasta listauksesta; se yrittää lukea sivun uudelleen.",
     "cite.title": "Viittaa artikkeliin", "cite.record": "Wolandin tietue", "cite.copy": "Kopioi", "cite.copied": "Kopioitu",
@@ -519,7 +519,7 @@ const S = {
 
     "article.original": "Original", "article.archive": "Arkiverad kopia", "article.cite": "Citera",
     "article.translate": "Översätt sidan", "article.eu": "Blockerad i EU", "article.mt": "MÖ",
-    "article.mt.title": "Maskinöversättning", "article.body": "I texten", "article.feed": "endast flöde",
+    "article.mt.title": "Maskinöversättning", "article.body": "I texten", "article.feed": "endast flöde", "article.video": "video", "article.video.title": "Ett videoinslag: texten är bara en bildtext",
     "article.listed": "endast rubrik",
     "article.listed.title": "Woland har hittills bara rubriken från mediets egen lista; sidan försöker läsas igen.",
     "cite.title": "Citera artikeln", "cite.record": "Wolandpost", "cite.copy": "Kopiera", "cite.copied": "Kopierat",

@@ -47,6 +47,7 @@ class Outlet:
     # than `minutes` between two of its stored articles (not counting URLs matching `skip`) is listed as
     # hours not collected.
     gaps: dict = field(default_factory=dict)
+    video: str | None = None  # URLs of video items (a caption for text), labelled as such on the site
 
     @property
     def host(self) -> str:
@@ -81,7 +82,7 @@ class Outlet:
             "id": self.id, "name": self.name, "name_ru": self.name_ru, "lang": self.lang,
             "group": self.group, "home": self.home, "about": self.about,
             "eu_blocked": self.eu_blocked, "method": self.method,
-            "enabled": self.enabled, "note": self.note or None,
+            "enabled": self.enabled, "note": self.note or None, "video": self.video,
         }
 
 
@@ -104,6 +105,7 @@ def load_outlets(path: Path | None = None, include_disabled: bool = False) -> li
             feed_fulltext=bool(o.get("feed_fulltext", False)), cookies=dict(o.get("cookies") or {}),
             headline=o.get("headline", "meta"), note=o.get("note") or {},
             budget=float(o["budget"]) if o.get("budget") else None, gaps=dict(o.get("gaps") or {}),
+            video=o.get("video"),
         )
         if outlet.enabled or include_disabled:
             outlets.append(outlet)

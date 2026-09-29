@@ -35,7 +35,7 @@ neither Sputnik nor MK answered on 27 September 2026 (MK does from Finland): see
 
 - **Never get around bot checks or CAPTCHAs.** Woland identifies itself honestly (`WolandMonitor`), obeys
   robots.txt, keeps a per-site pause and slows down when a site says so (429, Qrator's challenge). Sites that
-  refuse automated readers stay feed-only (TASS Russian) or disabled (Regnum). Gazeta.ru's cookie is fine: it
+  refuse automated readers stay feed-only (TASS Russian, Regnum — whose feed answers GitHub, not Finland). Gazeta.ru's cookie is fine: it
   only declines an optional sign-in, as every anonymous visitor does (see `outlets.yaml`).
 - **Keep English, Finnish and Swedish in step**: every UI string exists in all three (`tests/test_site.py`
   checks), and the Method page has a section per language. Finnish and Swedish need a native speaker's review.

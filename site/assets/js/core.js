@@ -252,6 +252,15 @@ export function fromExample(ex, dayIso, narrId) {
 /** How Woland obtained a record: page (read in full), notext (page read, but it had no text), archive (the
  *  page as the Internet Archive captured it: the outlet did not answer), feed (the outlet's feed only),
  *  feedtext (its feed, with the full text) or listed (headline only: the page is still to be read). */
+const videoRes = new Map();
+/** A video item (`video` in outlets.yaml: Izvestia's), whose text is only a caption. */
+export function isVideo(doc) {
+  const o = outlet(doc.o);
+  if (!o.video) return false;
+  if (!videoRes.has(o.id)) videoRes.set(o.id, new RegExp(o.video));
+  return videoRes.get(o.id).test(doc.u || "");
+}
+
 export function sourceOf(doc) {
   const o = outlet(doc.o);
   if (o.method === "feed") return "feed";
@@ -345,8 +354,9 @@ export function articleCard(doc, opts = {}) {
     el("time", { datetime: new Date(doc.ts * 1000).toISOString() }, fmtStamp(doc.ts)),
     doc.a ? el("span", {}, doc.a) : null,
     blocked ? el("span", { class: "badge eu", title: t("article.eu") }, "EU ⊘") : null,
-    o.method === "feed" ? el("span", { class: "badge feed" }, t("article.feed")) : null,
+    sourceOf(doc) === "feed" ? el("span", { class: "badge feed" }, t("article.feed")) : null,
     doc.f ? el("span", { class: "badge feed", title: t("article.listed.title") }, t("article.listed")) : null,
+    isVideo(doc) ? el("span", { class: "badge video", title: t("article.video.title") }, t("article.video")) : null,
   );
   const title = el("h3", {}, el("a", { href: doc.u, rel: "noopener noreferrer nofollow", target: "_blank", lang: o.lang },
     ...highlight(doc.t, opts.terms)));
@@ -427,7 +437,7 @@ export function recordOf(doc, id) {
     id: id || null, outlet: o.name, outlet_id: doc.o, language: o.lang,
     published: mskStamp(doc.ts), title: doc.t, title_en_mt: doc.te || null, lead: doc.d || null,
     url: doc.u, archive: copyUrl(doc), archive_capture_read: doc.ar || null,
-    source: SOURCE_EN[sourceOf(doc)], body_words: doc.w ?? null,
+    source: SOURCE_EN[sourceOf(doc)], body_words: doc.w ?? null, video: isVideo(doc),
     retrieved: doc.r || null, fingerprint: doc.h || null,
     framings: tags.filter((n) => n.family === "framing").map((n) => n.id),
     topics: tags.filter((n) => n.family === "topic").map((n) => n.id),

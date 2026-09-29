@@ -216,9 +216,11 @@ consider moving older years to a release archive.
   MK (which allows about 15 pages a minute; a run spends at most 90 minutes on it) and Rossiyskaya Gazeta (whose
   Qrator shield answers bursts with a CAPTCHA, which Woland never solves; it only slows down) are completed this
   way over several nights.
-* Regnum answers 403 to every automated request (robots.txt and feed included) and the Internet Archive only
-  has error pages for its news, so it is disabled. Sputnik is blocked from Finnish networks and did not answer
-  GitHub's servers either on 27 September 2026; neither did MK, which answers from Finland. A site that does not
+* Regnum's pages answer 403 to automated readers, and the Internet Archive only has error pages for its news; its
+  feed refuses Finnish networks but answered GitHub's servers on 29 September 2026, so like TASS it is read from
+  its feed only (headlines and leads) since then. Sputnik is blocked from Finnish networks and did not
+  answer GitHub's servers either on 27 September 2026; neither did MK, which answers from Finland (and answered
+  GitHub again on 29 September). A site that does not
   answer is left alone for a quarter of an hour after three failed connections, so that it does not hold up the
   run, and meanwhile the articles the Internet Archive has captured are read from its copies (about 95% of MK's, a
   day or two late; some 15–30 of Sputnik's a day), each marked so in its details and citation. Other sites may
