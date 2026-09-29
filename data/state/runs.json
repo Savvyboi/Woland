@@ -4053,5 +4053,33 @@
    }
   },
   "seconds": 39
+ },
+ {
+  "at": "2026-09-29T20:55:24Z",
+  "lexicon": "6ffff3b0",
+  "mode": "backfill",
+  "outlets": {
+   "zvezda": {
+    "aborted": "",
+    "errors": [],
+    "new": 248,
+    "range": [
+     "2026-09-22",
+     "2026-09-23"
+    ],
+    "requests": 252,
+    "seconds": 178.9,
+    "stats": {
+     "fail_404": 1,
+     "known": 490,
+     "not_article": 137,
+     "other_day": 48,
+     "stored": 248,
+     "to_fetch": 249
+    },
+    "translated": 0
+   }
+  },
+  "seconds": 179
  }
 ]
