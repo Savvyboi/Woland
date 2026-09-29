@@ -11,6 +11,10 @@ on:
   schedule:
     - cron: "8,23,38,53 * * * *"
   workflow_dispatch:
+  # and when this workflow changes, so that the change is tried at once
+  push:
+    branches: [main]
+    paths: [".github/workflows/poll.yml", ".github/commit-data.sh"]
 
 permissions:
   contents: write
