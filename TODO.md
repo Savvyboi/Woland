@@ -6,21 +6,24 @@ Open work for future sessions, most urgent first. State of the archive when this
 | Outlet | Articles | Note |
 |---|---:|---|
 | RIA, RT (both), Izvestia, Vesti, Lenta, Life, Gazeta.ru, AiF, Parlamentskaya Gazeta, TASS English, Tsargrad, Ukraina.ru, InoSMI, Rossiyskaya Gazeta, the Kremlin (both) | | complete from their own sitemaps and listings |
-| MK | 15,678 | GitHub cannot reach it since 27 September: read from the Internet Archive's copies (§1); 5,253 records still *headline only* |
+| MK | 15,678 | did not answer GitHub 27–29 September (answered the check late on the 29th): read from the Internet Archive's copies meanwhile (§1); 5,253 records still *headline only* |
 | KP | 7,046 | early September: only what the Internet Archive captured (~60% of online news) |
 | Zvezda | 2,334 | early September and 21–23 September from the Internet Archive (~70% of early September) |
 | TASS (Russian) | 2,364 | feeds only, from 24 September; hours lost on 25–29 September, listed on the Outlets page (§1) |
 | Sputnik | 602 | answers neither Finland nor GitHub: some 15–30 a day from the Internet Archive's copies |
-| Regnum | — | from 29 September its feed only (its pages refuse; the feed answers GitHub, not Finland) |
+| Regnum | 219 | from 28–29 September, its feed only (its pages refuse; the feed answers GitHub, not Finland) |
 
 ## 1. Collection on GitHub (watch the next runs)
 
-- [ ] **The changes of 29 September** (first runs after the push): Actions upgraded to their Node 24 majors
-      (checkout v7, setup-python v7, cache v6, setup-node v7, configure-pages v6, upload-pages-artifact v5,
-      deploy-pages v5); every data commit goes through `.github/commit-data.sh`, which configures the merge
-      driver (`woland/merge.py`) and pushes with checkout v7's stored credentials; the check commits
-      `data/state/check.json`. Look at the first poll, nightly and check runs (the API lists them without a
-      token: `https://api.github.com/repos/Savvyboi/Woland/actions/runs`).
+- [ ] **The changes of 29 September: watch the first nightly run** (30 September, ~07:00 UTC). Already seen
+      working on GitHub that evening: the tests and the site build with the upgraded Actions (checkout v7,
+      setup-python v7, cache v6, setup-node v7, configure-pages v6, upload-pages-artifact v5, deploy-pages v5);
+      the check, committing `data/state/check.json` through `.github/commit-data.sh` with checkout v7's stored
+      credentials; a poll (21:02 UTC, started by a push: `poll.yml` also runs when it or the commit script
+      changes) that read Regnum's feed (219 articles), filled in the texts of 172 TASS articles and committed.
+      The merge driver has not had to merge on GitHub yet. The API lists runs and job steps without a token:
+      `https://api.github.com/repos/Savvyboi/Woland/actions/runs`. Note: a local `woland poll` records a
+      reading in `runs.json` too, so GitHub's next poll skips its turn for 40 minutes after one is pushed.
 - [ ] **Hourly feeds run about every six hours.** On 28–29 September GitHub started the 15-minute schedule about
       four times a day (01:19, 07:00, 13:59, 19:19 UTC on the 29th), and the two runs queued behind the nightly
       run lost their reads: they committed on top of the commit that was current when they were *queued*, and
