@@ -31,9 +31,12 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 350
     steps:
-      - uses: actions/checkout@v4
+      # The tip of the branch, not the commit that was current when the run was queued (see poll.yml).
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref_name }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -41,7 +44,7 @@ jobs:
       - run: pip install -r requirements.txt
 
       - name: Translation model cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/woland/models
           key: mt-ru-en-1.9
@@ -60,19 +63,8 @@ jobs:
       - name: Translate missing headlines
         run: python -m woland translate --days 45 --budget 30
 
-      # Under Savvyboi's no-reply address, so the repository keeps a single contributor.
       - name: Commit new articles
-        run: |
-          git config user.name "woland-bot"
-          git config user.email "123981133+Savvyboi@users.noreply.github.com"
-          git add data
-          if git diff --cached --quiet; then echo "Nothing new."; exit 0; fi
-          git commit -q -m "Collect $(date -u +%Y-%m-%d)"
-          for attempt in 1 2 3 4 5; do
-            git pull -q --rebase && git push -q && exit 0
-            sleep $((attempt * 15))
-          done
-          exit 1
+        run: bash .github/commit-data.sh "Collect $(date -u +%Y-%m-%d)"
 
       # Every stored record well-formed and filed under its day (after committing, so a problem is
       # reported without holding back the day's collection).

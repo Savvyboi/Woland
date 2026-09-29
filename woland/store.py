@@ -92,6 +92,32 @@ def merge_day(day: date, outlet: str, new: list[dict]) -> int:
     return len(existing)
 
 
+def fill_day(day: date, outlet: str, new: list[dict]) -> int:
+    """Fill in what stored records lack from a newer description of the same articles (a feed-only outlet's
+    feed read again): the lead, section, tags, author and, when the text was not known before, its word
+    count, fingerprint and body matches. Articles not filed under this day are left alone; nothing is added.
+    Returns how many records changed."""
+    records = read_day(day, outlet)
+    by_url = {r["u"]: r for r in records}
+    changed = 0
+    for r in new:
+        old = by_url.get(r["u"])
+        if old is None:
+            continue
+        before = dict(old)
+        if r.get("w") and not old.get("w"):
+            old["w"], old["h"] = r["w"], r["h"]
+            if r.get("kb") and not old.get("kb"):
+                old["kb"] = r["kb"]
+        for k in ("d", "s", "g", "a"):
+            if r.get(k) and not old.get(k):
+                old[k] = r[k]
+        changed += old != before
+    if changed:
+        write_day(day, outlet, records)
+    return changed
+
+
 def drop_urls(day: date, outlet: str, urls: set[str]) -> int:
     """Remove records from a day file (an upgraded article that moved to a neighbouring day)."""
     recs = read_day(day, outlet)
@@ -270,14 +296,17 @@ def save_seen(seen: dict, today: date, keep_days: int = 14, only=None) -> None:
     _save("seen.json", {o: u for o, u in pruned.items() if u})
 
 
-def append_run(summary: dict, keep: int = 40, keep_polls: int = 48) -> None:
+def trim_runs(runs: list, keep: int = 40, keep_polls: int = 48) -> list:
     """The latest runs of each kind: frequent feed polls must not push out the nightly runs (the website
     works out from them which days are complete)."""
-    runs = _load("runs.json", []) + [summary]
     polls = [r for r in runs if r.get("mode") == "poll"][-keep_polls:]
     other = [r for r in runs if r.get("mode") != "poll"][-keep:]
     kept = {id(r) for r in polls + other}
-    _save("runs.json", [r for r in runs if id(r) in kept])
+    return [r for r in runs if id(r) in kept]
+
+
+def append_run(summary: dict) -> None:
+    _save("runs.json", trim_runs(_load("runs.json", []) + [summary]))
 
 
 def load_runs() -> list:

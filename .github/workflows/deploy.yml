@@ -23,11 +23,11 @@ jobs:
     steps:
       # Check out the tip of the branch (not the commit that triggered the run), so the data
       # the collection job has just pushed is included.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.ref_name }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -36,10 +36,10 @@ jobs:
 
       # Requires Settings → Pages → Source: "GitHub Actions" (see README).
       - id: pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Build cache (months that have not changed are not rebuilt)
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .cache/build
           key: build-${{ github.run_id }}
@@ -47,7 +47,9 @@ jobs:
 
       - run: python -m woland build --out _site --base-url "${{ steps.pages.outputs.base_url }}"
 
-      - uses: actions/upload-pages-artifact@v3
+      # (Files whose names start with a dot, such as .nojekyll, are left out: Pages published from
+      # Actions does not run Jekyll anyway.)
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
 
@@ -59,4 +61,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

@@ -94,6 +94,7 @@ def clean(s: str | None) -> str:
     if not s:
         return ""
     s = html.unescape(html.unescape(str(s)))
+    s = re.sub(r"</?(sup|sub)\b[^>]*>", "", s, flags=re.I)  # 8<sup>th</sup>, м<sup>2</sup>: part of the word
     s = re.sub(r"<[^>]+>", " ", s)
     return _WS.sub(" ", s.replace(" ", " ")).strip()
 

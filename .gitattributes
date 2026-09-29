@@ -1,3 +1,10 @@
 * text=auto eol=lf
 *.png binary
 *.gz binary
+
+# Runs that write data at the same time merge record by record when they push (woland/merge.py). The driver
+# is defined in each clone's own config: git config merge.woland.driver "python -m woland merge %O %A %B %P"
+# (without it, git merges these files line by line as usual).
+data/articles/**/*.jsonl merge=woland
+data/state/*.json merge=woland
+data/state/urls/*.txt merge=woland

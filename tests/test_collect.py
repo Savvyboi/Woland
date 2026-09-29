@@ -162,6 +162,32 @@ def test_feed_only_outlets_store_what_the_feed_says(fake_site):
     assert rec["via"] == "feed" and rec["w"] == 0 and rec["p"] == "2026-09-10T09:00:00+03:00"
 
 
+def test_a_feed_that_describes_stored_articles_better_fills_in_what_they_lack(fake_site, archive, monkeypatch):
+    """The Kremlin's feed had empty summaries in September 2026, TASS's feeds no texts before 30 September:
+    read again, the feed completes the stored records, which stay where they are filed."""
+    monkeypatch.setattr(collect, "today_msk", lambda: date(2026, 9, 24))
+    bare = Candidate(url="https://t.ru/a/1", hint=datetime(2026, 9, 10, 9, tzinfo=MSK),
+                     title="Путин провёл совещание с членами правительства", via="rss")
+    fake_site["cands"] = [bare]
+    collect.run_collection({"t": (D, D)}, [outlet(fetch=False)], mode="poll", translate=False)
+    (stored,) = store.read_day(D, "t")
+    assert "d" not in stored and stored["w"] == 0
+    stored["te"] = "Putin held a meeting"
+    store.write_day(D, "t", [stored])
+    # the feed now gives a text, whose opening paragraph serves as the lead, and a slightly different time
+    fuller = Candidate(url=bare.url, hint=datetime(2026, 9, 11, 0, 30, tzinfo=MSK), title=bare.title, via="rss",
+                       body="Президент обсудил с министрами ход отопительного сезона в регионах страны. " * 3)
+    fake_site["cands"] = [fuller]
+    summary = collect.run_collection({"t": (D, D)}, [outlet(fetch=False)], mode="poll", translate=False)
+    (after,) = store.read_day(D, "t")
+    assert after["d"].startswith("Президент обсудил") and after["w"] > 0 and after["h"] != stored["h"]
+    assert after["te"] == "Putin held a meeting" and after["p"] == stored["p"]   # its own translation and day
+    assert not store.read_day(D + timedelta(days=1), "t") and summary["outlets"]["t"]["filled"] == 1
+    # read a third time, nothing changes
+    summary = collect.run_collection({"t": (D, D)}, [outlet(fetch=False)], mode="poll", translate=False)
+    assert "filled" not in summary["outlets"]["t"] and store.read_day(D, "t") == [after]
+
+
 def test_body_only_framings_carry_a_snippet(fake_site):
     info = page_info(D, 1)
     info["body"] = "Обычный текст. " * 30 + "Западные кураторы Киева снова молчат. " + "Ещё текст. " * 30

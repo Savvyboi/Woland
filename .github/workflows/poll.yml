@@ -1,10 +1,10 @@
 name: Hourly feeds
 
 # Some outlets can only be read through feeds that hold a few hours of news (TASS's Russian service holds
-# about three). Read them every hour or so, so that nothing slips through. GitHub starts scheduled jobs
+# about half a day). Read them every hour or so, so that nothing slips through. GitHub starts scheduled jobs
 # late, or drops them, when it is busy: on 27 September 2026 an hourly schedule ran five times in twenty
-# hours. So the job is scheduled every quarter of an hour, and a run that finds the feeds were read less
-# than 40 minutes ago stops at once.
+# hours, and in the days after a quarter-hourly one about every six hours. So the job is scheduled every
+# quarter of an hour, and a run that finds the feeds were read less than 40 minutes ago stops at once.
 # The website itself is rebuilt once a day by the nightly collection.
 
 on:
@@ -24,9 +24,13 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      # The tip of the branch, not the commit that was current when the run was queued: a run that waited
+      # behind the nightly collection would otherwise commit on top of data the nightly run has replaced.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref_name }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -34,7 +38,7 @@ jobs:
       - run: pip install -r requirements.txt
 
       - name: Translation model cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/woland/models
           key: mt-ru-en-1.9
@@ -44,16 +48,5 @@ jobs:
       # waiting behind it: a nightly run queued behind a poll is cancelled if another poll is queued too.
       - run: python -m woland poll --min-gap 40 --budget 10
 
-      # Under Savvyboi's no-reply address, so the repository keeps a single contributor.
       - name: Commit
-        run: |
-          git config user.name "woland-bot"
-          git config user.email "123981133+Savvyboi@users.noreply.github.com"
-          git add data
-          if git diff --cached --quiet; then echo "Nothing new."; exit 0; fi
-          git commit -q -m "Feeds $(date -u +%Y-%m-%dT%H:%M)"
-          for attempt in 1 2 3 4 5; do
-            git pull -q --rebase && git push -q && exit 0
-            sleep $((attempt * 10))
-          done
-          exit 1
+        run: bash .github/commit-data.sh "Feeds $(date -u +%Y-%m-%dT%H:%M)"

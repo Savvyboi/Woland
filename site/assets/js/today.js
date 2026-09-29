@@ -161,7 +161,10 @@ function coverageOfDay(dg, day, series) {
     (code === "m" || !code ? missing : empty).push(o.name);
   }
   const listed = Object.entries(dg.listed || {}).filter(([, v]) => v).map(([o, v]) => ({ o: outlet(o).name, v }));
-  return { missing, empty, listed };
+  // hours between two readings of a feed that had rolled over by the second (TASS)
+  const gaps = Object.entries(series.gaps || {}).filter(([, by]) => by[day])
+    .map(([o, by]) => `${outlet(o).name} ${by[day].map(([a, b]) => `${a}–${b}`).join(", ")}`);
+  return { missing, empty, listed, gaps };
 }
 
 function render(dg, day, series) {
@@ -194,6 +197,7 @@ function render(dg, day, series) {
   const covNotes = [];
   if (cov.missing.length) covNotes.push(t("today.cov.missing", { list: cov.missing.join(", ") }));
   if (cov.listed.length) covNotes.push(t("today.cov.listed", { list: cov.listed.map((x) => `${x.o} ${fmtInt(x.v)}`).join(", ") }));
+  if (cov.gaps.length) covNotes.push(t("today.cov.gaps", { list: cov.gaps.join("; ") }));
   if (covNotes.length) kids.push(el("p", { class: "cov-note" }, covNotes.join(" "), " ", el("a", { href: "outlets.html" }, `${t("nav.outlets")} →`)));
 
   const top = [...framings].sort((a, b) => b.n - a.n)[0];

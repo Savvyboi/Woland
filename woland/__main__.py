@@ -10,6 +10,7 @@
   mtcheck   what the translation glossary (config/glossary.yaml) corrects, and what it still misses
   reindex   rebuild the index of every URL stored (data/state/urls/) from the day files
   sample    a random sample of the articles counted under a framing, to read by hand (docs/lexicon-audit.md)
+  merge     git's merge driver for the data files (see woland/merge.py and .gitattributes)
 """
 from __future__ import annotations
 
@@ -71,6 +72,7 @@ def main(argv=None):
     p = sub.add_parser("check")
     p.add_argument("--outlets", help="comma-separated outlet ids (default: all, including disabled ones)")
     p.add_argument("--date", type=date.fromisoformat, help="day to look at (default: yesterday)")
+    p.add_argument("--json", help="also keep the results, per outlet, in this file (data/state/check.json)")
     p = sub.add_parser("mtcheck")
     p.add_argument("--days", type=int, help="only the last N days (default: the whole archive)")
     p = sub.add_parser("reindex")
@@ -81,8 +83,14 @@ def main(argv=None):
     p.add_argument("--seed", type=int, default=1, help="a new seed draws a fresh sample")
     p.add_argument("--round", default="", help="written into the round column")
     p.add_argument("--csv", help="write the rows (the columns of docs/lexicon-audit-sample.csv) to this file")
+    p = sub.add_parser("merge")
+    for name in ("base", "ours", "theirs", "path"):  # git's %O %A %B %P
+        p.add_argument(name)
 
     a = ap.parse_args(argv)
+    if a.cmd == "merge":
+        from .merge import main as merge_main
+        return merge_main(a.base, a.ours, a.theirs, a.path)
     if (sys.stdout.encoding or "").lower().replace("-", "") != "utf8":
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Windows, when the output is piped
     logging.basicConfig(level=logging.DEBUG if a.verbose else logging.INFO,
@@ -140,7 +148,8 @@ def main(argv=None):
 
     if a.cmd == "check":
         from .check import main as check_main
-        return check_main(_outlets(a.outlets, include_disabled=True), a.date or today_msk() - timedelta(days=1))
+        return check_main(_outlets(a.outlets, include_disabled=True), a.date or today_msk() - timedelta(days=1),
+                          a.json)
 
     if a.cmd == "sample":
         from .audit import main as sample_main

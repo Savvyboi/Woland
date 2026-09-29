@@ -23,6 +23,8 @@ python -m venv .venv && .venv/Scripts/pip install -r requirements.txt pytest   #
 WOLAND_LIVE=1 .venv/Scripts/python -m pytest -m live   # reads the real outlets
 .venv/Scripts/python -m woland check                   # health table for every outlet
 .venv/Scripts/python -m woland build --out _site       # then: python -m http.server -d _site
+# once per clone, so that pulling data merges record by record (woland/merge.py) instead of conflicting:
+git config merge.woland.driver "PYTHONPATH='$PWD' '$PWD/.venv/Scripts/python.exe' -m woland merge %O %A %B %P"
 ```
 
 Working from Finland (or elsewhere in the EU): ISPs block most of these domains in DNS; set
@@ -47,7 +49,12 @@ neither Sputnik nor MK answered on 27 September 2026 (MK does from Finland): see
   characters) and snippets (≤ ~170) are stored — never full texts. `tests/test_data.py` validates every record;
   run it after any change to data or collection code.
 - **The workflows commit to `main` every hour**: pull before committing locally, and don't run a local
-  collection for outlets GitHub is collecting at the same time.
+  collection for outlets GitHub is collecting at the same time. Workflows commit data only through
+  `.github/commit-data.sh` (merge driver, retries) and check out the branch tip (`ref: ${{ github.ref_name }}`):
+  a scheduled run otherwise gets the commit current when it was *queued*, and after waiting behind another
+  run its push conflicts. GitHub's run list and job steps are public (`api.github.com/repos/Savvyboi/Woland/
+  actions/runs`); logs and step summaries need a token, so results worth reading later go into the repository
+  (`data/state/check.json`, `runs.json`).
 - **Savvyboi is the only contributor**: commit messages carry no `Co-Authored-By` line, and the workflows
   commit under Savvyboi's no-reply address. GitHub lists every address it can tie to an account (a bot's, a
   co-author's, someone else's `name@users.noreply.github.com`), and taking one off means rewriting history.

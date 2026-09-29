@@ -1,9 +1,11 @@
 name: Check outlets
 
 # Can every outlet still be read from GitHub's servers? Discovers yesterday's articles for each outlet
-# (disabled ones included) and reads a couple of pages, then lists the result in the run summary.
-# Run it by hand after changing config/outlets.yaml; it also runs every Monday so that a site
-# changing its layout or starting to block is noticed.
+# (disabled ones included) and reads a couple of pages as the collector would, then lists the result in the
+# run summary and keeps it, per outlet, in data/state/check.json. For outlets read from their feeds only
+# (TASS), it also tries an article page, robots.txt and the sitemap: do they still refuse?
+# Run it by hand after changing config/outlets.yaml; it also runs every Monday, and when the check itself
+# changes, so that a site changing its layout or starting to block is noticed.
 
 on:
   workflow_dispatch:
@@ -13,23 +15,41 @@ on:
         default: ""
   schedule:
     - cron: "5 6 * * 1"   # Mondays 09:05 Moscow time
+  push:
+    branches: [main]
+    paths: ["woland/check.py", ".github/workflows/check.yml"]
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: woland-data
+  cancel-in-progress: false
 
 jobs:
   check:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
       - name: Check
+        id: check
+        continue-on-error: true   # the results are committed first; the run still fails below
         env:
           OUTLETS: ${{ inputs.outlets || '' }}
         run: |
-          if [ -n "$OUTLETS" ]; then python -m woland check --outlets "$OUTLETS"; else python -m woland check; fi
+          args=(--json data/state/check.json)
+          if [ -n "$OUTLETS" ]; then args+=(--outlets "$OUTLETS"); fi
+          python -m woland check "${args[@]}"
+      - name: Commit the results
+        run: bash .github/commit-data.sh "Check outlets $(date -u +%Y-%m-%d)"
+      - name: Fail if an enabled outlet is broken
+        if: steps.check.outcome == 'failure'
+        run: exit 1

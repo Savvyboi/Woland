@@ -16,7 +16,7 @@ from woland.discover import fill, parse_feed, parse_sitemap
 from woland.extract import clean_lead, clean_title, extract, first_paragraph
 from woland.lexicon import Lexicon, snippet
 from woland.textproc import index_terms, stem, tokens
-from woland.util import MSK, canonical_url, parse_dt
+from woland.util import MSK, canonical_url, clean, parse_dt
 
 
 # ── dates ─────────────────────────────────────────────────────────────────────
@@ -277,6 +277,7 @@ def test_cleaners():
     assert clean_title("Оппозиция Армении: вывод базы - Новости на Вести.ru") == "Оппозиция Армении: вывод базы"
     assert clean_lead("Последние новости на сайте Вести: Текст новости..") == "Текст новости."
     assert clean_lead("Текст... РИА Новости Спорт, 23.09.2026") == "Текст…"
+    assert clean("the 8<sup>th</sup> Russia&ndash;China <b>Forum</b>, 40 м<sup>2</sup>") == "the 8th Russia–China Forum , 40 м2"
 
 
 # ── discovery ─────────────────────────────────────────────────────────────────

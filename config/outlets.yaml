@@ -43,6 +43,9 @@
 #   cookies     cookies that an anonymous visitor's browser would hold for the site (see Gazeta.ru)
 #   headline    meta (default: og:title and the like) | h1 (the visible headline, when meta titles are SEO text)
 #   coverage_sitemap  a sitemap used only to count how many articles the outlet published per day
+#   gaps        for a feed-only outlet whose feeds roll over between two readings: {minutes, skip}. A silence
+#               longer than `minutes` between two stored articles (URLs matching the pattern `skip` aside:
+#               sections a feed of their own covers for longer) is shown as hours not collected
 #   enabled     false = skipped (kept for documentation)
 
 defaults:
@@ -80,18 +83,25 @@ outlets:
       fi: Venäjän keskeinen valtiollinen uutistoimisto (venäjänkielinen palvelu).
       sv: Rysslands centrala statliga nyhetsbyrå (ryskspråkig tjänst).
     note:
-      en: 'Read from its own feed only, which holds about three hours of news and cannot be read backwards: collected from 24 September 2026, when hourly reading began. Missing, in Moscow time: about 04:00–21:00 on 25 September; about 04:30–07:30, 11:00–13:30 and 16:20–17:40 on 26 September and 11:30–12:15 on 27 September, when GitHub started the hourly reading only every few hours.'
-      fi: 'Luetaan vain median omasta syötteestä, jossa on noin kolmen tunnin uutiset ja jota ei voi lukea takautuvasti: kerätty 24.9.2026 alkaen, jolloin tunneittainen lukeminen alkoi. Puuttuu (Moskovan aikaa): 25.9. noin klo 4–21 sekä 26.9. noin klo 4.30–7.30, 11–13.30 ja 16.20–17.40 ja 27.9. noin klo 11.30–12.15, jolloin GitHub käynnisti tunneittaisen lukemisen vain muutaman tunnin välein.'
-      sv: 'Läses bara från mediets eget flöde, som rymmer ungefär tre timmars nyheter och inte kan läsas i efterhand: insamlat från den 24 september 2026, då läsningen varje timme började. Saknas (Moskvatid): cirka 04.00–21.00 den 25 september samt cirka 04.30–07.30, 11.00–13.30 och 16.20–17.40 den 26 september och 11.30–12.15 den 27 september, då GitHub bara startade läsningen med några timmars mellanrum.'
+      en: 'Read from its own feeds only, as its pages refuse automated readers: headline, lead and time, and since 30 September 2026 the full text of most news too, in which framings are looked for as well. The feeds hold from a few hours to about a day of news and cannot be read backwards, so TASS is collected from 24 September 2026, when hourly reading began. Until 30 September its feed held only three hours, and GitHub started the hourly reading only every few hours: the hours lost are listed below.'
+      fi: 'Luetaan vain median omista syötteistä, koska sen sivut torjuvat automaattiset lukijat: otsikko, ingressi ja aika sekä 30.9.2026 alkaen myös useimpien uutisten koko teksti, josta etsitään myös kehystyksiä. Syötteissä on muutaman tunnin – noin vuorokauden uutiset, eikä niitä voi lukea takautuvasti, joten TASS on kerätty 24.9.2026 alkaen, jolloin tunneittainen lukeminen alkoi. Ennen 30.9. syötteessä oli vain kolmen tunnin uutiset, ja GitHub käynnisti tunneittaisen lukemisen vain muutaman tunnin välein: menetetyt tunnit luetellaan alla.'
+      sv: 'Läses bara från mediets egna flöden, eftersom sidorna nekar automatiserade läsare: rubrik, ingress och tid samt från den 30 september 2026 även hela texten för de flesta nyheter, där inramningar också söks. Flödena rymmer från några timmars till ungefär ett dygns nyheter och kan inte läsas i efterhand, så TASS samlas in från den 24 september 2026, då läsningen varje timme började. Före den 30 september rymde flödet bara tre timmar, och GitHub startade läsningen bara med några timmars mellanrum: de förlorade timmarna listas nedan.'
     # Article pages, sitemaps and robots.txt answer 403 ("if you are not a bot…"), and the Internet
-    # Archive's copies are the same 403 page. The feed holds the latest 100 items (about three hours of a
-    # weekday) and cannot be read backwards or paged, so it is read every hour and TASS's Russian service
-    # starts with the first hourly run.
+    # Archive's copies are the same 403 page; the feeds answer (robots.txt, in the Archive's copy of
+    # 1 May 2026, closes only /search, /preview/, /n/, */api/* and /video/). None can be read backwards or
+    # paged, so TASS's Russian service starts with the first hourly run. On 29 September 2026 at 23:00
+    # Moscow time the feed for news aggregators held 656 items, back to 10:00, with their full texts —
+    # everything but sport and science; the sport section's own feed (sections= takes TASS's section ids,
+    # base64-encoded: 2176 is sport) about a day; the main feed 100 items, back to 19:37.
     fetch: false
+    feed_fulltext: true
     poll: true
     article: '^https?://tass\.ru/[a-z0-9_-]+/\d+$'
+    # The stored articles, sport and science aside, have never been more than ~27 minutes apart (at night)
+    # while the feeds were read in time; each hour lost to a late reading left a silence of 50 minutes or more.
+    gaps: {minutes: 45, skip: '^https?://tass\.ru/(sport|nauka)/'}
     sources:
-      - {type: rss, url: 'https://tass.ru/rss/v2.xml'}
+      - {type: rss, url: ['https://tass.ru/rss/yandex.xml', 'https://tass.ru/rss/v2.xml?sections=MjE3Ng%3D%3D', 'https://tass.ru/rss/v2.xml']}
 
   - id: rt-ru
     name: RT (Russian)

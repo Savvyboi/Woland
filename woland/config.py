@@ -43,6 +43,10 @@ class Outlet:
     headline: str = "meta"  # where the headline is read: meta (og:title …) or h1
     note: dict = field(default_factory=dict)  # what readers should know about its coverage (en / fi / sv)
     budget: float | None = None  # the most minutes one run spends on this outlet (a slow site's cap)
+    # A feed-only outlet whose feeds may roll over between two readings: {minutes, skip}. A silence of more
+    # than `minutes` between two of its stored articles (not counting URLs matching `skip`) is listed as
+    # hours not collected.
+    gaps: dict = field(default_factory=dict)
 
     @property
     def host(self) -> str:
@@ -99,7 +103,7 @@ def load_outlets(path: Path | None = None, include_disabled: bool = False) -> li
             tz_fix=bool(o.get("tz_fix", False)), parallel=max(1, int(o.get("parallel", 2))),
             feed_fulltext=bool(o.get("feed_fulltext", False)), cookies=dict(o.get("cookies") or {}),
             headline=o.get("headline", "meta"), note=o.get("note") or {},
-            budget=float(o["budget"]) if o.get("budget") else None,
+            budget=float(o["budget"]) if o.get("budget") else None, gaps=dict(o.get("gaps") or {}),
         )
         if outlet.enabled or include_disabled:
             outlets.append(outlet)

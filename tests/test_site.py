@@ -181,6 +181,22 @@ def test_days_still_being_collected_and_outlets_not_collected(built_site):
     assert meta["contexts"]["ukraine-war"]["ru"] and meta["narratives"][0]["checked"]["n"] == 25
 
 
+def test_hours_between_readings_of_a_feed_that_rolled_over_are_listed(archive):
+    """TASS's feeds roll over: a silence of more than 45 minutes between its stored articles is listed as
+    hours not collected, per Moscow day. Sport has a feed of its own that reaches back further, so a sport
+    item does not break such a silence."""
+    def rec(path, day, hh, mm):
+        return {"id": f"tass:{path}", "o": "tass", "u": f"https://tass.ru/{path}", "p": f"{day}T{hh:02d}:{mm:02d}:00+03:00",
+                "t": "Заголовок", "w": 0, "h": "0" * 16, "r": "2026-09-26T00:00:00Z", "via": "feed"}
+    d1, d2 = date(2026, 9, 25), date(2026, 9, 26)
+    store.write_day(d1, "tass", [rec(f"politika/{i}", d1, 0, i) for i in range(0, 50, 10)]   # every ten minutes
+                    + [rec("sport/1", d1, 6, 0), rec("politika/100", d1, 8, 30), rec("politika/101", d1, 23, 50)])
+    store.write_day(d2, "tass", [rec("obschestvo/200", d2, 1, 0), rec("obschestvo/201", d2, 1, 30)])
+    gaps = buildmod.Builder(archive / "_site").feed_gaps(store.available_days())
+    assert gaps == {"tass": {"2026-09-25": [["00:40", "08:30"], ["08:30", "23:50"], ["23:50", "24:00"]],
+                             "2026-09-26": [["00:00", "01:00"]]}}
+
+
 def test_every_page_is_assembled_from_the_partials(built_site):
     pages = sorted(p.name for p in SITE.glob("*.html"))
     assert pages == ["archive.html", "index.html", "method.html", "narratives.html", "outlets.html"]

@@ -15,8 +15,8 @@ from .config import START_DATE, Outlet, load_lexicon, load_outlets
 from .discover import Candidate, discover, parse_sitemap
 from .extract import clean_lead, clean_title, extract, first_paragraph, published_from_url
 from .lexicon import Lexicon
-from .store import (append_run, drop_urls, headline_only, known_urls, load_coverage, load_runs, load_seen,
-                    merge_day, read_day, save_coverage, save_seen)
+from .store import (append_run, drop_urls, fill_day, headline_only, known_urls, load_coverage, load_runs,
+                    load_seen, merge_day, read_day, save_coverage, save_seen)
 from .translate import get_translator
 from .util import (MSK, canonical_url, daterange, fingerprint, iso_msk, iso_utc, msk_day, now_utc, parse_dt,
                    short_hash, today_msk, truncate)
@@ -168,6 +168,7 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict,
     cands, run.errors = discover(fetcher, o, start, end, feeds_only=feeds_only, backfill=backfill)
     todo, upgrades, urls = [], [], set()
     unread = []  # new candidates whose pages were refused or not reached
+    refresh = []  # feed-only outlets: stored articles the feed describes again (to fill in what they lack)
     for c in cands:
         c.url = canonical_url(c.url)
         if c.url.startswith("http://") and o.home.startswith("https://"):
@@ -183,6 +184,9 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict,
                 upgrades.append(c)  # stored from a listing only: try the page again
             else:
                 run.stats["known"] += 1
+                # (dict.get: the records of the days looked at, not the whole URL index)
+                if not o.fetch and isinstance(known, dict) and dict.get(known, c.url) and (c.body or c.lead):
+                    refresh.append(c)
         elif c.url in rejected_before:
             run.stats["skipped"] += 1
         else:
@@ -270,6 +274,22 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict,
         if (i // step) % 20 == 19:
             log.info("%-10s %d/%d fetched", o.id, min(i + step, len(todo)), len(todo))
     unread += [c for c in todo[reached:] if id(c) in new]  # not reached: time ran out, or the site refused
+    # A feed-only outlet's stored articles, as the feed describes them now: a lead or a text the stored
+    # record lacks (the Kremlin's feed had empty summaries in September 2026; TASS's feeds had no texts
+    # before 30 September) is filled in; the record stays where it is filed.
+    if refresh and not limit and not budget.exceeded():
+        for c in refresh:
+            built = build_record(o, c, None)
+            if built is None:
+                continue
+            rec, body = built
+            head, body_hits = lex.tag(rec["t"], rec.get("d", ""), body, o.lang)
+            kb = {nid: snip for nid, snip in body_hits.items()
+                  if nid not in head and lex.by_id[nid].family in BODY_FAMILIES}
+            if kb:
+                rec["kb"] = kb
+            rec["_fill"] = known[c.url][1]  # the day it is filed under
+            keep(rec)
     # Keep what the listing or feed says about pages that could not be read.
     if o.fetch and not limit:
         for c in unread:
@@ -368,20 +388,26 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
     budget = Budget(budget_minutes)
     summary = {"at": iso_utc(started), "mode": mode, "lexicon": lex.fingerprint(), "outlets": {}}
     translated: Counter = Counter()
+    filled: Counter = Counter()  # stored records completed from a feed that describes them better now
     tr_lock = threading.Lock()  # one translation model, shared by the outlets' threads
     touched: dict[str, set[str]] = {}  # outlet → days whose files this run changed (some outside its range)
 
     def sink_for(o: Outlet):
         def sink(records: list[dict]):
             # Translation is skipped once the time budget is spent; `woland translate` fills gaps later.
+            # (A stored record being completed keeps its own translation.)
             if translate and o.lang == "ru" and not budget.exceeded():
                 with tr_lock:
-                    translated[o.id] += translate_records(records)
+                    translated[o.id] += translate_records([r for r in records if "_fill" not in r])
             if dry_run:
                 return
             by_day: dict[str, list] = {}
             moved: dict[str, set] = {}
+            fills: dict[str, list] = {}
             for r in records:
+                if "_fill" in r:  # a stored article described again by a feed
+                    fills.setdefault(r.pop("_fill"), []).append(r)
+                    continue
                 was = r.pop("_was", None)  # a completed headline-only record that the page dates differently
                 if was and was != r["p"][:10]:
                     moved.setdefault(was, set()).add(r["u"])
@@ -390,7 +416,13 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
                 merge_day(date.fromisoformat(key), o.id, recs)
             for key, gone in moved.items():
                 drop_urls(date.fromisoformat(key), o.id, gone)
-            touched.setdefault(o.id, set()).update(by_day, moved)
+            filled_days = set()
+            for key, recs in fills.items():
+                n = fill_day(date.fromisoformat(key), o.id, recs)
+                if n:
+                    filled[o.id] += n
+                    filled_days.add(key)
+            touched.setdefault(o.id, set()).update(by_day, moved, filled_days)
         return sink
 
     def job(o):
@@ -431,6 +463,8 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
                 "translated": translated[o.id], "requests": run.requests, "seconds": run.seconds,
                 "stats": dict(run.stats), "errors": run.errors[:5], "aborted": run.aborted,
             }
+            if filled[o.id]:
+                summary["outlets"][o.id]["filled"] = filled[o.id]
             log.info("%-10s done: %d new, %d requests, %.0fs%s%s", o.id, new, run.requests,
                      run.seconds, f", errors: {run.errors}" if run.errors else "",
                      f", aborted: {run.aborted}" if run.aborted else "")

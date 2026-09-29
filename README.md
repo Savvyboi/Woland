@@ -50,7 +50,7 @@ From then on everything is automatic:
 | `poll.yml` — Hourly feeds | every hour or so | reads the feeds that only hold a few hours of news (TASS, TASS English, Rossiyskaya Gazeta, Zvezda, the Kremlin); scheduled every 15 minutes because GitHub starts scheduled jobs late or drops them, a run skips its turn when the feeds were read less than 40 minutes before |
 | `deploy.yml` — Build and publish | after the nightly run, and when code changes | builds `_site/` and deploys it to Pages |
 | `test.yml` — Tests | on every push | the test-suite (see *Tests* below) |
-| `check.yml` — Check outlets | Mondays, or by hand | can every outlet still be read from GitHub's servers? A table in the run summary; the run fails if an outlet is broken |
+| `check.yml` — Check outlets | Mondays, by hand, and when the check changes | can every outlet still be read from GitHub's servers? A table in the run summary, kept per outlet in `data/state/check.json` (for feed-only outlets also: do their pages, `robots.txt` and sitemap still refuse?); the run fails if an outlet is broken |
 
 > GitHub suspends scheduled workflows in repositories with no activity for 60 days. Woland commits data every
 > day, which counts as activity, but if collection ever stops, re-enable the workflows from the Actions tab.
@@ -76,7 +76,8 @@ From then on everything is automatic:
   outlet for its metadata and body. Woland identifies itself as `WolandMonitor`, obeys `robots.txt`, pauses
   between requests, backs off when a site says it is being asked too often, and **never** tries to get around
   bot checks or CAPTCHAs: TASS's Russian service, which refuses automated readers, is read through its own
-  public feed only, and so is the Kremlin, whose feed carries the full texts.
+  public feeds only (with most full texts since 30 September 2026), and so is the Kremlin, whose feed carries the
+  full texts.
 * **Framings** (`config/lexicon.yaml`, `woland/lexicon.py`) — 24 propaganda framings and 22 neutral topics, each
   a list of Russian and English word patterns (`нацист*`, `киевск* режим*`, `сво`). A pattern can count only
   *with* a context (`теракт*` only next to words about Ukraine and the war) or *not* inside given phrases
@@ -110,7 +111,10 @@ Other commands: `backfill 2026-09-01 2026-09-10` (a date range; add `--wayback` 
 translation glossary corrects, and translations of its names that still look wrong), `sample enemies-within --seed 3`
 (a random sample of a framing's matches to read, as in `docs/lexicon-audit.md`) and `reindex` (rebuilds the URL
 index). `--outlets ria,tass --limit 20` narrows any run. Collection runs may work side by side on different
-outlets (state files are merged per outlet and day, not overwritten).
+outlets (state files are merged per outlet and day, not overwritten), and runs that pushed data at the same time
+merge record by record once the merge driver is set up in the clone (the workflows do it in
+`.github/commit-data.sh`): `git config merge.woland.driver "python -m woland merge %O %A %B %P"`
+(see `woland/merge.py` and `.gitattributes`).
 
 ### Tests
 
@@ -127,6 +131,8 @@ WOLAND_LIVE=1 .venv/bin/python -m pytest -m live -q # also read every outlet for
   BibTeX keys, record ids), checks completed days and coverage codes; checks that every interface string exists in
   English, Finnish and Swedish and that every JavaScript module parses
 * `tests/test_data.py` — every record in `data/` is well-formed, filed under the right day and outlet, and unique
+* `tests/test_merge.py` — the merge driver for data files, down to a real `git rebase` of two runs that wrote the
+  same day file, coverage and URL index
 * `tests/test_woland.py` — dates, lexicon (contexts, exclusions, and the same matches in Python and the browser),
   the translation glossary, rising-word lemmas, extraction, tokeniser parity between Python and the browser, a build
 * `tests/test_live.py` — the real outlets (off unless `WOLAND_LIVE=1`)
@@ -176,7 +182,7 @@ own situation.
 
 `data/state/coverage.json` records, for every outlet and day, how many articles were stored, how many the
 outlet's own listings announced, how many are still headline only (`h`), and whether the day is complete.
-`data/state/runs.json` keeps the latest run summaries. `data/state/urls/<outlet>.txt` lists every URL stored (a
+`data/state/runs.json` keeps the latest run summaries, `data/state/check.json` the latest outlet check. `data/state/urls/<outlet>.txt` lists every URL stored (a
 key and its day), so that an article is stored once even if its site re-dates it months later. An article is always filed under the Moscow day it was published, even when it turned up
 while another day was being collected. The repository grows by roughly 2–3 MB of compressed history a day; after a year or two,
 consider moving older years to a release archive.
@@ -190,12 +196,14 @@ consider moving older years to a release archive.
   specialist's review. `python -m woland sample <framing>` draws a fresh sample to read.
 * The current day, and the previous one until the nightly run has gathered it, are *still being collected*: the
   site leaves them out of comparisons and averages unless asked, and marks them where they are shown.
-* TASS's Russian service is read from its feed only (headline, lead, time) and starts on the day hourly reading
-  begins: its pages, sitemaps and even `robots.txt` answer 403, the Internet Archive's copies are the same 403,
-  and the feed holds only its latest 100 items (about three hours of a weekday). GitHub starts the hourly job late
-  or not at all when it is busy, so hours are missing (listed in TASS's note on the Outlets page); the job is
-  therefore scheduled every quarter of an hour and skips the turns it does not need. TASS's English service
-  (tass.com) is complete.
+* TASS's Russian service is read from its own feeds only and starts on the day hourly reading began (24 September
+  2026): its pages, sitemaps and even `robots.txt` answer 403, and the Internet Archive's copies are the same 403.
+  Until 30 September 2026 only its main feed was read, which holds its latest 100 items (about three hours of a
+  weekday); since then also the feed it publishes for news aggregators (its latest ~650 items, about half a day,
+  with the full texts: everything but sport and science) and its sport section's. GitHub starts the hourly job
+  late or not at all when it is busy (about every six hours in late September 2026), so hours were lost: the
+  Outlets page lists them, found as silences of more than 45 minutes between stored items (`gaps` in
+  `outlets.yaml`). TASS's English service (tass.com) is complete.
 * Gazeta.ru sends every visitor through an optional Sber ID sign-in first. Woland holds the cookie that the
   page's own script gives every visitor who is not signed in (`cookies` in `outlets.yaml`) — it declines to sign
   in, like any anonymous reader — and reads the pages in full.

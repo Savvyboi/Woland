@@ -39,12 +39,16 @@ function coverage(o, series, cov) {
   const off = series.days.length - days.length;
   const codes = series.cov?.[o.id] || "";
   const by = cov[o.id] || {};
+  const gaps = series.gaps?.[o.id] || {};
+  const hours = (g) => g.map(([a, b]) => `${a}–${b}`).join(", ");
   const info = days.map((d, i) => {
     const code = codes[off + i] || "m";
     const v = by[d];
-    return { d, code, open: isOpenDay(d), n: series.totals[o.id]?.[off + i] || 0, found: v ? v[1] : null, published: v ? v[2] : null };
+    return { d, code, open: isOpenDay(d), n: series.totals[o.id]?.[off + i] || 0, found: v ? v[1] : null, published: v ? v[2] : null,
+      gaps: gaps[d] || [] };
   });
-  const label = (x) => `${t(STATUS[x.code])}${x.open ? `, ${t("day.open.short")}` : ""}`;
+  const label = (x) => `${t(STATUS[x.code])}${x.open ? `, ${t("day.open.short")}` : ""}` +
+    (x.gaps.length ? ` · ${t("outlets.gaps.day", { list: hours(x.gaps) })}` : "");
   const strip = el("div", { class: "cov", "aria-hidden": "true" }, info.map((x) =>
     el("span", { class: `${x.code}${x.open ? " open" : ""}`,
       title: `${fmtDay(x.d)}: ${label(x)} · ${fmtInt(x.n)}${x.found ? ` / ${fmtInt(x.found)}` : ""}` })));
@@ -62,9 +66,13 @@ function coverage(o, series, cov) {
   const summary = counts.f
     ? t("outlets.coverage.summary.feed", { f: counts.f, m: counts.m, n: info.length })
     : t("outlets.coverage.summary", { c: counts.c, p: counts.p, m: counts.m, n: info.length });
+  const lost = info.filter((x) => x.gaps.length).reverse();
   return el("div", {}, el("div", { class: "facts", style: { marginBottom: ".25rem" } },
     t("outlets.coverage", { n: info.length }), el("span", { class: "sr-only" }, ` — ${summary}`)), strip,
-    el("p", { class: "facts cov-sum", "aria-hidden": "true" }, summary), table);
+    el("p", { class: "facts cov-sum", "aria-hidden": "true" }, summary),
+    lost.length ? el("p", { class: "facts" }, el("span", { title: t("outlets.gaps.hint") }, `${t("outlets.gaps")}: `),
+      lost.map((x) => `${fmtDayShort(x.d)} ${hours(x.gaps)}`).join(" · ")) : null,
+    table);
 }
 
 function card(o, series, cov, upto) {

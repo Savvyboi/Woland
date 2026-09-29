@@ -255,7 +255,7 @@ export function fromExample(ex, dayIso, narrId) {
 export function sourceOf(doc) {
   const o = outlet(doc.o);
   if (o.method === "feed") return "feed";
-  if (o.method === "feedtext") return "feedtext";
+  if (o.method === "feedtext") return doc.w ? "feedtext" : "feed";  // (TASS's feeds carried no text before 30 September 2026)
   if (doc.f) return "listed";
   if (doc.ar) return "archive";
   return doc.w === 0 ? "notext" : "page";

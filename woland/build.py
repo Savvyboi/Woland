@@ -19,10 +19,12 @@ import json
 import logging
 import math
 import os
+import re
 import shutil
 import time
 from collections import Counter, defaultdict
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from datetime import time as dtime
 from pathlib import Path
 
 from .config import ROOT, START_DATE, load_contexts, load_lexicon, load_outlets
@@ -97,6 +99,24 @@ def recent_runs(runs: list[dict], polls: int = 9, other: int = 3) -> list[dict]:
     runs = sorted((r for r in runs if r.get("at")), key=lambda r: r["at"])
     keep = [r for r in runs if r.get("mode") == "poll"][-polls:] + [r for r in runs if r.get("mode") != "poll"][-other:]
     return sorted(keep, key=lambda r: r["at"])
+
+
+def silences(times: list[datetime], minutes: float) -> list[tuple[datetime, datetime]]:
+    """The stretches longer than `minutes` between two consecutive times (sorted)."""
+    return [(a, b) for a, b in zip(times, times[1:]) if (b - a).total_seconds() > minutes * 60]
+
+
+def by_moscow_day(stretches) -> dict[str, list[list[str]]]:
+    """Stretches of time as {day: [["HH:MM", "HH:MM"], …]} in Moscow time, one crossing midnight split in two."""
+    out = defaultdict(list)
+    for a, b in stretches:
+        a, b = a.astimezone(MSK), b.astimezone(MSK)
+        while a.date() < b.date():
+            out[a.date().isoformat()].append([a.strftime("%H:%M"), "24:00"])
+            a = datetime.combine(a.date() + timedelta(days=1), dtime(0), MSK)
+        if a < b:
+            out[a.date().isoformat()].append([a.strftime("%H:%M"), b.strftime("%H:%M")])
+    return dict(out)
 
 
 def delta_encode(nums: list[int]) -> list[int]:
@@ -476,7 +496,24 @@ class Builder:
             "totals": {o: v for o, v in totals.items() if any(v)},
             "nar": {nid: {o: v for o, v in by.items() if any(v)} for nid, by in nar.items()},
             "cov": self.coverage_codes(days, totals, cov),
+            "gaps": self.feed_gaps(days),
         })
+
+    def feed_gaps(self, days: list[date]) -> dict[str, dict[str, list[list[str]]]]:
+        """Hours not collected, for outlets whose feeds may roll over between two readings (`gaps` in
+        outlets.yaml): the silences between their stored articles longer than the outlet ever falls silent
+        when read in time. {outlet: {day: [["HH:MM", "HH:MM"], …]}}, Moscow time."""
+        out = {}
+        for o in self.outlets:
+            if not o.gaps:
+                continue
+            skip = re.compile(o.gaps["skip"]) if o.gaps.get("skip") else None
+            times = sorted(parse_dt(r["p"]) for d in days for r in read_day(d, o.id)
+                           if not (skip and skip.search(r["u"])))
+            gaps = by_moscow_day(silences(times, float(o.gaps.get("minutes", 45))))
+            if gaps:
+                out[o.id] = gaps
+        return out
 
     def coverage_codes(self, days: list[date], totals: dict, cov: dict) -> dict[str, str]:
         """One letter per outlet and day: c complete, p partial, f read from the outlet's feed only,
