@@ -16,6 +16,7 @@ if git diff --cached --quiet; then
   echo "Nothing new."
   exit 0
 fi
+git diff --cached --shortstat
 git commit -q -m "$1" || exit 1
 for attempt in 1 2 3 4 5; do
   if git pull -q --rebase && git push -q; then
