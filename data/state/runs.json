@@ -4468,5 +4468,431 @@
    }
   },
   "seconds": 33
+ },
+ {
+  "at": "2026-09-30T06:43:51Z",
+  "lexicon": "6ffff3b0",
+  "mode": "daily",
+  "outlets": {
+   "aif": {
+    "aborted": "",
+    "errors": [
+     "rss: https://aif.ru/rss/news.php: 404",
+     "sitemap_index: https://aif.ru/sitemap.xml: 404",
+     "html_list: https://aif.ru/news?page=1: 404"
+    ],
+    "new": 0,
+    "range": [
+     "2026-09-14",
+     "2026-09-30"
+    ],
+    "requests": 3,
+    "seconds": 2.8,
+    "stats": {
+     "to_fetch": 0
+    },
+    "translated": 0
+   },
+   "gazeta": {
+    "aborted": "",
+    "errors": [],
+    "new": 633,
+    "range": [
+     "2026-09-24",
+     "2026-09-30"
+    ],
+    "requests": 716,
+    "seconds": 599.3,
+    "stats": {
+     "duplicate": 3,
+     "known": 2756,
+     "out_of_range": 1,
+     "stored": 633,
+     "to_fetch": 634
+    },
+    "translated": 633
+   },
+   "inosmi": {
+    "aborted": "",
+    "errors": [],
+    "new": 35,
+    "range": [
+     "2026-09-24",
+     "2026-09-30"
+    ],
+    "requests": 42,
+    "seconds": 110.4,
+    "stats": {
+     "known": 177,
+     "stored": 35,
+     "to_fetch": 35
+    },
+    "translated": 35
+   },
+   "iz": {
+    "aborted": "",
+    "errors": [],
+    "new": 429,
+    "range": [
+     "2026-09-24",
+     "2026-09-30"
+    ],
+    "requests": 433,
+    "seconds": 411.1,
+    "stats": {
+     "known": 2106,
+     "stored": 429,
+     "to_fetch": 429
+    },
+    "translated": 429
+   },
+   "kp": {
+    "aborted": "",
+    "errors": [],
+    "new": 387,
+    "range": [
+     "2026-09-24",
+     "2026-09-30"
+    ],
+    "requests": 392,
+    "seconds": 385.8,
+    "stats": {
+     "known": 781,
+     "not_article": 260,
+     "stored": 387,
+     "to_fetch": 387
+    },
+    "translated": 387
+   },
+   "kremlin": {
+    "aborted": "",
+    "errors": [],
+    "new": 2,
+    "range": [
+     "2026-09-24",
+     "2026-09-30"
+    ],
+    "requests": 1,
+    "seconds": 12.5,
+    "stats": {
+     "known": 8,
+     "not_article": 10,
+     "stored": 2,
+     "to_fetch": 2
+    },
+    "translated": 2
+   },
+   "kremlin-en": {
+    "aborted": "",
+    "errors": [],
+    "new": 1,
+    "range": [
+     "2026-09-24",
+     "2026-09-30"
+    ],
+    "requests": 1,
+    "seconds": 3.9,
+    "stats": {
+     "known": 5,
+     "not_article": 14,
+     "stored": 1,
+     "to_fetch": 1
+    },
+    "translated": 0
+   },
+   "lenta": {
+    "aborted": "",
+    "errors": [],
+    "new": 624,
+    "range": [
+     "2026-09-24",
+     "2026-09-30"
+    ],
+    "requests": 738,
+    "seconds": 559.2,
+    "stats": {
+     "known": 2430,
+     "not_article": 106,
+     "stored": 624,
+     "to_fetch": 624
+    },
+    "translated": 624
+   },
+   "life": {
+    "aborted": "",
+    "errors": [],
+    "new": 444,
+    "range": [
+     "2026-09-24",
+     "2026-09-30"
+    ],
+    "requests": 445,
+    "seconds": 393.2,
+    "stats": {
+     "known": 2508,
+     "not_article": 14,
+     "stored": 444,
+     "to_fetch": 444
+    },
+    "translated": 444
+   },
+   "mk": {
+    "aborted": "time budget exhausted",
+    "errors": [],
+    "new": 995,
+    "range": [
+     "2026-09-01",
+     "2026-09-30"
+    ],
+    "requests": 1358,
+    "seconds": 5454.6,
+    "stats": {
+     "known": 10382,
+     "not_article": 31,
+     "skipped": 60,
+     "stored": 1312,
+     "to_fetch": 6248,
+     "to_upgrade": 5253,
+     "upgraded": 317
+    },
+    "translated": 1312
+   },
+   "pnp": {
+    "aborted": "",
+    "errors": [],
+    "new": 114,
+    "range": [
+     "2026-09-24",
+     "2026-09-30"
+    ],
+    "requests": 117,
+    "seconds": 140.1,
+    "stats": {
+     "known": 473,
+     "not_article": 9,
+     "stored": 114,
+     "to_fetch": 114
+    },
+    "translated": 114
+   },
+   "regnum": {
+    "aborted": "",
+    "errors": [],
+    "new": 27,
+    "range": [
+     "2026-09-24",
+     "2026-09-30"
+    ],
+    "requests": 1,
+    "seconds": 12.7,
+    "stats": {
+     "known": 189,
+     "not_article": 3,
+     "stored": 27,
+     "to_fetch": 27
+    },
+    "translated": 27
+   },
+   "rg": {
+    "aborted": "",
+    "errors": [],
+    "new": 328,
+    "range": [
+     "2026-09-24",
+     "2026-09-30"
+    ],
+    "requests": 336,
+    "seconds": 454.9,
+    "stats": {
+     "known": 2455,
+     "not_article": 128,
+     "stored": 328,
+     "to_fetch": 328
+    },
+    "translated": 328
+   },
+   "ria": {
+    "aborted": "",
+    "errors": [],
+    "new": 901,
+    "range": [
+     "2026-09-24",
+     "2026-09-30"
+    ],
+    "requests": 908,
+    "seconds": 870.2,
+    "stats": {
+     "known": 3711,
+     "stored": 901,
+     "to_fetch": 901
+    },
+    "translated": 901
+   },
+   "rt": {
+    "aborted": "",
+    "errors": [],
+    "new": 35,
+    "range": [
+     "2026-09-24",
+     "2026-09-30"
+    ],
+    "requests": 36,
+    "seconds": 56.3,
+    "stats": {
+     "known": 154,
+     "not_article": 36,
+     "stored": 35,
+     "to_fetch": 35
+    },
+    "translated": 0
+   },
+   "rt-ru": {
+    "aborted": "",
+    "errors": [],
+    "new": 396,
+    "range": [
+     "2026-09-24",
+     "2026-09-30"
+    ],
+    "requests": 400,
+    "seconds": 367.9,
+    "stats": {
+     "known": 1952,
+     "not_article": 37,
+     "stored": 396,
+     "to_fetch": 396
+    },
+    "translated": 396
+   },
+   "sputnik": {
+    "aborted": "",
+    "errors": [
+     "sitemap: https://sputnikglobe.com/sitemap_article.xml?date_start=20260901&date_end=20260901: ConnectTimeout: HTTPSConnectionPool(host='sputnikglobe.com', port=443): Max retries exceeded with url: /sitemap_article.xml?date_start=20260901&date_end=20260901 (Caused by ConnectTimeoutError(<HTTPSConnection(host='sputnikglobe.com', port=443) at 0x7fb2a8745550>, 'Connection to sputnikglobe.com tim"
+    ],
+    "new": 10,
+    "range": [
+     "2026-09-01",
+     "2026-09-30"
+    ],
+    "requests": 14,
+    "seconds": 294.2,
+    "stats": {
+     "fail_archive": 2,
+     "fail_network": 2,
+     "known": 602,
+     "not_article": 29,
+     "stored": 10,
+     "to_fetch": 14
+    },
+    "translated": 0
+   },
+   "tass": {
+    "aborted": "",
+    "errors": [],
+    "filled": 4,
+    "new": 233,
+    "range": [
+     "2026-09-24",
+     "2026-09-30"
+    ],
+    "requests": 4,
+    "seconds": 34.1,
+    "stats": {
+     "known": 270,
+     "stored": 233,
+     "to_fetch": 233
+    },
+    "translated": 233
+   },
+   "tass-en": {
+    "aborted": "",
+    "errors": [],
+    "new": 19,
+    "range": [
+     "2026-09-24",
+     "2026-09-30"
+    ],
+    "requests": 24,
+    "seconds": 47.7,
+    "stats": {
+     "known": 600,
+     "stored": 19,
+     "to_fetch": 19
+    },
+    "translated": 0
+   },
+   "tsargrad": {
+    "aborted": "",
+    "errors": [],
+    "new": 858,
+    "range": [
+     "2026-09-24",
+     "2026-09-30"
+    ],
+    "requests": 859,
+    "seconds": 633.6,
+    "stats": {
+     "known": 3158,
+     "not_article": 136,
+     "skipped": 59,
+     "stored": 858,
+     "to_fetch": 858
+    },
+    "translated": 858
+   },
+   "ukraina": {
+    "aborted": "",
+    "errors": [],
+    "new": 70,
+    "range": [
+     "2026-09-24",
+     "2026-09-30"
+    ],
+    "requests": 77,
+    "seconds": 122.0,
+    "stats": {
+     "known": 268,
+     "stored": 70,
+     "to_fetch": 70
+    },
+    "translated": 70
+   },
+   "vesti": {
+    "aborted": "",
+    "errors": [],
+    "new": 556,
+    "range": [
+     "2026-09-24",
+     "2026-09-30"
+    ],
+    "requests": 557,
+    "seconds": 532.5,
+    "stats": {
+     "known": 172,
+     "not_article": 2,
+     "stored": 556,
+     "to_fetch": 556
+    },
+    "translated": 556
+   },
+   "zvezda": {
+    "aborted": "",
+    "errors": [],
+    "new": 16,
+    "range": [
+     "2026-09-24",
+     "2026-09-30"
+    ],
+    "requests": 18,
+    "seconds": 45.2,
+    "stats": {
+     "known": 84,
+     "stored": 16,
+     "to_fetch": 16
+    },
+    "translated": 16
+   }
+  },
+  "seconds": 5457
  }
 ]
