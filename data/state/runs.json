@@ -4894,5 +4894,136 @@
    }
   },
   "seconds": 5457
+ },
+ {
+  "at": "2026-09-30T08:26:47Z",
+  "lexicon": "6ffff3b0",
+  "mode": "poll",
+  "outlets": {
+   "kremlin": {
+    "aborted": "",
+    "errors": [],
+    "new": 1,
+    "range": [
+     "2026-09-29",
+     "2026-09-30"
+    ],
+    "requests": 1,
+    "seconds": 5.2,
+    "stats": {
+     "known": 7,
+     "not_article": 2,
+     "stored": 1,
+     "to_fetch": 1
+    },
+    "translated": 1
+   },
+   "kremlin-en": {
+    "aborted": "",
+    "errors": [],
+    "new": 2,
+    "range": [
+     "2026-09-29",
+     "2026-09-30"
+    ],
+    "requests": 1,
+    "seconds": 2.9,
+    "stats": {
+     "known": 3,
+     "stored": 2,
+     "to_fetch": 2
+    },
+    "translated": 0
+   },
+   "regnum": {
+    "aborted": "",
+    "errors": [],
+    "new": 20,
+    "range": [
+     "2026-09-29",
+     "2026-09-30"
+    ],
+    "requests": 1,
+    "seconds": 5.0,
+    "stats": {
+     "known": 195,
+     "not_article": 3,
+     "stored": 20,
+     "to_fetch": 20
+    },
+    "translated": 20
+   },
+   "rg": {
+    "aborted": "",
+    "errors": [],
+    "new": 75,
+    "range": [
+     "2026-09-29",
+     "2026-09-30"
+    ],
+    "requests": 76,
+    "seconds": 87.5,
+    "stats": {
+     "known": 21,
+     "not_article": 4,
+     "stored": 75,
+     "to_fetch": 75
+    },
+    "translated": 75
+   },
+   "tass": {
+    "aborted": "",
+    "errors": [],
+    "filled": 2,
+    "new": 140,
+    "range": [
+     "2026-09-29",
+     "2026-09-30"
+    ],
+    "requests": 4,
+    "seconds": 24.3,
+    "stats": {
+     "known": 444,
+     "stored": 140,
+     "to_fetch": 140
+    },
+    "translated": 140
+   },
+   "tass-en": {
+    "aborted": "",
+    "errors": [],
+    "new": 8,
+    "range": [
+     "2026-09-29",
+     "2026-09-30"
+    ],
+    "requests": 9,
+    "seconds": 6.9,
+    "stats": {
+     "known": 92,
+     "stored": 8,
+     "to_fetch": 8
+    },
+    "translated": 0
+   },
+   "zvezda": {
+    "aborted": "",
+    "errors": [],
+    "new": 7,
+    "range": [
+     "2026-09-29",
+     "2026-09-30"
+    ],
+    "requests": 9,
+    "seconds": 21.2,
+    "stats": {
+     "known": 93,
+     "stored": 7,
+     "to_fetch": 7
+    },
+    "translated": 7
+   }
+  },
+  "seconds": 88
  }
 ]
