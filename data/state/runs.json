@@ -6237,5 +6237,134 @@
    }
   },
   "seconds": 120
+ },
+ {
+  "at": "2026-10-01T21:17:22Z",
+  "lexicon": "6ffff3b0",
+  "mode": "poll",
+  "outlets": {
+   "kremlin": {
+    "aborted": "",
+    "errors": [],
+    "new": 0,
+    "range": [
+     "2026-10-01",
+     "2026-10-02"
+    ],
+    "requests": 1,
+    "seconds": 4.5,
+    "stats": {
+     "known": 5,
+     "to_fetch": 0
+    },
+    "translated": 0
+   },
+   "kremlin-en": {
+    "aborted": "",
+    "errors": [],
+    "new": 1,
+    "range": [
+     "2026-10-01",
+     "2026-10-02"
+    ],
+    "requests": 1,
+    "seconds": 3.5,
+    "stats": {
+     "known": 4,
+     "stored": 1,
+     "to_fetch": 1
+    },
+    "translated": 0
+   },
+   "regnum": {
+    "aborted": "",
+    "errors": [],
+    "new": 54,
+    "range": [
+     "2026-10-01",
+     "2026-10-02"
+    ],
+    "requests": 1,
+    "seconds": 7.6,
+    "stats": {
+     "known": 232,
+     "not_article": 1,
+     "stored": 54,
+     "to_fetch": 54
+    },
+    "translated": 54
+   },
+   "rg": {
+    "aborted": "",
+    "errors": [],
+    "new": 87,
+    "range": [
+     "2026-10-01",
+     "2026-10-02"
+    ],
+    "requests": 88,
+    "seconds": 113.6,
+    "stats": {
+     "known": 10,
+     "not_article": 3,
+     "stored": 87,
+     "to_fetch": 87
+    },
+    "translated": 87
+   },
+   "tass": {
+    "aborted": "",
+    "errors": [],
+    "filled": 1,
+    "new": 268,
+    "range": [
+     "2026-10-01",
+     "2026-10-02"
+    ],
+    "requests": 4,
+    "seconds": 47.9,
+    "stats": {
+     "known": 927,
+     "stored": 268,
+     "to_fetch": 268
+    },
+    "translated": 268
+   },
+   "tass-en": {
+    "aborted": "",
+    "errors": [],
+    "new": 42,
+    "range": [
+     "2026-10-01",
+     "2026-10-02"
+    ],
+    "requests": 43,
+    "seconds": 33.0,
+    "stats": {
+     "known": 58,
+     "stored": 42,
+     "to_fetch": 42
+    },
+    "translated": 0
+   },
+   "zvezda": {
+    "aborted": "",
+    "errors": [],
+    "new": 11,
+    "range": [
+     "2026-10-01",
+     "2026-10-02"
+    ],
+    "requests": 13,
+    "seconds": 13.0,
+    "stats": {
+     "known": 89,
+     "stored": 11,
+     "to_fetch": 11
+    },
+    "translated": 11
+   }
+  },
+  "seconds": 114
  }
 ]
