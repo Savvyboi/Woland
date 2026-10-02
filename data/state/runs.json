@@ -6366,5 +6366,132 @@
    }
   },
   "seconds": 114
+ },
+ {
+  "at": "2026-10-02T00:53:09Z",
+  "lexicon": "6ffff3b0",
+  "mode": "poll",
+  "outlets": {
+   "kremlin": {
+    "aborted": "",
+    "errors": [],
+    "new": 0,
+    "range": [
+     "2026-10-01",
+     "2026-10-02"
+    ],
+    "requests": 1,
+    "seconds": 5.3,
+    "stats": {
+     "known": 5,
+     "to_fetch": 0
+    },
+    "translated": 0
+   },
+   "kremlin-en": {
+    "aborted": "",
+    "errors": [],
+    "new": 0,
+    "range": [
+     "2026-10-01",
+     "2026-10-02"
+    ],
+    "requests": 1,
+    "seconds": 3.1,
+    "stats": {
+     "known": 5,
+     "to_fetch": 0
+    },
+    "translated": 0
+   },
+   "regnum": {
+    "aborted": "",
+    "errors": [],
+    "new": 15,
+    "range": [
+     "2026-10-01",
+     "2026-10-02"
+    ],
+    "requests": 1,
+    "seconds": 5.4,
+    "stats": {
+     "known": 271,
+     "not_article": 1,
+     "stored": 15,
+     "to_fetch": 15
+    },
+    "translated": 15
+   },
+   "rg": {
+    "aborted": "",
+    "errors": [],
+    "new": 13,
+    "range": [
+     "2026-10-01",
+     "2026-10-02"
+    ],
+    "requests": 14,
+    "seconds": 25.0,
+    "stats": {
+     "known": 84,
+     "not_article": 3,
+     "stored": 13,
+     "to_fetch": 13
+    },
+    "translated": 13
+   },
+   "tass": {
+    "aborted": "",
+    "errors": [],
+    "new": 66,
+    "range": [
+     "2026-10-01",
+     "2026-10-02"
+    ],
+    "requests": 4,
+    "seconds": 21.1,
+    "stats": {
+     "known": 720,
+     "stored": 66,
+     "to_fetch": 66
+    },
+    "translated": 66
+   },
+   "tass-en": {
+    "aborted": "",
+    "errors": [],
+    "new": 8,
+    "range": [
+     "2026-10-01",
+     "2026-10-02"
+    ],
+    "requests": 9,
+    "seconds": 7.7,
+    "stats": {
+     "known": 92,
+     "stored": 8,
+     "to_fetch": 8
+    },
+    "translated": 0
+   },
+   "zvezda": {
+    "aborted": "",
+    "errors": [],
+    "new": 8,
+    "range": [
+     "2026-10-01",
+     "2026-10-02"
+    ],
+    "requests": 10,
+    "seconds": 16.4,
+    "stats": {
+     "known": 92,
+     "stored": 8,
+     "to_fetch": 8
+    },
+    "translated": 8
+   }
+  },
+  "seconds": 25
  }
 ]
