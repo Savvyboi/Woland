@@ -422,31 +422,6 @@
   "seconds": 13155
  },
  {
-  "at": "2026-09-25T23:02:12Z",
-  "lexicon": "9db6bcb8",
-  "mode": "poll",
-  "outlets": {
-   "tass": {
-    "aborted": "",
-    "errors": [],
-    "new": 9,
-    "range": [
-     "2026-09-25",
-     "2026-09-26"
-    ],
-    "requests": 2,
-    "seconds": 6.5,
-    "stats": {
-     "known": 90,
-     "stored": 9,
-     "to_fetch": 9
-    },
-    "translated": 9
-   }
-  },
-  "seconds": 6
- },
- {
   "at": "2026-09-25T23:52:20Z",
   "lexicon": "9db6bcb8",
   "mode": "poll",
@@ -9633,5 +9608,131 @@
    }
   },
   "seconds": 26
+ },
+ {
+  "at": "2026-10-05T01:51:01Z",
+  "lexicon": "6ffff3b0",
+  "mode": "poll",
+  "outlets": {
+   "kremlin": {
+    "aborted": "",
+    "errors": [],
+    "new": 0,
+    "range": [
+     "2026-10-04",
+     "2026-10-05"
+    ],
+    "requests": 1,
+    "seconds": 4.0,
+    "stats": {
+     "known": 4,
+     "to_fetch": 0
+    },
+    "translated": 0
+   },
+   "kremlin-en": {
+    "aborted": "",
+    "errors": [],
+    "new": 0,
+    "range": [
+     "2026-10-04",
+     "2026-10-05"
+    ],
+    "requests": 1,
+    "seconds": 2.9,
+    "stats": {
+     "known": 3,
+     "to_fetch": 0
+    },
+    "translated": 0
+   },
+   "regnum": {
+    "aborted": "",
+    "errors": [],
+    "new": 10,
+    "range": [
+     "2026-10-04",
+     "2026-10-05"
+    ],
+    "requests": 1,
+    "seconds": 4.1,
+    "stats": {
+     "known": 175,
+     "stored": 10,
+     "to_fetch": 10
+    },
+    "translated": 10
+   },
+   "rg": {
+    "aborted": "",
+    "errors": [],
+    "new": 10,
+    "range": [
+     "2026-10-04",
+     "2026-10-05"
+    ],
+    "requests": 11,
+    "seconds": 12.0,
+    "stats": {
+     "known": 87,
+     "not_article": 3,
+     "stored": 10,
+     "to_fetch": 10
+    },
+    "translated": 10
+   },
+   "tass": {
+    "aborted": "no connection to tass.ru",
+    "errors": [
+     "rss: https://tass.ru/rss/yandex.xml: ConnectTimeout: HTTPSConnectionPool(host='tass.ru', port=443): Max retries exceeded with url: /rss/yandex.xml (Caused by ConnectTimeoutError(<HTTPSConnection(host='tass.ru', port=443) at 0x7f3b73769880>, 'Connection to tass.ru timed out. (connect timeout=15)')); https://tass.ru/rss/v2.xml?sections=MjE3Ng%3D%3D: NoConnection: tass.ru did not answer the last 3 connection attempts; left alone for a while; https://tass.ru/rss/v2.xml: NoConnection: tass.ru did not answer the last 3 connection attempts; left alone for a while"
+    ],
+    "new": 0,
+    "range": [
+     "2026-10-04",
+     "2026-10-05"
+    ],
+    "requests": 1,
+    "seconds": 209.8,
+    "stats": {
+     "to_fetch": 0
+    },
+    "translated": 0
+   },
+   "tass-en": {
+    "aborted": "no connection to tass.com",
+    "errors": [
+     "rss: https://tass.com/rss/v2.xml: ConnectTimeout: HTTPSConnectionPool(host='tass.com', port=443): Max retries exceeded with url: /rss/v2.xml (Caused by ConnectTimeoutError(<HTTPSConnection(host='tass.com', port=443) at 0x7f3b68c970b0>, 'Connection to tass.com timed out. (connect timeout=15)'))"
+    ],
+    "new": 0,
+    "range": [
+     "2026-10-04",
+     "2026-10-05"
+    ],
+    "requests": 1,
+    "seconds": 140.2,
+    "stats": {
+     "to_fetch": 0
+    },
+    "translated": 0
+   },
+   "zvezda": {
+    "aborted": "",
+    "errors": [],
+    "new": 7,
+    "range": [
+     "2026-10-04",
+     "2026-10-05"
+    ],
+    "requests": 9,
+    "seconds": 9.5,
+    "stats": {
+     "known": 82,
+     "stored": 7,
+     "to_fetch": 7
+    },
+    "translated": 7
+   }
+  },
+  "seconds": 210
  }
 ]
