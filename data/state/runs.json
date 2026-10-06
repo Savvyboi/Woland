@@ -859,114 +859,6 @@
   "seconds": 455
  },
  {
-  "at": "2026-09-26T20:07:30Z",
-  "lexicon": "9db6bcb8",
-  "mode": "poll",
-  "outlets": {
-   "kremlin": {
-    "aborted": "",
-    "errors": [],
-    "new": 0,
-    "range": [
-     "2026-09-25",
-     "2026-09-26"
-    ],
-    "requests": 1,
-    "seconds": 2.7,
-    "stats": {
-     "known": 8,
-     "to_fetch": 0
-    },
-    "translated": 0
-   },
-   "kremlin-en": {
-    "aborted": "",
-    "errors": [],
-    "new": 0,
-    "range": [
-     "2026-09-25",
-     "2026-09-26"
-    ],
-    "requests": 1,
-    "seconds": 2.5,
-    "stats": {
-     "known": 8,
-     "to_fetch": 0
-    },
-    "translated": 0
-   },
-   "rg": {
-    "aborted": "",
-    "errors": [],
-    "new": 24,
-    "range": [
-     "2026-09-25",
-     "2026-09-26"
-    ],
-    "requests": 25,
-    "seconds": 26.3,
-    "stats": {
-     "known": 76,
-     "stored": 24,
-     "to_fetch": 24
-    },
-    "translated": 24
-   },
-   "tass": {
-    "aborted": "",
-    "errors": [],
-    "new": 83,
-    "range": [
-     "2026-09-25",
-     "2026-09-26"
-    ],
-    "requests": 2,
-    "seconds": 10.4,
-    "stats": {
-     "known": 17,
-     "stored": 83,
-     "to_fetch": 83
-    },
-    "translated": 83
-   },
-   "tass-en": {
-    "aborted": "",
-    "errors": [],
-    "new": 32,
-    "range": [
-     "2026-09-25",
-     "2026-09-26"
-    ],
-    "requests": 33,
-    "seconds": 20.5,
-    "stats": {
-     "known": 57,
-     "stored": 32,
-     "to_fetch": 32
-    },
-    "translated": 0
-   },
-   "zvezda": {
-    "aborted": "",
-    "errors": [],
-    "new": 9,
-    "range": [
-     "2026-09-25",
-     "2026-09-26"
-    ],
-    "requests": 11,
-    "seconds": 23.3,
-    "stats": {
-     "known": 91,
-     "stored": 9,
-     "to_fetch": 9
-    },
-    "translated": 9
-   }
-  },
-  "seconds": 27
- },
- {
   "at": "2026-09-27T01:45:58Z",
   "lexicon": "9db6bcb8",
   "mode": "poll",
@@ -10974,5 +10866,136 @@
    }
   },
   "seconds": 105
+ },
+ {
+  "at": "2026-10-06T20:55:25Z",
+  "lexicon": "6ffff3b0",
+  "mode": "poll",
+  "outlets": {
+   "kremlin": {
+    "aborted": "",
+    "errors": [],
+    "new": 1,
+    "range": [
+     "2026-10-05",
+     "2026-10-06"
+    ],
+    "requests": 1,
+    "seconds": 6.3,
+    "stats": {
+     "known": 12,
+     "not_article": 3,
+     "stored": 1,
+     "to_fetch": 1
+    },
+    "translated": 1
+   },
+   "kremlin-en": {
+    "aborted": "",
+    "errors": [],
+    "new": 1,
+    "range": [
+     "2026-10-05",
+     "2026-10-06"
+    ],
+    "requests": 1,
+    "seconds": 3.6,
+    "stats": {
+     "known": 11,
+     "not_article": 3,
+     "stored": 1,
+     "to_fetch": 1
+    },
+    "translated": 0
+   },
+   "regnum": {
+    "aborted": "",
+    "errors": [],
+    "new": 27,
+    "range": [
+     "2026-10-05",
+     "2026-10-06"
+    ],
+    "requests": 1,
+    "seconds": 6.3,
+    "stats": {
+     "known": 198,
+     "not_article": 2,
+     "stored": 27,
+     "to_fetch": 27
+    },
+    "translated": 27
+   },
+   "rg": {
+    "aborted": "",
+    "errors": [],
+    "new": 77,
+    "range": [
+     "2026-10-05",
+     "2026-10-06"
+    ],
+    "requests": 78,
+    "seconds": 88.5,
+    "stats": {
+     "known": 22,
+     "not_article": 1,
+     "stored": 77,
+     "to_fetch": 77
+    },
+    "translated": 77
+   },
+   "tass": {
+    "aborted": "",
+    "errors": [],
+    "new": 106,
+    "range": [
+     "2026-10-05",
+     "2026-10-06"
+    ],
+    "requests": 6,
+    "seconds": 30.7,
+    "stats": {
+     "known": 72,
+     "stored": 106,
+     "to_fetch": 106
+    },
+    "translated": 106
+   },
+   "tass-en": {
+    "aborted": "",
+    "errors": [],
+    "new": 31,
+    "range": [
+     "2026-10-05",
+     "2026-10-06"
+    ],
+    "requests": 32,
+    "seconds": 22.2,
+    "stats": {
+     "known": 69,
+     "stored": 31,
+     "to_fetch": 31
+    },
+    "translated": 0
+   },
+   "zvezda": {
+    "aborted": "",
+    "errors": [],
+    "new": 20,
+    "range": [
+     "2026-10-05",
+     "2026-10-06"
+    ],
+    "requests": 22,
+    "seconds": 19.5,
+    "stats": {
+     "known": 80,
+     "stored": 20,
+     "to_fetch": 20
+    },
+    "translated": 20
+   }
+  },
+  "seconds": 89
  }
 ]
