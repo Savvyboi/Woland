@@ -1258,115 +1258,6 @@
   "seconds": 2050
  },
  {
-  "at": "2026-09-28T01:46:58Z",
-  "lexicon": "6ffff3b0",
-  "mode": "poll",
-  "outlets": {
-   "kremlin": {
-    "aborted": "",
-    "errors": [],
-    "new": 0,
-    "range": [
-     "2026-09-27",
-     "2026-09-28"
-    ],
-    "requests": 1,
-    "seconds": 2.5,
-    "stats": {
-     "known": 3,
-     "to_fetch": 0
-    },
-    "translated": 0
-   },
-   "kremlin-en": {
-    "aborted": "",
-    "errors": [],
-    "new": 0,
-    "range": [
-     "2026-09-27",
-     "2026-09-28"
-    ],
-    "requests": 1,
-    "seconds": 2.4,
-    "stats": {
-     "known": 3,
-     "to_fetch": 0
-    },
-    "translated": 0
-   },
-   "rg": {
-    "aborted": "",
-    "errors": [],
-    "new": 20,
-    "range": [
-     "2026-09-27",
-     "2026-09-28"
-    ],
-    "requests": 21,
-    "seconds": 22.9,
-    "stats": {
-     "known": 76,
-     "not_article": 4,
-     "stored": 20,
-     "to_fetch": 20
-    },
-    "translated": 20
-   },
-   "tass": {
-    "aborted": "",
-    "errors": [],
-    "new": 49,
-    "range": [
-     "2026-09-27",
-     "2026-09-28"
-    ],
-    "requests": 2,
-    "seconds": 9.1,
-    "stats": {
-     "known": 51,
-     "stored": 49,
-     "to_fetch": 49
-    },
-    "translated": 49
-   },
-   "tass-en": {
-    "aborted": "",
-    "errors": [],
-    "new": 4,
-    "range": [
-     "2026-09-27",
-     "2026-09-28"
-    ],
-    "requests": 5,
-    "seconds": 3.4,
-    "stats": {
-     "known": 45,
-     "stored": 4,
-     "to_fetch": 4
-    },
-    "translated": 0
-   },
-   "zvezda": {
-    "aborted": "",
-    "errors": [],
-    "new": 12,
-    "range": [
-     "2026-09-27",
-     "2026-09-28"
-    ],
-    "requests": 14,
-    "seconds": 17.0,
-    "stats": {
-     "known": 88,
-     "stored": 12,
-     "to_fetch": 12
-    },
-    "translated": 12
-   }
-  },
-  "seconds": 23
- },
- {
   "at": "2026-09-28T06:54:49Z",
   "lexicon": "6ffff3b0",
   "mode": "daily",
@@ -11521,5 +11412,131 @@
    }
   },
   "seconds": 38
+ },
+ {
+  "at": "2026-10-08T03:01:19Z",
+  "lexicon": "6ffff3b0",
+  "mode": "poll",
+  "outlets": {
+   "kremlin": {
+    "aborted": "",
+    "errors": [],
+    "new": 0,
+    "range": [
+     "2026-10-07",
+     "2026-10-08"
+    ],
+    "requests": 1,
+    "seconds": 3.0,
+    "stats": {
+     "known": 3,
+     "to_fetch": 0
+    },
+    "translated": 0
+   },
+   "kremlin-en": {
+    "aborted": "",
+    "errors": [],
+    "new": 0,
+    "range": [
+     "2026-10-07",
+     "2026-10-08"
+    ],
+    "requests": 1,
+    "seconds": 2.5,
+    "stats": {
+     "known": 2,
+     "to_fetch": 0
+    },
+    "translated": 0
+   },
+   "regnum": {
+    "aborted": "",
+    "errors": [],
+    "new": 17,
+    "range": [
+     "2026-10-07",
+     "2026-10-08"
+    ],
+    "requests": 1,
+    "seconds": 4.6,
+    "stats": {
+     "known": 208,
+     "not_article": 3,
+     "stored": 17,
+     "to_fetch": 17
+    },
+    "translated": 17
+   },
+   "rg": {
+    "aborted": "",
+    "errors": [],
+    "new": 31,
+    "range": [
+     "2026-10-07",
+     "2026-10-08"
+    ],
+    "requests": 32,
+    "seconds": 34.6,
+    "stats": {
+     "known": 69,
+     "stored": 31,
+     "to_fetch": 31
+    },
+    "translated": 31
+   },
+   "tass": {
+    "aborted": "",
+    "errors": [],
+    "new": 81,
+    "range": [
+     "2026-10-07",
+     "2026-10-08"
+    ],
+    "requests": 6,
+    "seconds": 28.5,
+    "stats": {
+     "known": 93,
+     "stored": 81,
+     "to_fetch": 81
+    },
+    "translated": 81
+   },
+   "tass-en": {
+    "aborted": "",
+    "errors": [],
+    "new": 7,
+    "range": [
+     "2026-10-07",
+     "2026-10-08"
+    ],
+    "requests": 8,
+    "seconds": 6.3,
+    "stats": {
+     "known": 93,
+     "stored": 7,
+     "to_fetch": 7
+    },
+    "translated": 0
+   },
+   "zvezda": {
+    "aborted": "",
+    "errors": [],
+    "new": 8,
+    "range": [
+     "2026-10-07",
+     "2026-10-08"
+    ],
+    "requests": 10,
+    "seconds": 19.3,
+    "stats": {
+     "known": 92,
+     "stored": 8,
+     "to_fetch": 8
+    },
+    "translated": 8
+   }
+  },
+  "seconds": 35
  }
 ]
