@@ -210,6 +210,12 @@ def test_the_glossary_corrects_names_only_where_the_russian_has_them():
     assert g.fix("Мост открыл красный «Запорожец»", "A red Zaporozhets opened the bridge") == \
         "A red Zaporozhets opened the bridge"                                          # and so does the car
     assert g.fix("Погода в Москве", "Mask and SBO") == "Mask and SBO"               # nothing to correct
+    # page furniture the model writes instead of a sentence's first words is left out
+    assert g.fix("Сальдо: Киеву всё сложнее", "Previous articleKiev is increasingly difficult") == \
+        "Kiev is increasingly difficult"
+    assert g.fix("Лид. Второе.", "A lead. Previous article The second.") == "A lead. The second."
+    assert g.fix("Это предыдущая статья", "This is the previous article") == "This is the previous article"
+    assert g.fix("Матвиенко: СФ одобрил", "Matvienko: SF approved") == "Matvienko: Federation Council approved"
 
 
 def test_rising_words_group_word_forms_by_lemma():

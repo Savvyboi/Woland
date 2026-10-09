@@ -81,7 +81,10 @@ translated as they are collected, and `woland translate` (the nightly step) fill
 - [ ] **Translation glossary** (`config/glossary.yaml`, 26 entries): it now corrects leads and snippets too, and
       `python -m woland mtcheck` counts them. Run it now and then; names missing from the glossary have to be
       spotted in the translations. Added on 9 October: СФ, the Federation Council ("SF" in 28 of 40 headlines,
-      once "FSB" in a snippet). Not added: "SC" for СК (it can be a sports complex, "СК «ЦСКА Арена»").
+      once "FSB" in a snippet); and the model's "Previous article", which it writes now and then in place of a
+      sentence's first words (113 headlines, 32 leads: "Сальдо: Киеву…" → "Previous articleKiev…"), is left out
+      at build time — the words it replaced stay lost. Not added: "SC" for СК (it can be a sports complex,
+      "СК «ЦСКА Арена»"); "В СФ России" rendered "In the Russian Federation" (2 headlines).
 - [ ] **Finnish and Swedish** need a native speaker's check: `site/assets/js/i18n.js` and the FI/SV halves of
       `site/method.html` — including the paragraphs added on 25–26 September (sites that refuse automated
       readers, the Internet Archive, *headline only* records, where leads come from), the strings
@@ -109,7 +112,8 @@ translated as they are collected, and `woland translate` (the nightly step) fill
       Google Fonts for 10 styles (20 files in Cyrillic and Latin, 585 KB), a page uses about seven (~430 KB) —
       four times the page itself, though `display=swap` shows the text at once. An archive search downloads
       ~600 KB (22 files; "Finland": the month's index file and 20 blocks of ~23 KB, one per result shown); the
-      lead translations make each block bigger (measure). Possible gains: smaller search blocks (more files).
+      lead translations made the blocks ~30 KB and the site 104 MB instead of 83 (9 October). Possible gains:
+      smaller search blocks (more files).
       Fewer faces per page would mean design changes (translations not in italic, no bold sans in tiles and
       badges, the epigraphs' Russian lines in another face): the user's decision.
 - [ ] **Rising words** sometimes list one event twice ("Устуу Хурээ · буддийский" and "монастырский" on 7

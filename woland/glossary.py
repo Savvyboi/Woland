@@ -48,14 +48,21 @@ def load_glossary(path: Path | None = None) -> list[Entry]:
     return out
 
 
+# Page furniture the model sometimes writes at the start of a sentence instead of its first words
+# ("Сальдо: Киеву все тяжелее…" → "Previous articleKiev is increasingly…": 113 headlines and 32 leads
+# in October 2026). It is left out.
+_FURNITURE = re.compile(r"(?:^|(?<=[.!?…] ))Previous article\s*")
+
+
 class Glossary:
     def __init__(self, entries: list[Entry] | None = None):
         self.entries = load_glossary() if entries is None else entries
 
     def fix(self, ru: str, en: str) -> str:
-        """The translation `en` of the Russian headline `ru`, corrected."""
+        """The translation `en` of the Russian text `ru`, corrected."""
         if not en:
             return en
+        en = _FURNITURE.sub("", en)
         for e in self.entries:
             if e.applies(ru):
                 en = e.fix(en)
