@@ -177,13 +177,28 @@ def test_citations_have_unique_keys_and_the_records_fields(built_site):
 
 
 def test_digest_examples_carry_what_a_citation_needs(built_site):
-    dg = json.loads((built_site / "data" / "days" / "2026-09-03.json").read_text(encoding="utf-8"))
-    ex = next(n for n in dg["narratives"] if n["id"] == "kyiv-regime")["ex"]
+    days = built_site / "data" / "days"
+    dg = json.loads((days / "2026-09-03.json").read_text(encoding="utf-8"))
+    examples = json.loads((days / "2026-09-03.ex.json").read_text(encoding="utf-8"))  # read when a row opens
+    assert all("ex" not in n for n in dg["narratives"]) and "biolabs" not in examples
+    ex = examples["kyiv-regime"]
     assert ex and all(e["h"] == "0" * 16 and e["r"] == "2026-09-24" and e["w"] == 100 for e in ex)
     assert [e.get("ar") for e in ex if e["o"] == "rt"] == ["20260903093000"]    # read from the Archive's copy
     assert dg["spark_from"] == "2026-09-01" and len(dg["narratives"][0]["spark_n"]) == 3
-    (nazi,) = next(n for n in dg["narratives"] if n["id"] == "nazism")["ex"]
+    (nazi,) = examples["nazism"]
     assert nazi["s"] == "…киевские неонацисты снова…" and nazi["se"] == "…Kiev neo-Nazis again…"
+
+
+def test_each_framings_latest_examples_come_in_one_file(built_site):
+    """The Narratives page shows a dozen recent examples of a framing from one small file, not from several
+    days' digests."""
+    folder = built_site / "data" / "examples"
+    kyiv = json.loads((folder / "kyiv-regime.json").read_text(encoding="utf-8"))
+    assert len(kyiv) == 16 and [e["d"] for e in kyiv[:2]] == ["2026-09-08"] * 2 and kyiv[-1]["d"] == "2026-09-01"
+    assert {e["o"] for e in kyiv} == {"ria", "rt"} and all(e["t"] and e["u"] and e["id"] for e in kyiv)
+    nazi = json.loads((folder / "nazism.json").read_text(encoding="utf-8"))
+    assert nazi[0]["d"] == "2026-09-08" and nazi[0]["se"] == "…Kiev neo-Nazis again…"
+    assert json.loads((folder / "biolabs.json").read_text(encoding="utf-8")) == []
 
 
 def test_days_still_being_collected_and_outlets_not_collected(built_site):
@@ -221,7 +236,7 @@ def test_every_page_is_assembled_from_the_partials(built_site):
     for name in pages:
         html = (built_site / name).read_text(encoding="utf-8")
         assert "include:" not in html and 'class="masthead"' in html, name
-    days = sorted(p.stem for p in (built_site / "data" / "days").glob("*.json"))
+    days = sorted(p.stem for p in (built_site / "data" / "days").glob("*.json") if not p.stem.endswith(".ex"))
     assert days[0] == "2026-09-01" and days[-1] == "2026-09-08"
 
 

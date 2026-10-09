@@ -394,7 +394,8 @@ def test_build_smoke(tmp_path, monkeypatch):
     assert meta["first"] == "2026-09-01" and meta["last"] == "2026-09-10" and meta["articles"] == 30
     digest = json.loads((out / "data" / "days" / "2026-09-10.json").read_text(encoding="utf-8"))
     row = next(n for n in digest["narratives"] if n["id"] == "kyiv-regime")
-    assert row["n"] == 1 and row["ex"][0]["t"].startswith("Киевский режим")
+    examples = json.loads((out / "data" / "days" / "2026-09-10.ex.json").read_text(encoding="utf-8"))
+    assert row["n"] == 1 and examples["kyiv-regime"][0]["t"].startswith("Киевский режим")
     # the index can find the word form through its stem
     st = stem("режим")
     shard = json.loads(gzip.decompress((out / "data" / "search" / "2026-09" / "i" /

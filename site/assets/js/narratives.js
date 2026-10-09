@@ -279,20 +279,16 @@ async function renderNarrative(id) {
     values: r.values.map((v, i) => (r.states[i] === "m" ? "m" : v)),
     fmt: (v) => (v === "m" ? t("cov.m.short") : fmt(v)) })), fmt, openNote));
 
-  // examples from the latest days in view
+  // examples from the latest days in view (newest first; woland/build.py: write_examples)
   const seen = new Set();
-  const recent = days.slice(-7).reverse();
-  for (const d of recent) {
-    let dg;
-    try { dg = await getJSON(`days/${d}.json`); } catch (_) { continue; }
-    const row = dg.narratives.find((x) => x.id === id);
-    for (const ex of row?.ex || []) {
-      if (seen.has(ex.u) || seen.size >= 12) continue;
-      if (panel === "same" && !allIds.includes(ex.o)) continue;
-      seen.add(ex.u);
-      exList.append(articleCard(fromExample(ex, d, id), { only: n.idx }));
-    }
-    if (seen.size >= 12) break;
+  const recent = new Set(days.slice(-7));
+  let examples = [];
+  try { examples = await getJSON(`examples/${id}.json`); } catch (_) { /* none yet */ }
+  for (const ex of examples) {
+    if (!recent.has(ex.d) || seen.has(ex.u) || seen.size >= 12) continue;
+    if (panel === "same" && !allIds.includes(ex.o)) continue;
+    seen.add(ex.u);
+    exList.append(articleCard(fromExample(ex, ex.d, id), { only: n.idx }));
   }
   if (!seen.size) exList.append(el("li", { class: "empty" }, "—"));
 }

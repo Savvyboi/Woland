@@ -91,16 +91,28 @@ function ledger(rows, day, family, dg, compare) {
         el("span", { class: "num", style: { minWidth: "3.2rem" } }, fmtPct(r.share)))),
       el("td", { class: "num" }, changeCell(r, dg.total, compare)),
       el("td", { class: "hide-sm" }, sparkline(r.spark, { label, openFrom: openFrom < 0 ? null : openFrom })));
+    const examples = el("ul", { class: "articles" }, el("li", { class: "empty" }, `${t("loading")}…`));
     const details = el("tr", { class: "details", id: detailsId, hidden: true },
       el("td", { colspan: "5" },
-        el("ul", { class: "articles" }, r.ex.map((ex) => articleCard(fromExample(ex, day, r.id), { only: n.idx, noLead: true }))),
+        examples,
         el("p", {}, el("a", { href: archiveSearch({ k: r.id, from: day, to: day }) }, t("today.more", { n: fmtInt(r.n) }))),
         el("p", { class: "syntax" }, label),
         trendTable(r, days)));
-    btn.addEventListener("click", () => {
+    let shown = false;  // the day's examples (days/<day>.ex.json) are read when a row first opens
+    btn.addEventListener("click", async () => {
       const open = details.hidden;
       details.hidden = !open;
       btn.setAttribute("aria-expanded", String(open));
+      if (!open || shown) return;
+      shown = true;
+      try {
+        const all = await getJSON(`days/${day}.ex.json`);
+        examples.replaceChildren(...(all[r.id] || []).map((ex) => articleCard(fromExample(ex, day, r.id), { only: n.idx, noLead: true })));
+      } catch (e) {
+        shown = false;
+        console.error(e);
+        examples.replaceChildren(el("li", { class: "empty" }, t("error.load")));
+      }
     });
     body.append(row, details);
   }

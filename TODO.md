@@ -115,14 +115,20 @@ translated as they are collected, and `woland translate` (the nightly step) fill
 ## 5. Site
 
 - [ ] **Load time** (measured 28 September from Finland on the live site; sizes compressed): Today ~104 KB and
-      loaded in ~1.2 s, Narratives ~145 KB, Outlets ~70 KB. Fonts come on top on a first visit: the site asks
+      loaded in ~1.2 s, Narratives ~145 KB, Outlets ~70 KB. (Narratives read two or three whole day digests,
+      ~57 KB each, for its dozen examples; since 10 October one file per framing, ~10 KB: ~60 KB in all. Today's
+      digest was ~57 KB, three quarters of it the examples behind its rows: since 10 October they are a file of
+      their own, read when a row first opens, and the digest ~12 KB.) Fonts come on top on a first visit: the site asks
       Google Fonts for 10 styles (20 files in Cyrillic and Latin, 585 KB), a page uses about seven (~430 KB) —
-      four times the page itself, though `display=swap` shows the text at once. An archive search downloads
-      ~600 KB (22 files; "Finland": the month's index file and 20 blocks of ~23 KB, one per result shown); the
-      lead translations made the blocks ~30 KB and the site 104 MB instead of 83 (9 October). Possible gains:
-      smaller search blocks (more files).
-      Fewer faces per page would mean design changes (translations not in italic, no bold sans in tiles and
-      badges, the epigraphs' Russian lines in another face): the user's decision.
+      four times the page itself, though `display=swap` shows the text at once. Fewer faces per page would mean
+      design changes (translations not in italic, no bold sans in tiles and badges, the epigraphs' Russian lines
+      in another face): the user's decision.
+      An archive search for "Finland" over September and October downloaded ~785 KB after the lead translations
+      (one index shard and one month file per month, and a block of 100 documents, ~30 KB, for nearly every
+      result shown); since 10 October, with blocks of 25 documents and 256 shards, 336 KB (blocks 157 KB, month
+      files 136 KB, shards 43 KB). The month files (one outlet code per document, ~100 KB a month) are now the
+      biggest part, and every month searched adds one: ordering a day's documents by outlet would shrink them
+      to almost nothing, but results are shown in the documents' (time) order. The site is 111 MB, 11,000 files.
 - [ ] **Rising words** sometimes list one event twice ("Устуу Хурээ · буддийский" and "монастырский" on 7
       October): a word joins an event only if 60% of its headlines share the event's *first* word (9 of 16
       there). Comparing with every word of the event would join them, at some risk of chaining unrelated events.

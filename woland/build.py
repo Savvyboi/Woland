@@ -4,7 +4,8 @@
     _site/data/meta.json         outlets, narratives, date range, the last completed day, run health
     _site/data/series.json       daily counts per outlet and per narrative per outlet; collection status
     _site/data/coverage.json     collection details for every outlet and day
-    _site/data/days/<date>.json  the daily digest: narratives, rising words, examples
+    _site/data/days/<date>.json  the daily digest: narratives, rising words; <date>.ex.json: its examples
+    _site/data/examples/<id>.json  each narrative's examples of the last days (the Narratives page)
     _site/data/search/…          a static full-text index, one folder per month (gzip files)
 
 Months are cached in .cache/build/<YYYY-MM>/ and only rebuilt when their articles, the previous
@@ -36,9 +37,12 @@ from .util import MSK, iso_utc, parse_dt, today_msk, truncate
 
 log = logging.getLogger("woland.build")
 
-BUILD_VERSION = "5"
-NB = 128          # index buckets per month
-BLOCK = 100       # documents per block file
+BUILD_VERSION = "6"
+# A search downloads one index shard per month and one block per result it shows (20 at a time, mostly in
+# different blocks): with 256 shards and 25 documents a block, a search for "Finland" over September and
+# October 2026 needed ~160 KB of blocks instead of ~520 KB with 100, at four times as many files.
+NB = 256          # index buckets per month
+BLOCK = 25        # documents per block file
 BASELINE_DAYS = 28
 RISING_BASELINE = 14
 RISING_MIN = {"ru": 6, "en": 5}  # headlines a word needs on the day to be considered "rising"
@@ -280,7 +284,11 @@ class Builder:
         for d in days:  # digests need the rolling history, including this month's earlier days
             key = d.isoformat()
             history[key] = summary[key]
-            dump(cdir / "days" / f"{key}.json", self.digest(d, history))
+            dg = self.digest(d, history)
+            # the examples behind each row, three quarters of a digest, apart: Today reads them when a row opens
+            examples = {row["id"]: row.pop("ex") for row in dg["narratives"]}
+            dump(cdir / "days" / f"{key}.ex.json", {nid: ex for nid, ex in examples.items() if ex})
+            dump(cdir / "days" / f"{key}.json", dg)
         slim = {k: {kk: vv for kk, vv in v.items() if kk not in ("stem_ex", "posts")} for k, v in summary.items()}
         dump(cdir / "summary.json", slim)
         log.info("month %s: %d documents, %d stems, %.1fs", month, len(idx.docs), len(idx.postings),
@@ -505,6 +513,7 @@ class Builder:
             history = {k: history[k] for k in keep} if month != month_list[-1] else history
         cov = load_coverage()
         self.write_series(days, cov)
+        self.write_examples(days)
         self.write_meta(days, month_list[-SEARCH_MONTHS:], cov)
         log.info("site built in %.1fs → %s", time.monotonic() - t0, self.out)
 
@@ -521,6 +530,18 @@ class Builder:
                 html = html.replace(f"<!-- include:{name} -->", body.strip())
             page.write_text(html, encoding="utf-8", newline="\n")
         (self.out / ".nojekyll").write_text("")
+
+    def write_examples(self, days: list[date], last: int = 8):
+        """Every framing's and topic's examples from the digests of the last days, newest day first, each with
+        its day: the Narratives page shows a dozen of them, and read two or three whole digests for them."""
+        by_nid = defaultdict(list)
+        for d in reversed(days[-last:]):
+            key = d.isoformat()
+            with open(self.out / "data" / "days" / f"{key}.ex.json", encoding="utf-8") as fh:
+                for nid, exs in json.load(fh).items():
+                    by_nid[nid] += [{**ex, "d": key} for ex in exs]
+        for n in self.narratives:
+            dump(self.out / "data" / "examples" / f"{n.id}.json", by_nid.get(n.id, []))
 
     def write_series(self, days: list[date], cov: dict):
         ids = [o.id for o in self.outlets]

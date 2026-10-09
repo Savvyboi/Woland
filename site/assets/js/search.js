@@ -2,7 +2,7 @@
 //   search/<month>/m.json.gz      {n, days: [[date, firstDoc], …], o: outlet code per document}
 //   search/<month>/i/<b>.json.gz  {f: {form: stem}, p: {stem: delta-encoded postings}}
 //   search/<month>/k.json.gz      {narrativeIndex: delta-encoded postings}
-//   search/<month>/d/<n>.json.gz  documents, 100 per block
+//   search/<month>/d/<n>.json.gz  documents, meta.search.block (25) per block
 // The browser never stems: shards map every word form seen in the corpus to its stem.
 import { META, getGz, fromIndex } from "./core.js";
 import { norm, tokenize, bucket as shardOf } from "./textkit.js";
