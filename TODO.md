@@ -1,34 +1,41 @@
 # Woland — to do
 
 Open work for future sessions, most urgent first. State of the archive when this list was last updated
-(9 October 2026, early morning): 254,750 articles from 23 outlets, 1 September – 8 October 2026.
+(10 October 2026, night): 262,268 articles from 23 outlets, 1 September – 9 October 2026.
 
 | Outlet | Articles | Note |
 |---|---:|---|
 | RIA, RT (both), Izvestia, Vesti, Lenta, Life, Gazeta.ru, AiF, Parlamentskaya Gazeta, TASS English, Tsargrad, Ukraina.ru, InoSMI, Rossiyskaya Gazeta, the Kremlin (both) | | complete from their own sitemaps and listings |
-| MK | 21,267 | did not answer GitHub 27–29 September and on 2, 3 and 6 October: read from the Internet Archive's copies those nights (4,608 records); answers on the other nights; no headline-only records left |
-| KP | 10,602 | early September: only what the Internet Archive captured (~60% of online news) |
-| Zvezda | 3,247 | early September and 21–23 September from the Internet Archive (~70% of early September) |
-| TASS (Russian) | 12,690 | feeds only, from 24 September; hours lost are listed on the Outlets page (§1) |
-| Sputnik | 778 | answers neither Finland nor GitHub: some 15–30 a day from the Internet Archive's copies |
-| Regnum | 2,159 | feed only since 29 September, ~210 a day; its pages answered GitHub in the check of 5 October (§2) |
+| MK | 21,269 | did not answer GitHub 27–29 September and on 2, 3, 6 and 9 October: read from the Internet Archive's copies those nights (4,608 records); answers on the other nights; no headline-only records left |
+| KP | 11,013 | early September: only what the Internet Archive captured (~60% of online news) |
+| Zvezda | 3,367 | early September and 21–23 September from the Internet Archive (~70% of early September) |
+| TASS (Russian) | 13,483 | feeds only, from 24 September; hours lost are listed on the Outlets page; its fullest feed refuses GitHub more often than not since 8 October (§1) |
+| Sputnik | 791 | answers neither Finland nor GitHub: some 15–30 a day from the Internet Archive's copies |
+| Regnum | 2,387 | feed only since 29 September, ~210 a day; its pages answered GitHub in the check of 5 October (§2) |
 
 ## 1. Collection on GitHub (watch the next runs)
 
-- [ ] **TASS's feed for news aggregators fails now and then, and did so unreported.** On 7–8 October several
-      readings found only ~170 items in TASS's three feeds (13:49 UTC on the 7th; 03:01, 07:25 and 10:25 UTC on
-      the 8th) instead of ~800: `rss/yandex.xml`, which holds ~650 of them and reaches back about twelve hours,
-      had failed while the main and sport feeds answered, and a source only reported an error when *all* its
-      feeds failed. The hours 05:54–07:07 and 07:10–07:31 Moscow time on 8 October were lost (the Outlets page
-      lists them). Fixed on 9 October: a feed that fails beside others, answers with nothing in it, or with a
-      bot check is now reported (`SourcePartial` in `discover.py`), and the run log says "error 403", "a feed
-      was empty" or "refused the pages". Watch the next runs: how often it fails, and with what. If it is often,
-      read the feeds more often while they fail, or ask why.
-- [ ] **Hourly feeds run every three to seven hours** (4–6 polls a day, 30 September – 8 October). Since TASS is
-      read from its twelve-hour feed (30 September) that lost nothing until the feed itself failed (above).
-      Decided on 28 September: no outside trigger; reconsider if hours are lost again.
-- [ ] The nightly run (01:17 UTC) starts at 06:30–07:35 UTC and takes 70–100 minutes (MK's 90-minute cap
-      dominates), the site build ~10 more: late runs cost nothing but a later site.
+- [ ] **TASS's feed for news aggregators refuses GitHub more often than not** (since 8 October). It failed
+      unreported on 7–8 October (readings found ~170 items in TASS's feeds instead of ~800, because a source
+      only reported an error when *all* its feeds failed; fixed on 9 October, `SourcePartial` in `discover.py`).
+      Reported since: `rss/yandex.xml` answered 403 in 3 of the 5 readings of 9 October (the nightly run, 16:31
+      and 21:12 UTC) while the main and sport feeds answered, and ~7 hours were lost (12:32–17:57 and
+      20:08–21:40 Moscow time: 818 articles that day against ~1,200; from 12:30 to 18:00 only 46, 35 of them
+      sport, against 447 on 7 October). On 10 October every TASS feed answered 403 to Finland. From 10 October
+      six section feeds are read as well (world, politics, society, economy, incidents, culture: 87% of what
+      was lost on 9 October), which reach back further than the main feed's three hours. Watch the next runs:
+      do the section feeds answer GitHub, and how far back do they reach? Their items come without the full
+      text unless the aggregator feed answers within about twelve hours (framings in headline and lead only).
+      The army, space and regional sections have no feed of their own that Woland knows of (an unknown
+      `sections=` id gives the main feed).
+- [ ] **Hourly feeds run every three to seven hours** (4–6 polls a day, 30 September – 9 October). Decided on 28
+      September: no outside trigger; reconsider now that TASS's fullest feed refuses (above): with only the main
+      feed's three hours, TASS loses hours at every longer interval. The decision is the user's.
+- [ ] The nightly run (01:17 UTC) starts at 06:30–07:35 UTC and takes 70–100 minutes when MK answers (its
+      90-minute cap dominates; 18 minutes on 9 October, when MK did not answer), the site build ~10 more: late
+      runs cost nothing but a later site. Translating leads as well (from 9 October) made each outlet's reading
+      ~40–70% longer (the runner's four processors are shared with the translation: Gazeta.ru 16 minutes
+      instead of 10, RIA 18 instead of 15), which only matters on a night MK does not fill.
 
 Done on 30 September – 9 October:
 - **The changes of 29 September worked**: every nightly run and poll since has succeeded, the site was rebuilt

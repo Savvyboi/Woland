@@ -84,9 +84,9 @@ outlets:
       fi: Venäjän keskeinen valtiollinen uutistoimisto (venäjänkielinen palvelu).
       sv: Rysslands centrala statliga nyhetsbyrå (ryskspråkig tjänst).
     note:
-      en: 'Read from its own feeds only, as its pages refuse automated readers: headline, lead and time, and since 30 September 2026 the full text of most news too, in which framings are looked for as well. The feeds hold from a few hours to about a day of news and cannot be read backwards, so TASS is collected from 24 September 2026, when hourly reading began. Until 30 September its feed held only three hours, and GitHub started the hourly reading only every few hours; since then its fullest feed has failed now and then (8 October 2026). The hours lost are listed below.'
-      fi: 'Luetaan vain median omista syötteistä, koska sen sivut torjuvat automaattiset lukijat: otsikko, ingressi ja aika sekä 30.9.2026 alkaen myös useimpien uutisten koko teksti, josta etsitään myös narratiiveja. Syötteissä on muutaman tunnin – noin vuorokauden uutiset, eikä niitä voi lukea takautuvasti, joten TASS on kerätty 24.9.2026 alkaen, jolloin tunneittainen lukeminen alkoi. Ennen 30.9. syötteessä oli vain kolmen tunnin uutiset, ja GitHub käynnisti tunneittaisen lukemisen vain muutaman tunnin välein; sen jälkeen kattavin syöte on toisinaan ollut poissa käytöstä (8.10.2026). Menetetyt tunnit luetellaan alla.'
-      sv: 'Läses bara från mediets egna flöden, eftersom sidorna nekar automatiserade läsare: rubrik, ingress och tid samt från den 30 september 2026 även hela texten för de flesta nyheter, där narrativ också söks. Flödena rymmer från några timmars till ungefär ett dygns nyheter och kan inte läsas i efterhand, så TASS samlas in från den 24 september 2026, då läsningen varje timme började. Före den 30 september rymde flödet bara tre timmar, och GitHub startade läsningen bara med några timmars mellanrum; sedan dess har det fylligaste flödet då och då inte fungerat (8 oktober 2026). De förlorade timmarna listas nedan.'
+      en: 'Read from its own feeds only, as its pages refuse automated readers: headline, lead and time, and since 30 September 2026 the full text of most news too, in which framings are looked for as well. The feeds hold from a few hours to about a day of news and cannot be read backwards, so TASS is collected from 24 September 2026, when hourly reading began. Until 30 September its feed held only three hours, and GitHub started the hourly reading only every few hours; since 8 October its fullest feed has often refused Woland, and from 10 October its section feeds are read as well. The hours lost are listed below.'
+      fi: 'Luetaan vain median omista syötteistä, koska sen sivut torjuvat automaattiset lukijat: otsikko, ingressi ja aika sekä 30.9.2026 alkaen myös useimpien uutisten koko teksti, josta etsitään myös narratiiveja. Syötteissä on muutaman tunnin – noin vuorokauden uutiset, eikä niitä voi lukea takautuvasti, joten TASS on kerätty 24.9.2026 alkaen, jolloin tunneittainen lukeminen alkoi. Ennen 30.9. syötteessä oli vain kolmen tunnin uutiset, ja GitHub käynnisti tunneittaisen lukemisen vain muutaman tunnin välein; 8.10. alkaen kattavin syöte on usein torjunut Wolandin, ja 10.10. alkaen luetaan myös osastojen syötteet. Menetetyt tunnit luetellaan alla.'
+      sv: 'Läses bara från mediets egna flöden, eftersom sidorna nekar automatiserade läsare: rubrik, ingress och tid samt från den 30 september 2026 även hela texten för de flesta nyheter, där narrativ också söks. Flödena rymmer från några timmars till ungefär ett dygns nyheter och kan inte läsas i efterhand, så TASS samlas in från den 24 september 2026, då läsningen varje timme började. Före den 30 september rymde flödet bara tre timmar, och GitHub startade läsningen bara med några timmars mellanrum; sedan den 8 oktober har det fylligaste flödet ofta nekat Woland, och från den 10 oktober läses även avdelningarnas flöden. De förlorade timmarna listas nedan.'
     # Article pages, sitemaps and robots.txt answer 403 ("if you are not a bot…"), and the Internet
     # Archive's copies are the same 403 page; the feeds answer (robots.txt, in the Archive's copy of
     # 1 May 2026, closes only /search, /preview/, /n/, */api/* and /video/). None can be read backwards or
@@ -100,9 +100,21 @@ outlets:
     article: '^https?://tass\.ru/[a-z0-9_-]+/\d+$'
     # The stored articles, sport and science aside, have never been more than ~27 minutes apart (at night)
     # while the feeds were read in time; each hour lost to a late reading left a silence of 50 minutes or more.
+    # (With the section feeds below, which reach back further than the main feed, a loss confined to the
+    # sections without a feed of their own — the army, space, the regions — may leave no such silence.)
     gaps: {minutes: 45, skip: '^https?://tass\.ru/(sport|nauka)/'}
+    # From 8 October 2026 the feed for news aggregators answered GitHub with 403 more often than not (3 of 5
+    # readings on 9 October; on 10 October every TASS feed answered 403 to Finland) while the main and sport
+    # feeds answered: ~7 hours were lost on 9 October, 87% of the articles in six sections whose own feeds
+    # (v2.xml?sections= the section's id in base64: 22 world, 23 politics, 24 society, 25 economy, 27 incidents,
+    # 28 culture; an unknown id gives the main feed) are read as well from 10 October.
     sources:
-      - {type: rss, url: ['https://tass.ru/rss/yandex.xml', 'https://tass.ru/rss/v2.xml?sections=MjE3Ng%3D%3D', 'https://tass.ru/rss/v2.xml']}
+      - type: rss
+        url: ['https://tass.ru/rss/yandex.xml', 'https://tass.ru/rss/v2.xml?sections=MjE3Ng%3D%3D',
+              'https://tass.ru/rss/v2.xml?sections=MjI%3D', 'https://tass.ru/rss/v2.xml?sections=MjM%3D',
+              'https://tass.ru/rss/v2.xml?sections=MjQ%3D', 'https://tass.ru/rss/v2.xml?sections=MjU%3D',
+              'https://tass.ru/rss/v2.xml?sections=Mjc%3D', 'https://tass.ru/rss/v2.xml?sections=Mjg%3D',
+              'https://tass.ru/rss/v2.xml']
 
   - id: rt-ru
     name: RT (Russian)
@@ -330,7 +342,7 @@ outlets:
       fi: 'MK ei vastannut GitHubin palvelimille, joilla Wolandin keruu toimii, 27.–29.9.2026, ja on sen jälkeen vastannut useimpina öinä mutta ei joka yö. Yönä, jona se ei vastaa, sen artikkelit luetaan kopioista, jotka Internet Archive tallentaa sen sivuista; niissä on noin 95 % artikkeleista päivän tai kaksi myöhemmin, ja kunkin tällaisen artikkelin tiedoissa kerrotaan tästä. MK sallii noin 15 sivua minuutissa, joten kiireisen yön jälkeen osa artikkeleista voi jäädä pelkiksi otsikoiksi, kunnes seuraava ajo lukee sivut.'
       sv: 'MK svarade inte GitHubs servrar, där Wolands insamling körs, den 27–29 september 2026 och har sedan dess svarat de flesta nätter, men inte alla. En natt då det inte svarar läses dess artiklar från de kopior som Internet Archive sparar av dess sidor, som rymmer omkring 95 % av dem en dag eller två senare; varje sådan artikels detaljer säger det. MK tillåter ungefär 15 sidor i minuten, så efter en hektisk natt kan en del artiklar finnas bara som rubrik tills nästa körning läser sidorna.'
     rate: 4.0   # answers more than ~15 pages a minute with 429 "too many requests"
-    # From GitHub's servers every connection timed out on 27-29 September 2026, and on 2, 3 and 6 October (from
+    # From GitHub's servers every connection timed out on 27-29 September 2026, and on 2, 3, 6 and 9 October (from
     # Finland it answers); on the other nights since 30 September it answered.
     # A cap, so that a night of completing headline-only records does not delay the website.
     budget: 90

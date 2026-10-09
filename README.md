@@ -201,11 +201,12 @@ consider moving older years to a release archive.
   2026): its pages, sitemaps and even `robots.txt` answer 403, and the Internet Archive's copies are the same 403.
   Until 30 September 2026 only its main feed was read, which holds its latest 100 items (about three hours of a
   weekday); since then also the feed it publishes for news aggregators (its latest ~650 items, about half a day,
-  with the full texts: everything but sport and science) and its sport section's. GitHub starts the hourly job
-  late or not at all when it is busy (about every six hours in late September 2026), and the feed for news
-  aggregators itself fails now and then (October 2026), so hours were lost: the Outlets page lists them, found as
-  silences of more than 45 minutes between stored items (`gaps` in `outlets.yaml`). TASS's English service
-  (tass.com) is complete.
+  with the full texts: everything but sport and science) and its sport section's, and from 10 October six more
+  sections' (world, politics, society, economy, incidents, culture), which reach back further than the main feed.
+  GitHub starts the hourly job late or not at all when it is busy (about every six hours in late September 2026),
+  and since 8 October the feed for news aggregators has often refused Woland, so hours were lost: the Outlets page
+  lists them, found as silences of more than 45 minutes between stored items (`gaps` in `outlets.yaml`). TASS's
+  English service (tass.com) is complete.
 * Gazeta.ru sends every visitor through an optional Sber ID sign-in first. Woland holds the cookie that the
   page's own script gives every visitor who is not signed in (`cookies` in `outlets.yaml`) — it declines to sign
   in, like any anonymous reader — and reads the pages in full.
