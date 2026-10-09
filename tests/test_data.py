@@ -21,7 +21,7 @@ OUTLETS = {o.id: o for o in load_outlets(include_disabled=True)}
 NARRATIVES = {n.id for n in load_lexicon()}
 HEX16 = re.compile(r"^[0-9a-f]{16}$")
 UTC = re.compile(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
-FIELDS = {"id", "o", "u", "p", "m", "t", "te", "d", "s", "g", "a", "w", "h", "r", "kb", "via", "ar"}
+FIELDS = {"id", "o", "u", "p", "m", "t", "te", "d", "de", "s", "g", "a", "w", "h", "r", "kb", "kbe", "via", "ar"}
 CAPTURE = re.compile(r"^20\d{12}$")  # an Internet Archive capture time, YYYYMMDDhhmmss
 
 
@@ -76,6 +76,12 @@ def problems_in(path) -> list[str]:
             out.append(f"{where}: lead empty or longer than 240 characters")
         if "te" in r and (o.lang != "ru" or not r["te"].strip()):
             out.append(f"{where}: translation where none belongs")
+        if "de" in r and (o.lang != "ru" or not r.get("d") or not r["de"].strip()):
+            out.append(f"{where}: translation of a lead where none belongs")
+        kbe = r.get("kbe", {})
+        if not isinstance(kbe, dict) or (kbe and o.lang != "ru") \
+                or any(nid not in (r.get("kb") or {}) or not isinstance(en, str) or not en.strip() for nid, en in kbe.items()):
+            out.append(f"{where}: translations of body snippets that do not match them")
         if len(r.get("s", "")) > 60 or len(r.get("a", "")) > 120:
             out.append(f"{where}: section or author too long")
         g = r.get("g", [])

@@ -240,11 +240,13 @@ def source_rss(fetcher, src, start, end):
     urls = src["url"] if isinstance(src["url"], list) else [src["url"]]
     out, failures = [], []
 
-    def read(u):
+    def read(u, paged=False):
         r = fetcher.get(u, retry_403=2)
         if not r.ok:
             return None, f"{u}: {r.status or r.error}"
         items = [it for it in parse_feed(r.content) if it["link"]]
+        if not items and not paged:  # (a page past the end of a paged feed is empty; a feed never is)
+            return None, f"{u}: {'bot check' if r.challenged() else 'no items'}"
         for it in items:
             hint = parse_dt(it["date"])
             it["hint"] = hint
@@ -260,13 +262,15 @@ def source_rss(fetcher, src, start, end):
                 failures.append(err)
             continue
         for n in range(int(src.get("first", 1)), int(src.get("pages", 10)) + 1):
-            items, err = read(fill(u, None, n))
+            items, err = read(fill(u, None, n), paged=True)
             if err and n == int(src.get("first", 1)):
                 failures.append(err)
             if not items or _older_than_range([it["hint"] for it in items], start):
                 break
-    if failures and len(failures) == len(urls):
-        raise SourceError("; ".join(failures))
+    if failures:
+        if len(failures) == len(urls):
+            raise SourceError("; ".join(failures))
+        raise SourcePartial("; ".join(failures), out)
     return out
 
 
@@ -440,6 +444,16 @@ class SourceError(Exception):
     pass
 
 
+class SourcePartial(SourceError):
+    """Some of a source's feeds failed: what the others gave is used all the same, and the failure reported
+    (TASS's feed for news aggregators, which carries most of its news, failed now and then in October 2026
+    while its main feed answered, and the hours lost went unreported)."""
+
+    def __init__(self, message: str, found: list):
+        super().__init__(message)
+        self.found = found
+
+
 HANDLERS = {
     "sitemap": source_sitemap,
     "sitemap_index": source_sitemap_index,
@@ -465,6 +479,9 @@ def discover(fetcher: Fetcher, outlet, start: date, end: date, *, feeds_only: bo
             continue
         try:
             found = HANDLERS[kind](fetcher, src, start, end)
+        except SourcePartial as exc:  # reported, and what the source's other feeds gave is kept
+            errors.append(f"{kind}: {exc}")
+            found = exc.found
         except SourceError as exc:
             errors.append(f"{kind}: {exc}")
             continue

@@ -53,6 +53,18 @@ def test_a_translation_of_another_headline_is_not_lent():
     assert merged["t"] == "new headline" and "te" not in merged
 
 
+def test_the_translations_of_a_lead_and_of_snippets_are_lent_only_with_them():
+    base = jsonl(rec("a", d="старый лид", kb={"nazis": "…нацисты…"}))
+    ours = jsonl(rec("a", d="старый лид", de="old lead", kb={"nazis": "…нацисты…"}, kbe={"nazis": "…Nazis…"}))
+    read = {"via": "page", "w": 300, "r": "2026-09-29T08:00:00Z"}
+    same = jsonl(rec("a", d="старый лид", kb={"nazis": "…нацисты…"}, **read))
+    other = jsonl(rec("a", d="новый лид", kb={"nazis": "…фашисты…"}, **read))
+    (merged,) = [json.loads(line) for line in merge_records(base, ours, same).splitlines()]
+    assert merged["via"] == "page" and merged["de"] == "old lead" and merged["kbe"] == {"nazis": "…Nazis…"}
+    (merged,) = [json.loads(line) for line in merge_records(base, ours, other).splitlines()]
+    assert merged["d"] == "новый лид" and "de" not in merged and "kbe" not in merged
+
+
 def test_an_archive_capture_is_never_lent_to_a_page_read_from_the_outlet():
     ours = jsonl(rec("a", via="page", ar="20260929070000", r="2026-09-29T07:00:00Z"))
     theirs = jsonl(rec("a", via="page", r="2026-09-29T09:00:00Z"))

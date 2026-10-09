@@ -36,7 +36,7 @@ from .util import MSK, iso_utc, parse_dt, today_msk, truncate
 
 log = logging.getLogger("woland.build")
 
-BUILD_VERSION = "4"
+BUILD_VERSION = "5"
 NB = 128          # index buckets per month
 BLOCK = 100       # documents per block file
 BASELINE_DAYS = 28
@@ -99,6 +99,38 @@ def recent_runs(runs: list[dict], polls: int = 9, other: int = 3) -> list[dict]:
     runs = sorted((r for r in runs if r.get("at")), key=lambda r: r["at"])
     keep = [r for r in runs if r.get("mode") == "poll"][-polls:] + [r for r in runs if r.get("mode") != "poll"][-other:]
     return sorted(keep, key=lambda r: r["at"])
+
+
+_NO_ANSWER = re.compile(r"^no connection|\b(NoConnection|ConnectTimeout|ConnectionError|SSLError|ReadTimeout)\b")
+_STATUS = re.compile(r": (\d{3})$|too many (\d{3}) error responses|\((\d{3})\)$")
+
+
+def run_problems(v: dict) -> dict | None:
+    """What went wrong for one outlet in one run, for the run log on the Outlets page: codes the site words in
+    each language — noanswer (the site did not answer), refused (it refused the pages, or showed a bot check),
+    "http <status>" (a listing or feed answered with an error), empty (a feed held nothing), budget (the run's
+    time for the outlet ran out), failed (anything else) — and the messages themselves."""
+    messages = [m for m in [v.get("aborted"), *v.get("errors", []), v.get("error")] if m]
+    if not messages:
+        return None
+    codes = []
+    for m in messages:
+        status = _STATUS.search(m)
+        if m.startswith("time budget"):
+            code = "budget"
+        elif _NO_ANSWER.search(m):
+            code = "noanswer"
+        elif m.startswith(("unreachable", "refused")) or m.endswith("bot check"):
+            code = "refused"
+        elif m.endswith("no items"):
+            code = "empty"
+        elif status:
+            code = f"http {next(g for g in status.groups() if g)}"
+        else:
+            code = "failed"
+        if code not in codes:
+            codes.append(code)
+    return {"c": codes, "t": "; ".join(messages)[:300]}
 
 
 def silences(times: list[datetime], minutes: float) -> list[tuple[datetime, datetime]]:
@@ -203,11 +235,18 @@ class Builder:
         return ks, snippets
 
     def corrected(self, rec: dict) -> dict:
-        """The record with its machine translation run through the glossary (config/glossary.yaml)."""
-        if not rec.get("te"):
-            return rec
-        te = self.glossary.fix(rec["t"], rec["te"])
-        return rec if te == rec["te"] else {**rec, "te": te}
+        """The record with its machine translations run through the glossary (config/glossary.yaml)."""
+        fixed = {}
+        for field, src in (("te", "t"), ("de", "d")):
+            if rec.get(field):
+                en = self.glossary.fix(rec.get(src, ""), rec[field])
+                if en != rec[field]:
+                    fixed[field] = en
+        if rec.get("kbe"):
+            kbe = {nid: self.glossary.fix((rec.get("kb") or {}).get(nid, ""), en) for nid, en in rec["kbe"].items()}
+            if kbe != rec["kbe"]:
+                fixed["kbe"] = kbe
+        return {**rec, **fixed} if fixed else rec
 
     # ── months ────────────────────────────────────────────────────────────────
     def month_key(self, month: str, days: list[date], prev_key: str) -> str:
@@ -271,12 +310,17 @@ class Builder:
                 framed += 1
             ts = int(parse_dt(r["p"]).timestamp())
             lead = r.get("d", "")
+            kbe = r.get("kbe") or {}
             doc = [self.oidx[o], ts, r["t"], r.get("te", ""), truncate(lead, SEARCH_LEAD), r["u"], ks,
                    {str(k): v for k, v in snips.items()}, r.get("h", ""), (r.get("r") or "")[:10], r.get("a", ""),
-                   self.headline_only(r), r.get("w", 0)]
-            if r.get("ar"):
-                doc.append(r["ar"])  # read from the Internet Archive's copy
-            text = " ".join(x for x in (r["t"], r.get("d", ""), r.get("te", "")) if x)
+                   self.headline_only(r), r.get("w", 0),
+                   # then, where there are any: the Internet Archive's copy that was read, the lead's
+                   # translation, the snippets' translations
+                   r.get("ar", ""), truncate(r.get("de", ""), SEARCH_LEAD),
+                   {str(k): kbe[self.narratives[k].id] for k in snips if self.narratives[k].id in kbe}]
+            while len(doc) > 13 and not doc[-1]:
+                doc.pop()
+            text = " ".join(x for x in (r["t"], lead, r.get("te", ""), r.get("de", "")) if x)
             idx.add(doc, self.oidx[o], index_terms(text))
             # rising words: in how many of the day's headlines each word (lemma) occurs, and which
             n = heads[lang]
@@ -294,7 +338,7 @@ class Builder:
             for k in ks:  # narrative examples
                 ex = examples[self.narratives[k].id]
                 if len(ex) < 40:
-                    ex.append(self.example(r, snips.get(k)))
+                    ex.append(self.example(r, snips.get(k), kbe.get(self.narratives[k].id)))
         chosen = {}
         for nid, exs in examples.items():
             by_outlet, picked = set(), []
@@ -317,7 +361,7 @@ class Builder:
         """1 for an outlet whose pages Woland reads, when this article's page has not been read (yet)."""
         return int(r.get("via") == "feed" and self.ofetch.get(r["o"], False))
 
-    def example(self, r: dict, snippet: str | None) -> dict:
+    def example(self, r: dict, snippet: str | None, snippet_en: str | None = None) -> dict:
         ex = {"o": r["o"], "t": r["t"], "u": r["u"], "p": r["p"][11:16], "id": r["id"],
               "h": r.get("h", ""), "r": (r.get("r") or "")[:10], "w": r.get("w", 0)}
         if r.get("te"):
@@ -328,6 +372,8 @@ class Builder:
             ex["f"] = 1
         if snippet:
             ex["s"] = snippet
+            if snippet_en:
+                ex["se"] = snippet_en
         return ex
 
     # ── digests ───────────────────────────────────────────────────────────────
@@ -611,9 +657,7 @@ class Builder:
             "runs": [{"at": r.get("at"), "mode": r.get("mode"), "seconds": r.get("seconds"),
                       "outlets": sorted(r.get("outlets", {})),
                       "new": sum(v.get("new", 0) for v in r.get("outlets", {}).values()),
-                      "problems": {k: (v.get("aborted") or "; ".join(v.get("errors", [])) or v.get("error"))
-                                   for k, v in r.get("outlets", {}).items()
-                                   if v.get("aborted") or v.get("errors") or v.get("error")}}
+                      "problems": {k: p for k, v in r.get("outlets", {}).items() if (p := run_problems(v))}}
                      for r in runs],
         })
 

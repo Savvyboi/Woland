@@ -3,7 +3,7 @@
   collect   daily collection (rolling window + automatic catch-up back to the start date)
   poll      hourly read of short-lived feeds (TASS, Gazeta.ru, Zvezda, Kremlin)
   backfill  collect an explicit date range
-  translate add missing English headline translations
+  translate add missing English translations (headlines, leads, snippets of body matches)
   build     build the static website into _site/
   probe     try one outlet on one day and print what Woland would store
   check     can every outlet still be read? (discovery + a few article pages per outlet)
@@ -132,13 +132,13 @@ def main(argv=None):
             d = today - timedelta(days=i)
             for o in ru:
                 if budget.exceeded():
-                    print(f"time budget spent; translated headlines in {n} files")
+                    print(f"time budget spent; added missing translations to {n} files")
                     return 0
                 recs = read_day(d, o.id)
                 if recs and translate_records(recs):
                     merge_day(d, o.id, recs)
                     n += 1
-        print(f"translated missing headlines in {n} files")
+        print(f"added missing translations to {n} files")
         return 0
 
     if a.cmd == "build":

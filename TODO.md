@@ -1,102 +1,72 @@
 # Woland — to do
 
 Open work for future sessions, most urgent first. State of the archive when this list was last updated
-(29 September 2026, late evening): 179,975 articles from 21 outlets, 1–29 September 2026.
+(9 October 2026, early morning): 254,750 articles from 23 outlets, 1 September – 8 October 2026.
 
 | Outlet | Articles | Note |
 |---|---:|---|
 | RIA, RT (both), Izvestia, Vesti, Lenta, Life, Gazeta.ru, AiF, Parlamentskaya Gazeta, TASS English, Tsargrad, Ukraina.ru, InoSMI, Rossiyskaya Gazeta, the Kremlin (both) | | complete from their own sitemaps and listings |
-| MK | 15,678 | did not answer GitHub 27–29 September (answered the check late on the 29th): read from the Internet Archive's copies meanwhile (§1); 5,253 records still *headline only* |
-| KP | 7,046 | early September: only what the Internet Archive captured (~60% of online news) |
-| Zvezda | 2,334 | early September and 21–23 September from the Internet Archive (~70% of early September) |
-| TASS (Russian) | 2,364 | feeds only, from 24 September; hours lost on 25–29 September, listed on the Outlets page (§1) |
-| Sputnik | 602 | answers neither Finland nor GitHub: some 15–30 a day from the Internet Archive's copies |
-| Regnum | 219 | from 28–29 September, its feed only (its pages refuse; the feed answers GitHub, not Finland) |
+| MK | 21,267 | did not answer GitHub 27–29 September and on 2, 3 and 6 October: read from the Internet Archive's copies those nights (4,608 records); answers on the other nights; no headline-only records left |
+| KP | 10,602 | early September: only what the Internet Archive captured (~60% of online news) |
+| Zvezda | 3,247 | early September and 21–23 September from the Internet Archive (~70% of early September) |
+| TASS (Russian) | 12,690 | feeds only, from 24 September; hours lost are listed on the Outlets page (§1) |
+| Sputnik | 778 | answers neither Finland nor GitHub: some 15–30 a day from the Internet Archive's copies |
+| Regnum | 2,159 | feed only since 29 September, ~210 a day; its pages answered GitHub in the check of 5 October (§2) |
 
 ## 1. Collection on GitHub (watch the next runs)
 
-- [ ] **The changes of 29 September: watch the first nightly run** (30 September, ~07:00 UTC). Already seen
-      working on GitHub that evening: the tests and the site build with the upgraded Actions (checkout v7,
-      setup-python v7, cache v6, setup-node v7, configure-pages v6, upload-pages-artifact v5, deploy-pages v5);
-      the check, committing `data/state/check.json` through `.github/commit-data.sh` with checkout v7's stored
-      credentials; a poll (21:02 UTC, started by a push: `poll.yml` also runs when it or the commit script
-      changes) that read Regnum's feed (219 articles), filled in the texts of 172 TASS articles and committed.
-      The merge driver has not had to merge on GitHub yet. The API lists runs and job steps without a token:
-      `https://api.github.com/repos/Savvyboi/Woland/actions/runs`. Note: a local `woland poll` records a
-      reading in `runs.json` too, so GitHub's next poll skips its turn for 40 minutes after one is pushed.
-- [ ] **Hourly feeds run about every six hours.** On 28–29 September GitHub started the 15-minute schedule about
-      four times a day (01:19, 07:00, 13:59, 19:19 UTC on the 29th), and the two runs queued behind the nightly
-      run lost their reads: they committed on top of the commit that was current when they were *queued*, and
-      the rebase conflicted (fixed: checkout at the branch tip, as `deploy.yml` already did, and the merge
-      driver). Decided on 28 September: no outside trigger. Since 29 September TASS is read from its feed for
-      news aggregators, which reaches back about twelve hours on a weekday, so a reading every six hours loses
-      nothing; the Outlets page lists any hours lost (see §2). If they reappear, reconsider an outside trigger.
-- [ ] **MK answers GitHub again** (the check of 29 September, 20:42 UTC, read two of its pages directly). If the
-      nightly runs confirm it, update MK's note (en/fi/sv) and the README, which say it does not answer GitHub.
-      Until then its backlog came from the Internet Archive, which answers GitHub: the nightly run of 28 September
-      read 1,189 new articles from the copies and completed 84; that of 29 September 146 new and 987 completed.
-      5,253 headline-only records remain; at MK's ~15 pages a minute and 90-minute budget, some four nights.
-- [ ] The nightly run (01:17 UTC) started at 06:36 and 06:54 UTC on 27–29 September: late runs cost nothing but a
-      later site.
+- [ ] **TASS's feed for news aggregators fails now and then, and did so unreported.** On 7–8 October several
+      readings found only ~170 items in TASS's three feeds (13:49 UTC on the 7th; 03:01, 07:25 and 10:25 UTC on
+      the 8th) instead of ~800: `rss/yandex.xml`, which holds ~650 of them and reaches back about twelve hours,
+      had failed while the main and sport feeds answered, and a source only reported an error when *all* its
+      feeds failed. The hours 05:54–07:07 and 07:10–07:31 Moscow time on 8 October were lost (the Outlets page
+      lists them). Fixed on 9 October: a feed that fails beside others, answers with nothing in it, or with a
+      bot check is now reported (`SourcePartial` in `discover.py`), and the run log says "error 403", "a feed
+      was empty" or "refused the pages". Watch the next runs: how often it fails, and with what. If it is often,
+      read the feeds more often while they fail, or ask why.
+- [ ] **Hourly feeds run every three to seven hours** (4–6 polls a day, 30 September – 8 October). Since TASS is
+      read from its twelve-hour feed (30 September) that lost nothing until the feed itself failed (above).
+      Decided on 28 September: no outside trigger; reconsider if hours are lost again.
+- [ ] The nightly run (01:17 UTC) starts at 06:30–07:35 UTC and takes 70–100 minutes (MK's 90-minute cap
+      dominates), the site build ~10 more: late runs cost nothing but a later site.
+
+Done on 30 September – 9 October:
+- **The changes of 29 September worked**: every nightly run and poll since has succeeded, the site was rebuilt
+  after each nightly run, and `tests/test_data.py` passed each time.
+- **MK answers GitHub** on most nights (not on 29 September, 2, 3 or 6 October, when its pages were read from the
+  Internet Archive's copies): its note (en/fi/sv), the README and the Method page say so now. Its 5,253
+  headline-only records were all completed by 8 October.
+- AiF's feed, sitemap and news listing all answered 404 one night (30 September; nothing new from AiF that
+  night) and its sitemap once answered 502 (5 October); the next nights caught up.
 
 ## 2. Data gaps
 
-- [ ] **Regnum, feed only** (enabled on 29 September): the check of 29 September read its feed from GitHub (218
-      items, about a day) while its pages answered 403, as they do from Finland, where the feed answers 403 too
-      (robots.txt, in the Archive's copy of 10 September, allows the feed). Watch its first days: the feed's
-      reach (~250 items), whether GitHub keeps being let in, and whether its leads (cut off by the feed with
-      "...") read well. No backfill is possible: the Internet Archive has only error pages for its news.
-
-Done on 29 September:
-- **TASS from GitHub's servers**: the check (29 September, 20:42 UTC) got 403 for an article page, `robots.txt`
-  and the sitemap, as from Finland (where all three once answered 200 for a few minutes that evening: the shield
-  lets requests through now and then, which is no invitation). TASS stays feed-only; `check.json` keeps
-  watching. The Kremlin's pages answered 200 from GitHub, but its feed carries the full texts anyway.
-- **TASS read from three feeds** (`config/outlets.yaml`): `rss/yandex.xml`, its feed for news aggregators (the
-  latest ~650 items, back to 10:00 at 23:00 on a Tuesday, with full texts: everything but sport and science;
-  robots.txt allows it), the sport section's (`v2.xml?sections=` + TASS's section id in base64, `MjE3Ng==` =
-  2176; others: 22 world, 23 politics, 24 society, 25 economy, 27 incidents, 28 culture; an unknown id returns
-  the main feed) and the main feed (100 items, ~3 hours; the only one with science). Framings are now found in
-  TASS's texts too. A local reading at 23:20 Moscow time recovered 498 articles of 29 September.
-- **Hours lost are listed automatically**: a silence of more than 45 minutes between stored TASS articles (sport
-  and science aside) — never seen while the feed was read in time (at most ~27 minutes, at night) — is shown on
-  the Outlets page and in the day's coverage note on Today (`gaps` in `outlets.yaml`, `feed_gaps` in `build.py`).
-  The hand-kept list in TASS's note is gone.
-- **Kremlin leads**: a feed-only outlet's stored articles are completed when a feed describes them better
-  (`fill_day`: lead, and text count, fingerprint and body matches if the text was missing). Re-reading the
-  Kremlin's paged feeds filled the leads of all 170 September records that had none, and found 5 articles
-  that had been missed.
-- **KP's early September has no other public listing** (looked on 29 September): `/daily/<n>/`, `/daily/`,
-  `/archive/` and `/online/archive/` are 404; `/online/` and rubric pages (`/politics/`) show only the latest
-  items and page by script through `/content/api/`, which robots.txt closes; the sitemaps hold two days of
-  online news and two weeks of newspaper articles. So 1–22 September stays as the Internet Archive walk left
-  it (~60% of online news), and KP's newspaper articles begin on 10 September.
-- **Zvezda's 22–23 September filled** (248 articles, read from Zvezda's pages; its note no longer calls them
-  missing): the Internet Archive had captured them after all, but the nightly retries never asked it: sources
-  kept for older days were read only when a run reached back *more than one day* before the rolling window
-  (an off-by-one: `beyond_window` in `collect.py` now reads them for any day before it).
-- **Tsargrad's early September is not a gap**: its own monthly sitemaps list mostly 300–470 items a weekday in
-  August and until 8 September, 650–830 from 9 September (the note says so now).
-- **Izvestia's video items** (1,727 of 12,271 in September, 1,610 without a lead; their text is a caption of a
-  few dozen words) are labelled "video" on the site, in citations and in CSV exports (`video` in
-  `outlets.yaml`, a URL pattern); decided with the user to keep them in all counts.
+- [ ] **Regnum's pages answered GitHub** in the check of 5 October (article page, `robots.txt` and sitemap: 200;
+      on 29 September all 403; from Finland still 403). If the next checks (Mondays) confirm it, decide whether
+      to read its pages from GitHub as for the other outlets (`fetch: true`, `article`, a sitemap source): full
+      texts, so framings in the body too, and a backfill of its sitemaps for September. Not decided: a site that
+      answers is not refusing, but Finland is still refused.
+- [ ] Regnum's feed holds ~250 items (about a day) and its leads end with "..." where the feed cuts them: they
+      read well enough. A few items of 24 and 28 September came with the first reading; the Outlets page now
+      says "since" the first of three days in a row with articles, and "a day" as the median of complete days.
 
 ## 3. Engineering
 
-- [ ] **Repository size.** September is ~150 MB of JSONL on disk (13 MB packed in git, plus loose objects), the
-      URL index ~5 MB. At ~1.8 GB of JSONL a year, plan to move older years into release assets and keep
-      `WOLAND_SEARCH_MONTHS` (default 18) under the Pages 1 GB limit (the September site is 58 MB).
-- [ ] **Two runs writing at once** can now merge (`woland/merge.py`), but all data-writing workflows still share
-      the `woland-data` concurrency group, so GitHub's own runs never do. If the polls are ever moved to a group
-      of their own (so that they read feeds during the nightly run), one rare case is not handled: the same new
-      article filed under two different days by the two runs (feed time and page time on either side of
-      midnight) would be stored twice, and `tests/test_data.py` would say so after the nightly commit.
+- [ ] **Repository size.** 1 September – 8 October is ~214 MB of JSONL on disk, ~50 MB packed in git; the lead
+      translations of 9 October add about a fifth. At ~2 GB of JSONL a year, plan to move older years into
+      release assets and keep `WOLAND_SEARCH_MONTHS` (default 18) under the Pages 1 GB limit.
+- [ ] **Two runs writing at once** can merge (`woland/merge.py`), but all data-writing workflows share the
+      `woland-data` concurrency group, so GitHub's own runs never do. If the polls are ever moved to a group of
+      their own, one rare case is not handled: the same new article filed under two different days by the two
+      runs (feed time and page time on either side of midnight) would be stored twice, and
+      `tests/test_data.py` would say so after the nightly commit.
 
-Done on 29 September: checkout at the branch tip for the poll and the nightly run (a run queued behind another
-committed on a stale base, and its data was lost); a merge driver for data files (`.gitattributes`,
-`woland/merge.py`: records by URL, coverage by outlet and day, the URL index by key); all data commits through
-`.github/commit-data.sh`; Actions upgraded; the check reads pages as the collector does (from the Internet
-Archive's copy when an outlet does not answer), so MK and Sputnik no longer fail it, and commits its results.
+Done on 9 October: **leads and snippets are translated too** (`de`, `kbe`; the user's request): sentence by
+sentence (whole leads lost a sentence in 36 of 180 two-sentence leads), with the little words left dangling
+where a lead was cut off dropped and an ellipsis instead (the model otherwise finished such sentences itself:
+"рассказал президент…" → "said the President of Russia"); in batches side by side (2.5 times faster). The
+archive's 245,530 leads and 34,890 snippets were translated locally the same night; new records are
+translated as they are collected, and `woland translate` (the nightly step) fills in what is missing.
 
 ## 4. Analysis and content (needs a person with the expertise)
 
@@ -108,13 +78,10 @@ Archive's copy when an outlet does not answer), so MK and Sputnik no longer fail
       "genocide of the Soviet people" campaign is its own framing. `python -m woland sample <framing> --seed N`
       draws a fresh sample; after changing a framing, read one and update its `checked` entry. TASS's texts are
       matched since 30 September: its body matches were not part of the audited samples.
-- [ ] **Translation glossary** (`config/glossary.yaml`, 25 entries): run `python -m woland mtcheck` now and then.
-      It reports only the entries' own words; names missing from the glossary have to be spotted in the
-      translations. Most "still without it" lines are translations that dropped the word altogether. On 29
-      September the renderings it still missed were counted over the whole archive and added: СК as "IC" (59
-      headlines), СВО as "SVD", "SWO", "CVO", "CVD", "VO" (not with СВД, the rifle), Герань's case forms
-      ("Geranei", "Gerans", …), Буча as "Bute", "Buce", "Buch", "Butchu", "Butcha". Not added: "SC" for СК
-      (it can be a sports complex, "СК «ЦСКА Арена»").
+- [ ] **Translation glossary** (`config/glossary.yaml`, 26 entries): it now corrects leads and snippets too, and
+      `python -m woland mtcheck` counts them. Run it now and then; names missing from the glossary have to be
+      spotted in the translations. Added on 9 October: СФ, the Federation Council ("SF" in 28 of 40 headlines,
+      once "FSB" in a snippet). Not added: "SC" for СК (it can be a sports complex, "СК «ЦСКА Арена»").
 - [ ] **Finnish and Swedish** need a native speaker's check: `site/assets/js/i18n.js` and the FI/SV halves of
       `site/method.html` — including the paragraphs added on 25–26 September (sites that refuse automated
       readers, the Internet Archive, *headline only* records, where leads come from), the strings
@@ -123,24 +90,34 @@ Archive's copy when an outlet does not answer), so MK and Sputnik no longer fail
       citations, completed days, coverage, rising words, archive filters and the collection log; the outlet
       notes (`note` in `config/outlets.yaml`) and the context labels in `config/lexicon.yaml`), on 28
       September: `narratives.patterns.note` (the `~`), the Method page's sentence on the chance test for rising
-      words, and the MK, Sputnik and TASS notes; and on 29 September: TASS's new note, the Method page's TASS
+      words, and the MK, Sputnik and TASS notes; on 29 September: TASS's new note, the Method page's TASS
       paragraph and coverage item, and the strings `today.cov.gaps`, `outlets.gaps`, `outlets.gaps.hint`,
       `outlets.gaps.day`; `article.video` and `article.video.title`; the notes of Izvestia, Tsargrad, KP and
-      Regnum (and Regnum's shorter `about`); the Method page's sentence on Regnum.
+      Regnum (and Regnum's shorter `about`); the Method page's sentence on Regnum; and on 9 October: MK's note,
+      the sentence in TASS's note on its failing feed, the Method page's sentences on MK, on what is stored, machine translation and searching, the strings
+      `archive.syntax`, `archive.scope.words`, `today.lede.rising.one`, `outlets.perday.hint`, `problem.*`,
+      `title.*`, `nav.contents`, `nav.days`; "narratiiveja" and "narrativ" for "kehystyksiä" and "inramningar"
+      in TASS's note and Method paragraph (the words the rest of the site uses).
 - [ ] **Legal**: most of these outlets fall under the EU broadcasting ban. Woland shows headlines, leads
-      (≤ 240 characters) and snippets (≤ ~170) for analysis; the README flags this, but it is not legal
-      advice.
+      (≤ 240 characters) and snippets (≤ ~170) for analysis, and now their machine translations; the README
+      flags this, but it is not legal advice.
 
 ## 5. Site
 
 - [ ] **Load time** (measured 28 September from Finland on the live site; sizes compressed): Today ~104 KB and
-      loaded in ~1.2 s, Narratives ~145 KB, Outlets ~70 KB; the new build adds ~15 KB (Today ~118 KB). Fonts
-      come on top on a first visit: the site asks Google Fonts for 10 styles (20 files in Cyrillic and Latin,
-      585 KB), a page uses about seven (~430 KB) — four times the page itself, though `display=swap` shows the
-      text at once.
-      An archive search downloads ~600 KB (22 files; "Finland": the month's index file and 20 blocks of ~23 KB,
-      one per result shown), ~0.6 s here, ~3 s on a slow mobile link. Possible gains: smaller search blocks
-      (more files). Fonts: browsers download only the faces a page uses, so the two styles no page used
-      (Cormorant 600 and italic 500, dropped on 29 September) cost only CSS; PT Mono loads on the Method page
-      alone. Fewer faces per page would mean design changes (translations not in italic, no bold sans in
-      tiles and badges, the epigraphs' Russian lines in another face): the user's decision.
+      loaded in ~1.2 s, Narratives ~145 KB, Outlets ~70 KB. Fonts come on top on a first visit: the site asks
+      Google Fonts for 10 styles (20 files in Cyrillic and Latin, 585 KB), a page uses about seven (~430 KB) —
+      four times the page itself, though `display=swap` shows the text at once. An archive search downloads
+      ~600 KB (22 files; "Finland": the month's index file and 20 blocks of ~23 KB, one per result shown); the
+      lead translations make each block bigger (measure). Possible gains: smaller search blocks (more files).
+      Fewer faces per page would mean design changes (translations not in italic, no bold sans in tiles and
+      badges, the epigraphs' Russian lines in another face): the user's decision.
+- [ ] **Rising words** sometimes list one event twice ("Устуу Хурээ · буддийский" and "монастырский" on 7
+      October): a word joins an event only if 60% of its headlines share the event's *first* word (9 of 16
+      there). Comparing with every word of the event would join them, at some risk of chaining unrelated events.
+
+Done on 9 October: page titles and the labels of the page's landmarks in Finnish and Swedish; the run log says
+in words what went wrong (with the messages as a tooltip) instead of Python's exceptions; an outlet's "a day" is
+the median of its complete days and its "since" ignores stray early items (Regnum showed "166 a day since 24
+September"); ratios and the chart axis in the reader's number format; the Today summary in the singular when
+one framing rose; on a phone the list of framings and topics is a short box above the charts, not four screens.

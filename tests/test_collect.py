@@ -229,10 +229,80 @@ def test_days_with_passing_failures_stay_open_for_a_retry(fake_site, archive, mo
 
 def test_merge_day_keeps_existing_records_and_fills_missing_fields(archive):
     store.write_day(D, "t", [{"id": "t:1", "u": "https://t.ru/a/1", "p": "2026-09-10T10:00:00+03:00", "t": "A"}])
-    n = store.merge_day(D, "t", [{"id": "t:1", "u": "https://t.ru/a/1", "p": "2026-09-10T10:00:00+03:00", "t": "B", "te": "A!"},
+    n = store.merge_day(D, "t", [{"id": "t:1", "u": "https://t.ru/a/1", "p": "2026-09-10T10:00:00+03:00", "t": "A", "te": "A!",
+                                  "d": "Лид", "de": "Lead"},
                                  {"id": "t:2", "u": "https://t.ru/a/2", "p": "2026-09-10T09:00:00+03:00", "t": "C"}])
     recs = store.read_day(D, "t")
-    assert n == 2 and [r["t"] for r in recs] == ["C", "A"] and recs[1]["te"] == "A!"
+    assert n == 2 and [r["t"] for r in recs] == ["C", "A"] and recs[1]["te"] == "A!" and recs[1]["de"] == "Lead"
+
+
+def test_merge_day_lends_a_translation_only_with_the_text_it_translates(archive):
+    """A headline changed since it was stored: the stored one stays, and the new one's translation is no
+    translation of it."""
+    store.write_day(D, "t", [{"id": "t:1", "u": "https://t.ru/a/1", "p": "2026-09-10T10:00:00+03:00", "t": "A", "d": "Лид"}])
+    store.merge_day(D, "t", [{"id": "t:1", "u": "https://t.ru/a/1", "p": "2026-09-10T10:00:00+03:00", "t": "B", "te": "B!",
+                              "d": "Другой лид", "de": "Another lead"}])
+    (rec,) = store.read_day(D, "t")
+    assert rec["t"] == "A" and rec["d"] == "Лид" and "te" not in rec and "de" not in rec
+
+
+class FakeTranslator:
+    """Translates by marking the text, and records what it was asked."""
+    def __init__(self):
+        self.asked = []
+
+    def translate(self, texts):
+        self.asked += texts
+        return [f"EN({t})" for t in texts]
+
+
+def test_headlines_leads_and_snippets_are_translated_once(monkeypatch):
+    fake = FakeTranslator()
+    monkeypatch.setattr(collect, "get_translator", lambda: fake)
+    recs = [{"t": "Заголовок", "d": "Лид.", "kb": {"nazis": "…нацисты…"}},
+            {"t": "Второй", "te": "Second", "d": "Лид два", "de": "Lead two", "kb": {"nazis": "…x…", "fakes": "…фейк…"},
+             "kbe": {"nazis": "…x…!"}},
+            {"t": "Третий", "te": "Third"}]
+    assert collect.translate_records(recs) == 2
+    assert recs[0] == {"t": "Заголовок", "te": "EN(Заголовок)", "d": "Лид.", "de": "EN(Лид.)", "kb": {"nazis": "…нацисты…"},
+                       "kbe": {"nazis": "EN(…нацисты…)"}}
+    assert recs[1]["te"] == "Second" and recs[1]["de"] == "Lead two" and recs[1]["kbe"] == {"nazis": "…x…!", "fakes": "EN(…фейк…)"}
+    assert sorted(fake.asked) == sorted(["Заголовок", "Лид.", "…нацисты…", "…фейк…"])
+    assert collect.translate_records(recs) == 0
+
+
+def test_texts_are_translated_sentence_by_sentence():
+    from woland.translate import sentences
+    assert sentences("Путин провёл совещание. В. В. Путин заявил о росте на 5 млн. Рублей больше! Что дальше? «Ничего», — сказал он.") \
+        == ["Путин провёл совещание.", "В. В. Путин заявил о росте на 5 млн. Рублей больше!", "Что дальше?", "«Ничего», — сказал он."]
+    assert sentences("Один заголовок без точки") == ["Один заголовок без точки"]
+    assert sentences("…конец предложения. Начало следующего…") == ["…конец предложения.", "Начало следующего…"]
+    assert sentences("Об этом заявил министр.«Мы готовы»") == ["Об этом заявил министр.", "«Мы готовы»"]
+
+
+def test_a_text_cut_off_is_translated_only_as_far_as_it_goes():
+    """The little words left dangling where a lead or snippet was cut off are not given to the model, which would
+    finish the sentence itself; the translation ends (and begins) with an ellipsis where the original does."""
+    from woland import translate
+    assert translate._pieces("Об этом заявил министр.«Мы готовы к…") == (["Об этом заявил министр.", "«Мы готовы"], False, True)
+    assert translate._pieces("…конец фразы. Начало другой, и в…") == (["конец фразы.", "Начало другой"], True, True)
+    assert translate._pieces("Целый заголовок") == (["Целый заголовок"], False, False)
+
+    class Pieces:  # sentencepiece: one piece per sentence
+        def encode(self, texts, out_type=str):
+            return [[t] for t in texts]
+
+        def decode(self, pieces):
+            return pieces[0]
+
+    class Model:  # the translation model
+        def translate_batch(self, pieces, **kw):
+            return [type("Result", (), {"hypotheses": [[f"EN<{p[0]}>."]]}) for p in pieces]
+
+    tr = object.__new__(translate.Translator)
+    tr.sp, tr.translator = Pieces(), Model()
+    assert tr.translate(["В. Путин. Новое", "…середина фразы и…", ""]) == \
+        ["EN<В. Путин.>. EN<Новое>.", "…EN<середина фразы>…", ""]
 
 
 # ── planning which days to collect ────────────────────────────────────────────

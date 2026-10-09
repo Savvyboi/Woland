@@ -103,6 +103,8 @@ export function fmtPct(x, digits) {
   const d = digits ?? (x < 0.01 ? 2 : x < 0.1 ? 1 : 0);
   return new Intl.NumberFormat(LOC(), { style: "percent", minimumFractionDigits: d, maximumFractionDigits: d }).format(x);
 }
+/** A ratio such as 2.5 (2,5 in Finnish and Swedish); whole numbers from ten up. */
+export const fmtRatio = (x) => new Intl.NumberFormat(LOC(), { maximumFractionDigits: x >= 10 ? 0 : 1 }).format(x);
 export function fmtCompact(n) {
   return new Intl.NumberFormat(LOC(), { notation: n >= 10000 ? "compact" : "standard", maximumFractionDigits: 1 }).format(n);
 }
@@ -193,6 +195,7 @@ export function initChrome(page) {
     });
   }
   applyI18n();
+  document.title = `Woland — ${t(`title.${page}`)}`;  // (Today and Narratives name their day or framing once loaded)
   compactHead(page);
 }
 
@@ -236,17 +239,19 @@ export function showError(container, err) {
 }
 
 // ── Articles ────────────────────────────────────────────────────────────────
-/** Normalise a search-index document array. */
+/** Normalise a search-index document array (woland/build.py: day_aggregates). */
 export function fromIndex(a) {
   return { o: outletAt(a[0])?.id, ts: a[1], t: a[2], te: a[3], d: a[4], u: a[5], ks: a[6] || [],
-           sn: a[7] || {}, h: a[8], r: a[9], a: a[10], f: a[11] || 0, w: a[12], ar: a[13] || "" };
+           sn: a[7] || {}, h: a[8], r: a[9], a: a[10], f: a[11] || 0, w: a[12], ar: a[13] || "",
+           de: a[14] || "", sne: a[15] || {} };
 }
 /** Normalise a digest example. */
 export function fromExample(ex, dayIso, narrId) {
   const ts = Math.floor(new Date(`${dayIso}T${ex.p || "12:00"}:00+03:00`).getTime() / 1000);
   const k = narrId ? narrative(narrId)?.idx : undefined;
   return { o: ex.o, ts, t: ex.t, te: ex.te, u: ex.u, id: ex.id, ks: k !== undefined ? [k] : [],
-           sn: ex.s && k !== undefined ? { [k]: ex.s } : {}, f: ex.f || 0, h: ex.h, r: ex.r, w: ex.w, ar: ex.ar || "" };
+           sn: ex.s && k !== undefined ? { [k]: ex.s } : {}, sne: ex.se && k !== undefined ? { [k]: ex.se } : {},
+           f: ex.f || 0, h: ex.h, r: ex.r, w: ex.w, ar: ex.ar || "" };
 }
 
 /** How Woland obtained a record: page (read in full), notext (page read, but it had no text), archive (the
@@ -361,16 +366,18 @@ export function articleCard(doc, opts = {}) {
   const title = el("h3", {}, el("a", { href: doc.u, rel: "noopener noreferrer nofollow", target: "_blank", lang: o.lang },
     ...highlight(doc.t, opts.terms)));
   const kids = [meta, title];
-  if (doc.te && o.lang !== "en") {
-    kids.push(el("p", { class: "tr", lang: "en" }, el("abbr", { class: "mt", title: t("article.mt.title") }, t("article.mt")),
-      ...highlight(doc.te, opts.terms)));
-  }
-  if (doc.d && !opts.noLead) kids.push(el("p", { class: "lead", lang: o.lang }, ...highlight(doc.d, opts.terms)));
+  // English machine translations of a Russian article's headline, lead and snippets, each under its original
+  const mt = (cls, en) => (en && o.lang !== "en" ? el("p", { class: cls, lang: "en" },
+    el("abbr", { class: "mt", title: t("article.mt.title") }, t("article.mt")), ...highlight(en, opts.terms)) : null);
+  kids.push(mt("tr", doc.te));
+  if (doc.d && !opts.noLead) kids.push(el("p", { class: "lead", lang: o.lang }, ...highlight(doc.d, opts.terms)), mt("tr lead-tr", doc.de));
   for (const [k, s] of Object.entries(doc.sn || {})) {
     const n = narrativeAt(Number(k));
     if (!n || (opts.only !== undefined && Number(k) !== opts.only)) continue;
-    kids.push(el("p", { class: "snip", lang: o.lang }, el("span", { class: "sr-only" }, `${t("article.body")}: `), s,
-      el("span", { class: "n", style: { color: "var(--text-3)", fontSize: ".8em", marginLeft: ".5em" } }, `— ${tl(n.label)}`)));
+    kids.push(el("div", { class: "snip" },
+      el("p", { lang: o.lang }, el("span", { class: "sr-only" }, `${t("article.body")}: `), s,
+        el("span", { class: "n", lang }, ` — ${tl(n.label)}`)),
+      mt("tr", (doc.sne || {})[k])));
   }
   if (doc.ks?.length && !opts.noTags) {
     const tags = doc.ks.map((k) => narrativeAt(k)).filter(Boolean)
@@ -436,6 +443,7 @@ export function recordOf(doc, id) {
   return {
     id: id || null, outlet: o.name, outlet_id: doc.o, language: o.lang,
     published: mskStamp(doc.ts), title: doc.t, title_en_mt: doc.te || null, lead: doc.d || null,
+    lead_en_mt: doc.de || null,
     url: doc.u, archive: copyUrl(doc), archive_capture_read: doc.ar || null,
     source: SOURCE_EN[sourceOf(doc)], body_words: doc.w ?? null, video: isVideo(doc),
     retrieved: doc.r || null, fingerprint: doc.h || null,

@@ -246,6 +246,25 @@ def test_the_run_log_keeps_the_nightly_runs_among_frequent_polls():
     assert [r["at"] for r in shown] == sorted(r["at"] for r in shown)
 
 
+def test_the_run_log_says_in_words_what_went_wrong():
+    """The Outlets page words each problem in the reader's language; the messages themselves go along."""
+    problems = buildmod.run_problems
+    timeout = ("html_list: https://www.mk.ru/news/2026/9/1/: ConnectTimeout: HTTPSConnectionPool(host='www.mk.ru', "
+               "port=443): Max retries exceeded with url: /news/2026/9/1/ (Caused by ConnectTimeoutError(…))")
+    mk = problems({"aborted": "time budget exhausted", "errors": [timeout]})
+    assert mk["c"] == ["budget", "noanswer"] and mk["t"].startswith("time budget exhausted; html_list:")
+    assert len(mk["t"]) <= 300
+    assert problems({"errors": ["rss: https://aif.ru/rss/news.php: 404", "sitemap_index: https://aif.ru/sitemap.xml: 404"]})["c"] \
+        == ["http 404"]
+    assert problems({"aborted": "unreachable (401)"})["c"] == ["refused"]
+    assert problems({"errors": ["rss: https://tass.ru/rss/yandex.xml: no items; https://tass.ru/rss/v2.xml: bot check"]})["c"] \
+        == ["refused"]
+    assert problems({"errors": ["rss: https://tass.ru/rss/yandex.xml: no items"]})["c"] == ["empty"]
+    assert problems({"aborted": "no connection to tass.ru"})["c"] == ["noanswer"]
+    assert problems({"error": "KeyError: 'p'"})["c"] == ["failed"]
+    assert problems({"errors": [], "aborted": ""}) is None
+
+
 def test_snippet_is_short_and_centred():
     text = "слово " * 100 + "ЦЕЛЬ" + " слово" * 100
     i = text.index("ЦЕЛЬ")

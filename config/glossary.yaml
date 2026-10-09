@@ -1,11 +1,11 @@
-# Corrections to the machine translation of Russian headlines (woland/translate.py), for names and
-# terms the model gets wrong. They are applied when the site is built, to the whole archive at once;
-# the model's own output stays in data/ (the field `te`). Search, exports and citations use the
-# corrected text.
+# Corrections to the machine translation of Russian headlines, leads and snippets (woland/translate.py),
+# for names and terms the model gets wrong. They are applied when the site is built, to the whole archive
+# at once; the model's own output stays in data/ (the fields `te`, `de` and `kbe`). Search, exports and
+# citations use the corrected text.
 #
-#   ru:     a regular expression that must match the Russian headline (case-sensitive: names are
+#   ru:     a regular expression that must match the Russian text (case-sensitive: names are
 #           capitalised, and "сальдо" is a balance while "Сальдо" is a governor)
-#   not:    (optional) a regular expression; when it matches the Russian headline the entry is skipped
+#   not:    (optional) a regular expression; when it matches the Russian text the entry is skipped
 #   wrong:  what the model writes instead: regular expressions matched against whole words of the
 #           translation, case-sensitively
 #   en:     the right rendering
@@ -32,6 +32,8 @@ entries:
   # (SVD is also the sniper rifle, СВД)
   - {ru: '\bСВО\b', not: '\bСВ[РД]\b', wrong: ['SBO', 'NWO', 'CBO', 'SVR', 'SVD', 'SWO', 'CVO', 'CVD', 'VO'], en: 'SVO'}
   - {ru: '\bВСУ\b', wrong: ['APU'], en: 'AFU'}
+  # СФ, the Federation Council: "SF" in 28 of 40 headlines; once "FSB" in a snippet (October 2026)
+  - {ru: '\bСФ\b', not: '\bФСБ\b', wrong: ['SF', 'FSB'], en: 'Federation Council'}
   - {ru: '\bСК\b', not: 'Британ|Великобритан|Лондон|Соединенн\w+ Королевств', wrong: ['SK RF', 'SK', 'UK', 'IC'], en: 'Investigative Committee'}
   - {ru: 'Росгвардейц', wrong: ['Rosgvardeyts\w*', 'Rosgvardeyets\w*', 'Rosgvardeits\w*', 'Regardie officers'], en: 'Rosgvardia officers'}
   - {ru: 'Росгварди', wrong: ['Regardie', 'Rosgvardiya', 'Rosguard'], en: 'Rosgvardia'}

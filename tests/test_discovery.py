@@ -239,6 +239,18 @@ def test_discover_merges_sources_and_keeps_going_after_a_failure(fake):
     assert [(c.title, c.capture) for c in cands] == [("Заголовок", "20260903081500")] and not errors
 
 
+def test_a_feed_failing_beside_others_is_reported_and_their_items_kept(fake):
+    """TASS is read from three feeds. When one fails — or answers with nothing in it — the others' items are
+    used and the failure reported, so that the hours only it held are not lost unnoticed."""
+    feed = ("<rss><channel><item><title>Заголовок</title><link>https://t.ru/a/1</link>"
+            "<pubDate>Thu, 03 Sep 2026 10:00:00 +0300</pubDate></item></channel></rss>")
+    f = fake({"https://t.ru/rss/main": feed, "https://t.ru/rss/big": 403, "https://t.ru/rss/sport": "<rss><channel></channel></rss>"})
+    o = outlet([{"type": "rss", "url": ["https://t.ru/rss/big", "https://t.ru/rss/sport", "https://t.ru/rss/main"]}])
+    cands, errors = discover(f, o, DAY, DAY)
+    assert [c.url for c in cands] == ["https://t.ru/a/1"]
+    assert errors == ["rss: https://t.ru/rss/big: 403; https://t.ru/rss/sport: no items"]
+
+
 # ── cookies are scoped to the outlet's own site ───────────────────────────────
 def test_fetcher_cookies_are_sent_only_to_their_site():
     f = Fetcher(cookies={"unity_pause_sso": "1"}, cookie_domain="gazeta.ru")

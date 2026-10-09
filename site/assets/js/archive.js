@@ -137,7 +137,7 @@ async function showMore() {
 }
 
 // The export carries the same fields as the record in the citation dialog (core.js: recordOf).
-const CSV_FIELDS = ["id", "published", "outlet", "outlet_id", "language", "title", "title_en_mt", "lead", "url", "archive",
+const CSV_FIELDS = ["id", "published", "outlet", "outlet_id", "language", "title", "title_en_mt", "lead", "lead_en_mt", "url", "archive",
   "archive_capture_read", "framings", "topics", "in_text_only", "source", "body_words", "video", "retrieved", "fingerprint"];
 
 async function exportCSV() {

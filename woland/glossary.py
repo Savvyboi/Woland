@@ -68,24 +68,24 @@ class Glossary:
 
 
 def report(records) -> str:
-    """For every entry: Russian headlines it concerns, translations it corrects, and translations that
-    still lack the right rendering afterwards (with a few examples, to find new mistakes)."""
+    """For every entry: Russian headlines and leads it concerns, translations it corrects, and translations
+    that still lack the right rendering afterwards (with a few examples, to find new mistakes)."""
     entries = load_glossary()
     stats = [[0, 0, []] for _ in entries]
     for r in records:
-        ru, en = r.get("t", ""), r.get("te", "")
-        if not en:
-            continue
-        for i, e in enumerate(entries):
-            if not e.applies(ru):
+        for ru, en in ((r.get("t", ""), r.get("te", "")), (r.get("d", ""), r.get("de", ""))):
+            if not en:
                 continue
-            s = stats[i]
-            s[0] += 1
-            fixed = e.fix(en)
-            s[1] += fixed != en
-            if not e.right.search(fixed) and len(s[2]) < 3:
-                s[2].append(f"{ru[:70]} | {fixed[:70]}")
-    lines = [f"{'Russian':34} {'headlines':>9} {'corrected':>9}  → English"]
+            for i, e in enumerate(entries):
+                if not e.applies(ru):
+                    continue
+                s = stats[i]
+                s[0] += 1
+                fixed = e.fix(en)
+                s[1] += fixed != en
+                if not e.right.search(fixed) and len(s[2]) < 3:
+                    s[2].append(f"{ru[:70]} | {fixed[:70]}")
+    lines = [f"{'Russian':34} {'texts':>9} {'corrected':>9}  → English"]
     for e, (n, fixed, missing) in zip(entries, stats):
         lines.append(f"{e.ru.pattern[:34]:34} {n:9} {fixed:9}  → {e.en}")
         lines += [f"{'':36}still without it: {m}" for m in missing]

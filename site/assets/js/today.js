@@ -1,7 +1,7 @@
 // Chapter I: the day's chronicle.
 import {
-  $, el, t, tl, META, loadMeta, getJSON, initChrome, fillFooter, fmtInt, fmtPct, fmtDay, fmtDayShort, delta, outlet,
-  narrative, groupVar, articleCard, fromExample, archiveSearch, showError, addDays, isOpenDay,
+  $, el, t, tl, META, loadMeta, getJSON, initChrome, fillFooter, fmtInt, fmtPct, fmtDay, fmtDayShort, fmtRatio, delta,
+  outlet, narrative, groupVar, articleCard, fromExample, archiveSearch, showError, addDays, isOpenDay,
 } from "./core.js";
 import { lang } from "./i18n.js";
 import { sparkline, barList } from "./charts.js";
@@ -129,7 +129,7 @@ function risingList(items, day, holder) {
   const item = (it, isHidden) => el("li", { class: isHidden ? "put-away" : null },
     el("a", { class: "w", href: archiveSearch({ q: it.q || it.w, from: day, to: day }) }, it.w),
     el("span", { class: "n" }, t("today.rising.explain", { n: fmtInt(it.n), base: fmtN(it.base) })),
-    el("span", { class: "x", title: t("today.rising.x", { x: it.x }) }, `×${it.x >= 10 ? Math.round(it.x) : it.x}`),
+    el("span", { class: "x", title: t("today.rising.x", { x: fmtRatio(it.x) }) }, `×${fmtRatio(it.x)}`),
     el("button", { class: "linkish hide-word", type: "button",
       "aria-label": t(isHidden ? "today.rising.unhide.label" : "today.rising.hide.label", { w: it.w }),
       onclick: () => {
@@ -186,7 +186,7 @@ function render(dg, day, series) {
   if (open) lede.append(t("today.lede.open"));
   else if (baseDays < 7) lede.append(t("today.lede.norising"));
   else if (rising.length) {
-    const [before, after] = t("today.lede.rising", { n: baseDays }).split("{list}");
+    const [before, after] = t(rising.length === 1 ? "today.lede.rising.one" : "today.lede.rising", { n: baseDays }).split("{list}");
     const parts = new Intl.ListFormat(lang === "en" ? "en-GB" : lang, { type: "conjunction" })
       .formatToParts(rising.map((x) => `${tl(narrative(x.r.id).label)} (${t("today.lede.item", { n: fmtInt(x.r.n), share: fmtPct(x.r.share), base: fmtPct(x.r.base) })})`));
     lede.append(before, ...parts.map((p) => (p.type === "element" ? el("em", {}, p.value) : p.value)), after);

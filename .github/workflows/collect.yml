@@ -59,8 +59,8 @@ jobs:
           if [ -n "$OUTLETS" ]; then args+=(--outlets "$OUTLETS"); fi
           python -m woland collect "${args[@]}"
 
-      # After a long catch-up, some headlines may still lack a translation; later runs finish the job.
-      - name: Translate missing headlines
+      # After a long catch-up, some headlines and leads may still lack a translation; later runs finish the job.
+      - name: Translate missing headlines, leads and snippets
         run: python -m woland translate --days 45 --budget 30
 
       - name: Commit new articles

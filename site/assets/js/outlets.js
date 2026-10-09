@@ -1,7 +1,7 @@
 // Chapter IV: the guests at the ball — every outlet, its owner, its habits and its collection health.
 import {
-  $, el, t, tl, META, loadMeta, getJSON, initChrome, fillFooter, fmtInt, fmtDay, fmtDayShort,
-  groupVar, archiveSearch, showError, GROUPS, isOpenDay,
+  $, el, t, tl, META, loadMeta, getJSON, initChrome, fillFooter, fmtInt, fmtDay, fmtDayShort, fmtRatio,
+  groupVar, archiveSearch, showError, GROUPS, isOpenDay, outlet,
 } from "./core.js";
 import { lang, LOCALES } from "./i18n.js";
 import { sparkline } from "./charts.js";
@@ -29,6 +29,16 @@ function leansOn(id, series, upto) {
     if (r >= 1.5) out.push({ n, r, share: h / mine });
   }
   return out.sort((a, b) => b.r - a.r).slice(0, 3);
+}
+
+/** An outlet's usual day — the median of its completed days with articles, so that a day still being collected
+ *  or a few old items a feed held when first read do not drag it down — and the first of its first three days in
+ *  a row with articles (such old items aside). */
+function usualDay(id, series, upto) {
+  const tot = (series.totals[id] || []).slice(0, upto);
+  const busy = tot.filter((v) => v > 0).sort((a, b) => a - b);
+  const i = tot.findIndex((v, k) => v && tot[k + 1] && tot[k + 2]);
+  return { perDay: busy.length ? busy[Math.floor(busy.length / 2)] : 0, first: i < 0 ? null : series.days[i] };
 }
 
 const STATUS = { c: "cov.c", p: "cov.p", f: "cov.f", m: "cov.m" };
@@ -78,7 +88,8 @@ function coverage(o, series, cov) {
 function card(o, series, cov, upto) {
   const tot = series.totals[o.id] || [];
   const recent = tot.slice(Math.max(0, upto - 30), upto);
-  const perDay = o.days ? o.n / o.days : 0;
+  const usual = usualDay(o.id, series, upto);
+  const since = usual.first || o.first;
   const badges = el("div", { class: "facts" },
     el("span", { class: "badge", style: { color: "var(--text-2)" } }, o.lang === "ru" ? "RU" : "EN"),
     o.eu_blocked ? el("span", { class: "badge eu", title: t("article.eu") }, t("article.eu")) : null,
@@ -97,8 +108,8 @@ function card(o, series, cov, upto) {
     el("p", { class: "about" }, tl(o.about)),
     collected ? el("div", { class: "facts" },
       el("span", {}, el("b", {}, fmtInt(o.n)), ` ${t("outlets.articles")}`),
-      el("span", {}, el("b", {}, fmtInt(perDay)), ` ${t("outlets.perday")}`),
-      o.first ? el("span", {}, `${t("outlets.since")} ${fmtDay(o.first)}`) : null,
+      el("span", { title: t("outlets.perday.hint") }, el("b", {}, fmtInt(usual.perDay)), ` ${t("outlets.perday")}`),
+      since ? el("span", {}, `${t("outlets.since")} ${fmtDay(since)}`) : null,
       o.listed ? el("span", { title: t("article.listed.title") }, el("b", {}, fmtInt(o.listed)), ` ${t("outlets.listed")}`) : null)
       : o.enabled ? el("p", { class: "facts notyet" }, t("outlets.notyet")) : null,
     o.note ? el("p", { class: "note" }, tl(o.note)) : null,
@@ -106,7 +117,7 @@ function card(o, series, cov, upto) {
     el("div", { class: "facts" }, o.enabled && collected ? [t(`outlets.method.${o.method}`), " · "] : null,
       el("a", { href: o.home, rel: "noopener noreferrer nofollow", target: "_blank" }, o.home.replace(/^https?:\/\//, ""))),
     leans.length ? el("div", { class: "facts" }, el("span", { title: t("outlets.top.hint") }, `${t("outlets.top")}:`),
-      ...leans.map((x) => el("a", { class: "tag framing", href: `narratives.html#${x.n.id}` }, `${tl(x.n.label)} ×${x.r.toFixed(1)}`))) : null,
+      ...leans.map((x) => el("a", { class: "tag framing", href: `narratives.html#${x.n.id}` }, `${tl(x.n.label)} ×${fmtRatio(x.r)}`))) : null,
     o.enabled ? coverage(o, series, cov) : null,
     collected ? el("a", { href: archiveSearch({ o: o.id }), style: { font: ".85rem var(--sans)" } }, `${t("nav.archive")} →`) : null);
 }
@@ -116,6 +127,18 @@ function duration(s) {
   if (s < 90) return t("dur.s", { n: Math.round(s) });
   const m = Math.round(s / 60);
   return m < 90 ? t("dur.m", { n: m }) : t("dur.h", { h: Math.floor(m / 60), m: m % 60 });
+}
+
+/** What went wrong for each outlet in a run, in words ("MK: did not answer, time ran out"); the messages
+ *  themselves in a tooltip (woland/build.py: run_problems). */
+function problems(r) {
+  const entries = Object.entries(r.problems || {});
+  if (!entries.length) return t("health.none");
+  const words = (p) => (typeof p === "string" ? p : p.c.map((code) => {  // (a string: a meta.json built before October 2026)
+    const [c, status] = code.split(" ");
+    return t(`problem.${c}`, { status });
+  }).join(", "));
+  return entries.map(([id, p], i) => [i ? " · " : "", el("span", { title: p.t || p }, `${outlet(id).name}: ${words(p)}`)]);
 }
 
 function health() {
@@ -133,11 +156,10 @@ function health() {
       el("tbody", {}, rows.map((r) => el("tr", {},
         el("td", {}, el("time", { datetime: r.at }, when.format(new Date(r.at)))),
         el("td", {}, t(`mode.${r.mode}`)),
-        el("td", { title: (r.outlets || []).join(", ") }, fmtInt((r.outlets || []).length)),
+        el("td", { title: (r.outlets || []).map((id) => outlet(id).name).join(", ") }, fmtInt((r.outlets || []).length)),
         el("td", {}, duration(r.seconds)),
         el("td", {}, fmtInt(r.new)),
-        el("td", { style: { textAlign: "left" } }, Object.keys(r.problems || {}).length
-          ? Object.entries(r.problems).map(([k, v]) => `${k}: ${v}`).join(" · ") : t("health.none"))))))));
+        el("td", { style: { textAlign: "left" } }, problems(r))))))));
 }
 
 async function main() {

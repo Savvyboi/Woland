@@ -11,11 +11,13 @@ Record fields (short names keep the archive small):
     id  stable id "<outlet>:<hash>"           o   outlet id
     u   URL                                   p   published, ISO 8601, Moscow time
     m   modified (if announced)               t   headline as published
-    te  English machine translation           d   lead / summary (max 240 characters)
+    te  its English machine translation       d   lead / summary (max 240 characters)
+    de  the lead's English machine translation
     s   section                               g   tags (max 8)
     a   author                                w   words in the body (0 = body not available)
     h   content fingerprint (sha256, 16 hex)  r   retrieved at (UTC)
     kb  narratives found only in the body text, with a short snippet as evidence
+    kbe the snippets' English machine translations, by narrative
     via how the article was obtained: page (article page read) or feed (outlet's own feed)
     ar  when the page was read from the Internet Archive's copy (the outlet did not answer): the
         capture's time, YYYYMMDDhhmmss (UTC), as in https://web.archive.org/web/<ar>/<u>
@@ -67,10 +69,21 @@ def write_day(day: date, outlet: str, records: list[dict]) -> None:
     os.replace(tmp, p)
 
 
+# A machine translation goes with the text it translates: another version of the record may lend it only
+# along with the same text.
+TRANSLATED = {"te": "t", "de": "d", "kbe": "kb"}
+
+
+def lends(field: str, to: dict, frm: dict) -> bool:
+    """May `frm` give `to` its `field`, which `to` lacks?"""
+    src = TRANSLATED.get(field)
+    return src is None or to.get(src) == frm.get(src)
+
+
 def merge_day(day: date, outlet: str, new: list[dict]) -> int:
     """Add records to a day file. Existing records win and missing fields are filled from the new ones,
     except that a record read from the article page replaces a headline-only one (via "feed") for the
-    same URL: the translation is kept if the headline did not change."""
+    same URL: the translations are kept where the headline or lead did not change."""
     existing = {r["u"]: r for r in read_day(day, outlet)}
     added = []
     for r in new:
@@ -79,12 +92,11 @@ def merge_day(day: date, outlet: str, new: list[dict]) -> int:
             existing[r["u"]] = r
             added.append(r["u"])
         elif old.get("via") == "feed" and r.get("via") == "page":
-            if not r.get("te") and old.get("te") and old.get("t") == r.get("t"):
-                r = {**r, "te": old["te"]}
-            existing[r["u"]] = r
+            kept = {k: old[k] for k in ("te", "de") if old.get(k) and not r.get(k) and lends(k, r, old)}
+            existing[r["u"]] = {**r, **kept} if kept else r
         else:
             for k, v in r.items():
-                if v and not old.get(k):
+                if v and not old.get(k) and lends(k, old, r):
                     old[k] = v
     write_day(day, outlet, list(existing.values()))
     if added:
@@ -95,8 +107,8 @@ def merge_day(day: date, outlet: str, new: list[dict]) -> int:
 def fill_day(day: date, outlet: str, new: list[dict]) -> int:
     """Fill in what stored records lack from a newer description of the same articles (a feed-only outlet's
     feed read again): the lead, section, tags, author and, when the text was not known before, its word
-    count, fingerprint and body matches. Articles not filed under this day are left alone; nothing is added.
-    Returns how many records changed."""
+    count, fingerprint and body matches (with the translations of what is filled in, if it has them).
+    Articles not filed under this day are left alone; nothing is added. Returns how many records changed."""
     records = read_day(day, outlet)
     by_url = {r["u"]: r for r in records}
     changed = 0
@@ -109,8 +121,8 @@ def fill_day(day: date, outlet: str, new: list[dict]) -> int:
             old["w"], old["h"] = r["w"], r["h"]
             if r.get("kb") and not old.get("kb"):
                 old["kb"] = r["kb"]
-        for k in ("d", "s", "g", "a"):
-            if r.get(k) and not old.get(k):
+        for k in ("d", "s", "g", "a", "de", "kbe"):
+            if r.get(k) and not old.get(k) and lends(k, old, r):
                 old[k] = r[k]
         changed += old != before
     if changed:

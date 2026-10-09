@@ -319,16 +319,32 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict,
 
 
 def translate_records(records: list[dict]) -> int:
-    todo = [r for r in records if r.get("t") and not r.get("te")]
-    if not todo:
+    """Add the English machine translations Russian records lack: of the headline (te), the lead (de) and
+    the snippets of body matches (kbe, by framing). Returns how many records gained one."""
+    jobs = []  # (record, field, framing or None, the Russian)
+    for r in records:
+        if r.get("t") and not r.get("te"):
+            jobs.append((r, "te", None, r["t"]))
+        if r.get("d") and not r.get("de"):
+            jobs.append((r, "de", None, r["d"]))
+        for nid, snip in (r.get("kb") or {}).items():
+            if snip and nid not in r.get("kbe", {}):
+                jobs.append((r, "kbe", nid, snip))
+    if not jobs:
         return 0
     tr = get_translator()
     if tr is None:
         return 0
-    for r, en in zip(todo, tr.translate([r["t"] for r in todo])):
-        if en:
-            r["te"] = en
-    return len(todo)
+    changed = set()
+    for (r, field, nid, _), en in zip(jobs, tr.translate([j[3] for j in jobs])):
+        if not en:
+            continue
+        if nid is None:
+            r[field] = en
+        else:
+            r.setdefault("kbe", {})[nid] = en
+        changed.add(id(r))
+    return len(changed)
 
 
 def _day_complete(day: date, run_started_msk: datetime) -> bool:
@@ -401,7 +417,8 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
     def sink_for(o: Outlet):
         def sink(records: list[dict]):
             # Translation is skipped once the time budget is spent; `woland translate` fills gaps later.
-            # (A stored record being completed keeps its own translation.)
+            # (A stored record being completed keeps its own translations, and a lead it gains is translated
+            # by `woland translate` too.)
             if translate and o.lang == "ru" and not budget.exceeded():
                 with tr_lock:
                     translated[o.id] += translate_records([r for r in records if "_fill" not in r])

@@ -91,6 +91,12 @@ function renderSide(current) {
         el("span", {}, tl(n.label)), el("span", { class: "cnt" }, fmtInt(total))))))];
   };
   side.replaceChildren(...block("framing", t("narratives.framings")), ...block("topic", t("narratives.topics")));
+  // the list scrolls in a box of its own: bring the framing shown into it, if it is out of sight there
+  const cur = side.querySelector('[aria-current="true"]');
+  if (cur) {
+    const top = cur.getBoundingClientRect().top - side.getBoundingClientRect().top;
+    if (top < 0 || top + cur.offsetHeight > side.clientHeight) side.scrollTop += top - side.clientHeight / 3;
+  }
 }
 
 function seg(label, options, value, onPick) {
@@ -149,7 +155,7 @@ async function renderNarrative(id) {
   const { start, end, days, openFrom } = w;
   const { ids: allIds, dropped } = outletIds(start, end);
   const all = counts(id, allIds, start, end);
-  const fmt = (v) => fmtPct(v, v < 0.01 ? 2 : 1);
+  const fmt = (v) => fmtPct(v, v === 0 ? 0 : v < 0.01 ? 2 : 1);
   const openNote = (i) => (openFrom !== null && i >= openFrom ? t("day.open.short") : "");
   const kids = [];
   kids.push(el("h2", { style: { font: "500 2.1rem/1.15 var(--display)", margin: "0 0 .3rem" } }, tl(n.label)));

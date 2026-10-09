@@ -42,18 +42,19 @@ def _three_way(base: dict, ours: dict, theirs: dict, both, removal_wins: bool = 
 
 
 # ── Day files: one record per URL ────────────────────────────────────────────
-_FILL = ("te", "d", "s", "g", "a")  # what one version of a record may lend the other
+# What one version of a record may lend the other (a lead before its translation): a translation only along
+# with the text it translates (store.lends).
+_FILL = ("d", "te", "de", "kbe", "s", "g", "a")
 
 
 def _record(o, a: dict, b: dict) -> dict:
     """Both sides changed the same article: keep the one read from its page, else the later retrieval, and
     fill in the descriptive fields it lacks from the other."""
+    from .store import lends
     first, second = sorted((a, b), key=lambda r: (r.get("via") == "page", r.get("r", "")), reverse=True)
     out = dict(first)
     for k in _FILL:
-        if k == "te" and first.get("t") != second.get("t"):
-            continue  # a translation of another headline
-        if second.get(k) and not out.get(k):
+        if second.get(k) and not out.get(k) and lends(k, out, second):
             out[k] = second[k]
     return out
 

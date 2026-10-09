@@ -46,8 +46,9 @@ neither Sputnik nor MK answered on 27 September 2026 (MK does from Finland): see
 - **Days still being collected** (after `complete_through` in `meta.json`) stay out of comparisons and averages
   unless the reader asks for them, and are marked wherever they are shown.
 - **Data**: one record per URL, filed under the Moscow day it was published; only headlines, leads (≤ 240
-  characters) and snippets (≤ ~170) are stored — never full texts. `tests/test_data.py` validates every record;
-  run it after any change to data or collection code.
+  characters) and snippets (≤ ~170), with their English machine translations (`te`, `de`, `kbe`), are stored —
+  never full texts. A translation goes with the text it translates (`store.lends`). `tests/test_data.py`
+  validates every record; run it after any change to data or collection code.
 - **The workflows commit to `main` every hour**: pull before committing locally, and don't run a local
   collection for outlets GitHub is collecting at the same time. Workflows commit data only through
   `.github/commit-data.sh` (merge driver, retries) and check out the branch tip (`ref: ${{ github.ref_name }}`):

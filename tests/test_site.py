@@ -53,6 +53,10 @@ def built_site(tmp_path_factory):
                     rec.update(w=0, via="feed")
                 if "staged" in t:  # read from the Internet Archive's copy: the outlet did not answer
                     rec["ar"] = f"{d:%Y%m%d}093000"
+                if "Уиткофф" in t:  # a lead and its translation, which the glossary corrects as well
+                    rec.update(d="Спецпосланник Уиткофф встретится с Путиным.", de="Special envoy Whitkoff will meet Putin.")
+                if "Лавров" in t:  # a framing found in the text only, with the snippet's translation
+                    rec.update(kb={"nazism": "…киевские неонацисты снова…"}, kbe={"nazism": "…Kiev neo-Nazis again…"})
                 if te:
                     rec["te"] = te
                 recs.append(rec)
@@ -132,6 +136,15 @@ def test_english_searches_find_either_spelling_and_corrected_translations(built_
     assert witkoff["total"] == 8 and all(h["te"] == "Witkoff arrived in Moscow" for h in witkoff["hits"])
 
 
+@needs_node
+def test_english_searches_cover_translated_leads_and_snippets_keep_their_translation(built_site):
+    meta = json.loads((built_site / "data" / "meta.json").read_text(encoding="utf-8"))
+    k = next(n["idx"] for n in meta["narratives"] if n["id"] == "nazism")
+    envoy, lavrov = search(built_site, {"q": "envoy"}, {"q": "лавров"})
+    assert envoy["total"] == 8 and all(h["de"] == "Special envoy Witkoff will meet Putin." for h in envoy["hits"])
+    assert lavrov["total"] == 8 and all(h["sne"] == {str(k): "…Kiev neo-Nazis again…"} and k in h["ks"] for h in lavrov["hits"])
+
+
 def cite(site, hits):
     res = subprocess.run([NODE, str(ROOT / "tests" / "js" / "cite_harness.mjs"), str(site), json.dumps(hits)],
                          capture_output=True, text=True, encoding="utf-8", check=True)
@@ -154,6 +167,8 @@ def test_citations_have_unique_keys_and_the_records_fields(built_site):
         assert r["video"] is False                                  # (only Izvestia's video items are)
     weather = next(x["record"] for x in out if x["record"]["title"].startswith("Синоптики"))
     assert weather["source"] == "headline only" and weather["body_words"] == 0
+    witkoff = next(x["record"] for x in out if x["record"]["title"].startswith("Уиткофф"))
+    assert witkoff["title_en_mt"] == "Witkoff arrived in Moscow" and witkoff["lead_en_mt"] == "Special envoy Witkoff will meet Putin."
     staged = next(x for x in out if x["record"]["title"].startswith("Kiev regime staged"))
     assert staged["record"]["source"] == "article page as captured by the Internet Archive"
     assert staged["record"]["archive_capture_read"] == "20260901093000"
@@ -167,6 +182,8 @@ def test_digest_examples_carry_what_a_citation_needs(built_site):
     assert ex and all(e["h"] == "0" * 16 and e["r"] == "2026-09-24" and e["w"] == 100 for e in ex)
     assert [e.get("ar") for e in ex if e["o"] == "rt"] == ["20260903093000"]    # read from the Archive's copy
     assert dg["spark_from"] == "2026-09-01" and len(dg["narratives"][0]["spark_n"]) == 3
+    (nazi,) = next(n for n in dg["narratives"] if n["id"] == "nazism")["ex"]
+    assert nazi["s"] == "…киевские неонацисты снова…" and nazi["se"] == "…Kiev neo-Nazis again…"
 
 
 def test_days_still_being_collected_and_outlets_not_collected(built_site):
