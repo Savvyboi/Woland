@@ -23,10 +23,12 @@ Open work for future sessions, most urgent first. State of the archive when this
       20:08–21:40 Moscow time: 818 articles that day against ~1,200; from 12:30 to 18:00 only 46, 35 of them
       sport, against 447 on 7 October). On 10 October every TASS feed answered 403 to Finland. From 10 October
       six section feeds are read as well (world, politics, society, economy, incidents, culture: 87% of what
-      was lost on 9 October), which reach back further than the main feed's three hours. Watch the next runs:
-      do the section feeds answer GitHub, and how far back do they reach? Their items come without the full
-      text unless the aggregator feed answers within about twelve hours (framings in headline and lead only).
-      The army, space and regional sections have no feed of their own that Woland knows of (an unknown
+      was lost on 9 October). The first reading with them (00:59 UTC on 10 October; every feed answered GitHub)
+      recovered 324 articles of 9 October back to 12:46 Moscow time, fifteen hours before it, 236 of them in
+      the hours lost: 9 October now has 1,142 articles and no hours listed as lost. Watch the next runs: how
+      far back do the section feeds reach, and do they keep answering? Their items come without the full text
+      unless the aggregator feed answers within about twelve hours (framings in headline and lead only). The
+      army, space and regional sections have no feed of their own that Woland knows of (an unknown
       `sections=` id gives the main feed).
 - [ ] **Hourly feeds run every three to seven hours** (4–6 polls a day, 30 September – 9 October). Decided on 28
       September: no outside trigger; reconsider now that TASS's fullest feed refuses (above): with only the main
@@ -107,7 +109,8 @@ translated as they are collected, and `woland translate` (the nightly step) fill
       the sentence in TASS's note on its failing feed, the Method page's sentences on MK, on what is stored, machine translation and searching, the strings
       `archive.syntax`, `archive.scope.words`, `today.lede.rising.one`, `outlets.perday.hint`, `problem.*`,
       `title.*`, `nav.contents`, `nav.days`; "narratiiveja" and "narrativ" for "kehystyksiä" and "inramningar"
-      in TASS's note and Method paragraph (the words the rest of the site uses).
+      in TASS's note and Method paragraph (the words the rest of the site uses); and on 10 October: the end of
+      TASS's note (its section feeds) and the Method page's sentence on how rising words are grouped.
 - [ ] **Legal**: most of these outlets fall under the EU broadcasting ban. Woland shows headlines, leads
       (≤ 240 characters) and snippets (≤ ~170) for analysis, and now their machine translations; the README
       flags this, but it is not legal advice.
@@ -127,11 +130,17 @@ translated as they are collected, and `woland translate` (the nightly step) fill
       (one index shard and one month file per month, and a block of 100 documents, ~30 KB, for nearly every
       result shown); since 10 October, with blocks of 25 documents and 256 shards, 336 KB (blocks 157 KB, month
       files 136 KB, shards 43 KB). The month files (one outlet code per document, ~100 KB a month) are now the
-      biggest part, and every month searched adds one: ordering a day's documents by outlet would shrink them
-      to almost nothing, but results are shown in the documents' (time) order. The site is 111 MB, 11,000 files.
+      biggest part, and every month searched adds one: a year on, a search over everything would download
+      ~1.2 MB of them. Ordering a day's documents by outlet would shrink them to almost nothing, but results
+      are shown in the documents' (time) order. A way out: carry each document's outlet in the postings (five
+      bits more per posting), keep per-outlet and per-day counts in the month file, and give searches without
+      words (an outlet or a language alone) per-outlet document lists of their own. The site is 111 MB, 11,000
+      files.
 - [ ] **Rising words** sometimes list one event twice ("Устуу Хурээ · буддийский" and "монастырский" on 7
       October): a word joins an event only if 60% of its headlines share the event's *first* word (9 of 16
-      there). Comparing with every word of the event would join them, at some risk of chaining unrelated events.
+      there). Since 10 October a word also joins an event whose first word was first used in the same headline:
+      over 4–8 October that joined three such pairs and nothing unrelated. Comparing with every word of the
+      event would join more, at some risk of chaining unrelated events.
 
 Done on 9 October: page titles and the labels of the page's landmarks in Finnish and Swedish; the run log says
 in words what went wrong (with the messages as a tooltip) instead of Python's exceptions; an outlet's "a day" is

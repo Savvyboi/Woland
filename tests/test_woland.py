@@ -243,6 +243,23 @@ def test_a_rising_word_must_be_more_than_chance(tmp_path):
     assert rising == ["rubio"]
 
 
+def test_words_first_used_in_the_same_headline_are_one_event(tmp_path):
+    """The Tuva fire of 7 October 2026: "Устуу Хурээ" and "монастырский" shared only 9 of 16 headlines, too few
+    to be grouped by their headlines, but both were first used in the same one."""
+    b = buildmod.Builder(tmp_path / "site")
+    ex = {"o": "ria", "u": "https://ria.ru/a", "t": "Пожар в монастырском комплексе Устуу-Хурээ"}
+
+    def day(df, posts=None, stem_ex=None):
+        return {"totals": {"ria": 1000}, "df": {"ru": df, "en": {}}, "forms": {"ru": {w: w for w in df}, "en": {}},
+                "posts": {"ru": posts or {}, "en": {}}, "stem_ex": {"ru": stem_ex or {}, "en": {}}}
+    history = {f"2026-10-{i:02d}": day({}) for i in range(1, 7)}
+    history["2026-10-07"] = day({"хурээ": 17, "монастырский": 16},
+                                {"хурээ": list(range(17)), "монастырский": list(range(8, 24))},
+                                {"хурээ": ex, "монастырский": ex})
+    (event,) = b.rising(date(2026, 10, 7), history)["ru"]
+    assert sorted(event["words"]) == ["монастырский", "хурээ"]
+
+
 def test_the_run_log_keeps_the_nightly_runs_among_frequent_polls():
     runs = [{"at": "2026-09-27T01:17:00Z", "mode": "daily"}] + \
         [{"at": f"2026-09-27T{h:02d}:30:00Z", "mode": "poll"} for h in range(2, 23)] + \

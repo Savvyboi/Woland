@@ -20,7 +20,7 @@ entries:
   - {ru: 'Каллас', wrong: ['Callas'], en: 'Kallas'}
   - {ru: 'Пезешкиан', wrong: ['Pezeshkin', 'Peseshkin', 'Peseshkian', 'Pezeshkiyan', 'Pezeshkyan'], en: 'Pezeshkian'}
   - {ru: 'Арагчи', wrong: ['Aragchi', 'Araqchi'], en: 'Araghchi'}
-  - {ru: 'Вадефул', wrong: ['Vadeful\w*', 'Wadeful\w*', 'Vadefuhl'], en: 'Wadephul'}
+  - {ru: 'Вадефул', wrong: ['Vadeful\w*', 'Wadeful\w*', 'Vadefuhl', 'Wadefould'], en: 'Wadephul'}
   - {ru: 'Стубб', wrong: ['Stubb[a-z]+'], en: 'Stubb'}
   - {ru: 'Мединск', wrong: ['Medina', 'Medinski'], en: 'Medinsky'}
   - {ru: 'Хинштейн', wrong: ['Hinstein', 'Khinstein'], en: 'Khinshtein'}
@@ -35,7 +35,7 @@ entries:
   # СФ, the Federation Council: "SF" in 28 of 40 headlines; once "FSB" in a snippet (October 2026)
   - {ru: '\bСФ\b', not: '\bФСБ\b', wrong: ['SF', 'FSB'], en: 'Federation Council'}
   - {ru: '\bСК\b', not: 'Британ|Великобритан|Лондон|Соединенн\w+ Королевств', wrong: ['SK RF', 'SK', 'UK', 'IC'], en: 'Investigative Committee'}
-  - {ru: 'Росгвардейц', wrong: ['Rosgvardeyts\w*', 'Rosgvardeyets\w*', 'Rosgvardeits\w*', 'Regardie officers'], en: 'Rosgvardia officers'}
+  - {ru: 'Росгвардейц', wrong: ['Rosgvardeyts\w*', 'Rosgvardeyets\w*', 'Rosgvardeits\w*', 'Regardie officers', 'Regarders'], en: 'Rosgvardia officers'}
   - {ru: 'Росгварди', wrong: ['Regardie', 'Rosgvardiya', 'Rosguard'], en: 'Rosgvardia'}
   - {ru: '\bТЦК\b', wrong: ['TCK', 'TsK', 'TSK', 'shopping cent(?:er|re)s?'], en: 'TCC'}
 
@@ -49,7 +49,7 @@ entries:
   - {ru: 'Харьков', wrong: ['Kharkov'], en: 'Kharkiv'}
   - {ru: 'Днепропетровск', wrong: ['Dnepropetrovsk'], en: 'Dnipropetrovsk'}
   - {ru: 'Красноармейск', wrong: ['Krasnoarmeisk'], en: 'Krasnoarmeysk'}
-  - {ru: 'Буч[аиеу]\b', wrong: ['Buche', 'Buchi', 'Buchu', 'Butch', 'Bute', 'Buce', 'Buch', 'Butchu', 'Butcha'], en: 'Bucha'}
+  - {ru: 'Буч[аиеу]\b', wrong: ['Buche', 'Buchi', 'Buchu', 'Butch', 'Bute', 'Buce', 'Buch', 'Butchu', 'Butcha', 'Bouche'], en: 'Bucha'}
 
   # Ordinary words
   - {ru: '[Лл]уна-парк', wrong: ['moon park', 'Moon park', 'Moon Park', 'lunar park', 'Lunar park'], en: 'amusement park'}

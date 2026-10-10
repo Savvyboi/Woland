@@ -449,12 +449,17 @@ class Builder:
                     scored.append((score, c, base, w))
             scored.sort(reverse=True)
             posts = today["posts"][lang]
+            # the headline shown for a word: the first of the day to use it (with a translation, if any has one)
+            example = lambda w: (today["stem_ex"][lang].get(w) or {}).get("u")  # noqa: E731
             groups: list[list] = []
             for cand in scored[:40]:
                 heads = set(posts.get(cand[3], ()))
                 for g in groups:
                     lead = g[0][1]
-                    if len(heads & lead) >= 0.6 * min(len(heads), len(lead)):
+                    # most of the same headlines; or the same first headline ("монастырский" and "Устуу Хурээ" on
+                    # 7 October 2026 shared 9 of 16 headlines, but both were first used in the same one)
+                    if len(heads & lead) >= 0.6 * min(len(heads), len(lead)) or \
+                            (example(cand[3]) and example(cand[3]) == example(g[0][0][3])):
                         g.append((cand, heads))
                         break
                 else:

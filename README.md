@@ -90,7 +90,8 @@ From then on everything is automatic:
   model through CTranslate2. No API keys, no cost. Names and terms the model gets wrong (Witkoff, Kallas, the SVO)
   are corrected by `config/glossary.yaml` when the site is built; `data/` keeps the model's own output.
 * **Rising words** (`woland/build.py`, `woland/textproc.py`) — headline words grouped by dictionary form
-  (pymorphy3 for Russian, Snowball stems otherwise) and, when they share most of their headlines, into one event.
+  (pymorphy3 for Russian, Snowball stems otherwise) and, when they share most of their headlines or were first
+  used in the same one, into one event.
 * **The site** (`site/`, `woland/build.py`) — plain HTML, CSS and JavaScript modules; no framework, no build
   tool. Search runs in the browser against a static inverted index sharded by month and by word, so only a
   few small gzip files are downloaded per query. Unchanged months are cached between builds.
