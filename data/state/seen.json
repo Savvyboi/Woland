@@ -42,11 +42,16 @@
   "https://aif.ru/techno/technology/onlayn-platforma-iz-obshchezhitiya-osnovatel-rasskazal-o-razvitii-proekta": "2026-10-10",
   "https://aif.ru/techno/web/rol-rebyonok-kak-zashchitit-detey": "2026-10-10"
  },
+ "gazeta": {
+  "https://www.gazeta.ru/photo/21861662/13-stars-from-the-village.shtml": "2026-10-15"
+ },
  "kp": {
   "https://www.kp.ru/online/news/7205247/": "2026-10-12",
   "https://www.kp.ru/online/news/7211722/": "2026-10-08",
   "https://www.kp.ru/online/news/7211723/": "2026-10-08",
-  "https://www.kp.ru/online/news/7211726/": "2026-10-08"
+  "https://www.kp.ru/online/news/7211726/": "2026-10-08",
+  "https://www.kp.ru/online/news/7217128/": "2026-10-15",
+  "https://www.kp.ru/online/news/7223157/": "2026-10-15"
  },
  "mk": {
   "https://www.mk.ru/incident/2026/10/08/data-centr-yandeksa-v-ryazanskoy-oblasti-ostanovil-rabotu-posle-ataki-bpla.html": "2026-10-08",
@@ -61,7 +66,9 @@
   "https://tsargrad.tv/articles/angel-pravoslavnoj-rigi-den-svjashhennomuchenika-ioanna-rizhskogo-cerkovnyj-kalendar-na-12-oktjabrja_1899223": "2026-10-11",
   "https://tsargrad.tv/articles/apostolstvo-ot-semidesjati-pamjat-svjashhennomuchenika-kodrata-pravoslavnyj-kalendar-na-4-oktjabrja_1888119": "2026-10-03",
   "https://tsargrad.tv/articles/beljovskij-starec-pamjat-prepodobnogo-makarija-zhabynskogo-pravoslavnyj-kalendar-na-5-oktjabrja_1888287": "2026-10-04",
+  "https://tsargrad.tv/articles/cerkovnoe-edinstvo-pamjat-svjatitelja-agafangela-jaroslavskogo-pravoslavnyj-kalendar-na-16-oktjabrja_1904347": "2026-10-15",
   "https://tsargrad.tv/articles/data-centry-gorjat-a-internet-est-o-chudesah-borby-s-ukrainskim-internetom_1891156": "2026-10-03",
+  "https://tsargrad.tv/articles/dengi-ne-pahnut-potap-i-nastja-zarabatyvajut-na-beglyh-russkih-shema-zhutko-hitraja_1905138": "2026-10-15",
   "https://tsargrad.tv/articles/dvazhdy-svjataja-den-blagovernoj-knjagini-anny-kashinskoj-pravoslavnyj-kalendar-na-15-oktjabrja_1904310": "2026-10-14",
   "https://tsargrad.tv/articles/ejo-galkin-bjot-alla-pugachjova-sfotografirovalas-s-fanatom-polzovateli-uvideli-koe-chto-strashnoe_1897737": "2026-10-08",
   "https://tsargrad.tv/articles/glavnyj-zumer-strany-lutchak-zadal-neudobnyj-vopros-russkie-otvetili_1891299": "2026-10-03",
@@ -84,6 +91,8 @@
   "https://tsargrad.tv/articles/pir-vo-vremja-vojny-banki-zarabatyvajut-trilliony-poka-drugie-otdajut-poslednee_1887906": "2026-10-03",
   "https://tsargrad.tv/articles/pjat-kapkanov-ssha-dlja-rossii-i-putina-vojnu-na-ukraine-zamorozjat-oligarhi-ili_1888233": "2026-10-03",
   "https://tsargrad.tv/articles/plan-unichtozhenija-rossii-o-kotorom-zapreshheno-govorit-vse-punkty-rabotajut_1900702": "2026-10-10",
+  "https://tsargrad.tv/articles/poka-my-ishhem-volshebnuju-knopku-vrag-uzhe-nashjol-nashi-data-centry-chto-dalshe_1904902": "2026-10-15",
+  "https://tsargrad.tv/articles/povyshenie-tarifov-zhkh-ne-katastrofichno-rodnina-snova-osharashila-narod-i-poluchila-otvet_1905345": "2026-10-15",
   "https://tsargrad.tv/articles/putin-preduprezhdal-o-drugoj-ochen-korotkoj-vojne-teper-my-ne-smozhem-ne-otvetit_1891622": "2026-10-04",
   "https://tsargrad.tv/articles/recept-pobedy-daet-vrag-glavnye-otvety-kotorye-pora-skazat-vsluh_1897317": "2026-10-10",
   "https://tsargrad.tv/articles/rossija-vkusno-kormit-relokanty-zagovorili-o-vozvrashhenii-kto-pervyj-v-ocheredi_1884360": "2026-10-03",
@@ -110,6 +119,7 @@
   "https://tsargrad.tv/articles/v-rossii-pobedili-bednost-chudo-s-razoblacheniem-sekretnoe-mesto-gde-chinovniki-prjachut-milliony-nishhih_1899387": "2026-10-10",
   "https://tsargrad.tv/articles/velichajshij-iz-prorokov-zachatie-ioanna-krestitelja-pravoslavnyj-kalendar-na-6-oktjabrja_1889983": "2026-10-05",
   "https://tsargrad.tv/articles/vernye-bogu-pamjat-knjazja-mihaila-chernigovskogo-i-bojarina-feodora-cerkovnyj-kalendar-na-3-oktjabrja_1888054": "2026-10-02",
+  "https://tsargrad.tv/articles/vrag-nashhupal-slaboe-mesto-data-centry-my-pohoronili-sami-v-minoborony-rassekretili-dannye_1904596": "2026-10-15",
   "https://tsargrad.tv/articles/vzhilsja-v-rol-zvezda-seriala-soldaty-otpravilsja-na-svo-kto-eshhe-iz-zvezd-ushel-voevat_1887831": "2026-10-03",
   "https://tsargrad.tv/articles/zatejali-remont-poluchite-shtraf-chto-mozhno-i-nelzja-menjat-v-kvartire-za-chto-grozjat-posledstvija_1899431": "2026-10-11",
   "https://tsargrad.tv/news/10-shtatov-ameriki-gde-ljudi-zhit-otkazyvajutsja-pochemu-tak_1891710": "2026-10-03",
