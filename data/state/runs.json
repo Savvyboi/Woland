@@ -4287,132 +4287,6 @@
   "seconds": 5423
  },
  {
-  "at": "2026-10-05T01:51:01Z",
-  "lexicon": "6ffff3b0",
-  "mode": "poll",
-  "outlets": {
-   "kremlin": {
-    "aborted": "",
-    "errors": [],
-    "new": 0,
-    "range": [
-     "2026-10-04",
-     "2026-10-05"
-    ],
-    "requests": 1,
-    "seconds": 4.0,
-    "stats": {
-     "known": 4,
-     "to_fetch": 0
-    },
-    "translated": 0
-   },
-   "kremlin-en": {
-    "aborted": "",
-    "errors": [],
-    "new": 0,
-    "range": [
-     "2026-10-04",
-     "2026-10-05"
-    ],
-    "requests": 1,
-    "seconds": 2.9,
-    "stats": {
-     "known": 3,
-     "to_fetch": 0
-    },
-    "translated": 0
-   },
-   "regnum": {
-    "aborted": "",
-    "errors": [],
-    "new": 10,
-    "range": [
-     "2026-10-04",
-     "2026-10-05"
-    ],
-    "requests": 1,
-    "seconds": 4.1,
-    "stats": {
-     "known": 175,
-     "stored": 10,
-     "to_fetch": 10
-    },
-    "translated": 10
-   },
-   "rg": {
-    "aborted": "",
-    "errors": [],
-    "new": 10,
-    "range": [
-     "2026-10-04",
-     "2026-10-05"
-    ],
-    "requests": 11,
-    "seconds": 12.0,
-    "stats": {
-     "known": 87,
-     "not_article": 3,
-     "stored": 10,
-     "to_fetch": 10
-    },
-    "translated": 10
-   },
-   "tass": {
-    "aborted": "no connection to tass.ru",
-    "errors": [
-     "rss: https://tass.ru/rss/yandex.xml: ConnectTimeout: HTTPSConnectionPool(host='tass.ru', port=443): Max retries exceeded with url: /rss/yandex.xml (Caused by ConnectTimeoutError(<HTTPSConnection(host='tass.ru', port=443) at 0x7f3b73769880>, 'Connection to tass.ru timed out. (connect timeout=15)')); https://tass.ru/rss/v2.xml?sections=MjE3Ng%3D%3D: NoConnection: tass.ru did not answer the last 3 connection attempts; left alone for a while; https://tass.ru/rss/v2.xml: NoConnection: tass.ru did not answer the last 3 connection attempts; left alone for a while"
-    ],
-    "new": 0,
-    "range": [
-     "2026-10-04",
-     "2026-10-05"
-    ],
-    "requests": 1,
-    "seconds": 209.8,
-    "stats": {
-     "to_fetch": 0
-    },
-    "translated": 0
-   },
-   "tass-en": {
-    "aborted": "no connection to tass.com",
-    "errors": [
-     "rss: https://tass.com/rss/v2.xml: ConnectTimeout: HTTPSConnectionPool(host='tass.com', port=443): Max retries exceeded with url: /rss/v2.xml (Caused by ConnectTimeoutError(<HTTPSConnection(host='tass.com', port=443) at 0x7f3b68c970b0>, 'Connection to tass.com timed out. (connect timeout=15)'))"
-    ],
-    "new": 0,
-    "range": [
-     "2026-10-04",
-     "2026-10-05"
-    ],
-    "requests": 1,
-    "seconds": 140.2,
-    "stats": {
-     "to_fetch": 0
-    },
-    "translated": 0
-   },
-   "zvezda": {
-    "aborted": "",
-    "errors": [],
-    "new": 7,
-    "range": [
-     "2026-10-04",
-     "2026-10-05"
-    ],
-    "requests": 9,
-    "seconds": 9.5,
-    "stats": {
-     "known": 82,
-     "stored": 7,
-     "to_fetch": 7
-    },
-    "translated": 7
-   }
-  },
-  "seconds": 210
- },
- {
   "at": "2026-10-05T07:03:14Z",
   "lexicon": "6ffff3b0",
   "mode": "daily",
@@ -15158,5 +15032,136 @@
    }
   },
   "seconds": 112
+ },
+ {
+  "at": "2026-10-15T17:24:59Z",
+  "lexicon": "6ffff3b0",
+  "mode": "poll",
+  "outlets": {
+   "kremlin": {
+    "aborted": "",
+    "errors": [],
+    "new": 2,
+    "range": [
+     "2026-10-14",
+     "2026-10-15"
+    ],
+    "requests": 1,
+    "seconds": 5.1,
+    "stats": {
+     "known": 5,
+     "stored": 2,
+     "to_fetch": 2
+    },
+    "translated": 2
+   },
+   "kremlin-en": {
+    "aborted": "",
+    "errors": [],
+    "new": 1,
+    "range": [
+     "2026-10-14",
+     "2026-10-15"
+    ],
+    "requests": 1,
+    "seconds": 3.0,
+    "stats": {
+     "known": 4,
+     "stored": 1,
+     "to_fetch": 1
+    },
+    "translated": 0
+   },
+   "regnum": {
+    "aborted": "",
+    "errors": [],
+    "new": 66,
+    "range": [
+     "2026-10-14",
+     "2026-10-15"
+    ],
+    "requests": 1,
+    "seconds": 15.0,
+    "stats": {
+     "known": 145,
+     "not_article": 1,
+     "stored": 66,
+     "to_fetch": 66
+    },
+    "translated": 66
+   },
+   "rg": {
+    "aborted": "",
+    "errors": [],
+    "new": 92,
+    "range": [
+     "2026-10-14",
+     "2026-10-15"
+    ],
+    "requests": 93,
+    "seconds": 110.3,
+    "stats": {
+     "not_article": 8,
+     "stored": 92,
+     "to_fetch": 92
+    },
+    "translated": 92
+   },
+   "tass": {
+    "aborted": "",
+    "errors": [
+     "rss: https://tass.ru/rss/yandex.xml: 403"
+    ],
+    "filled": 2,
+    "new": 318,
+    "range": [
+     "2026-10-14",
+     "2026-10-15"
+    ],
+    "requests": 12,
+    "seconds": 62.8,
+    "stats": {
+     "known": 295,
+     "stored": 318,
+     "to_fetch": 318
+    },
+    "translated": 318
+   },
+   "tass-en": {
+    "aborted": "",
+    "errors": [],
+    "new": 43,
+    "range": [
+     "2026-10-14",
+     "2026-10-15"
+    ],
+    "requests": 44,
+    "seconds": 29.9,
+    "stats": {
+     "known": 57,
+     "stored": 43,
+     "to_fetch": 43
+    },
+    "translated": 0
+   },
+   "zvezda": {
+    "aborted": "",
+    "errors": [],
+    "new": 28,
+    "range": [
+     "2026-10-14",
+     "2026-10-15"
+    ],
+    "requests": 30,
+    "seconds": 26.5,
+    "stats": {
+     "known": 72,
+     "stored": 28,
+     "to_fetch": 28
+    },
+    "translated": 28
+   }
+  },
+  "seconds": 111
  }
 ]
