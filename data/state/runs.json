@@ -15598,5 +15598,434 @@
    }
   },
   "seconds": 44
+ },
+ {
+  "at": "2026-10-17T05:37:29Z",
+  "lexicon": "6ffff3b0",
+  "mode": "daily",
+  "outlets": {
+   "aif": {
+    "aborted": "",
+    "errors": [],
+    "new": 273,
+    "range": [
+     "2026-09-14",
+     "2026-10-17"
+    ],
+    "requests": 280,
+    "seconds": 289.8,
+    "stats": {
+     "known": 6262,
+     "not_article": 39,
+     "skipped": 37,
+     "stored": 273,
+     "to_fetch": 273
+    },
+    "translated": 273
+   },
+   "gazeta": {
+    "aborted": "",
+    "errors": [],
+    "new": 587,
+    "range": [
+     "2026-10-11",
+     "2026-10-17"
+    ],
+    "requests": 676,
+    "seconds": 836.4,
+    "stats": {
+     "duplicate": 1,
+     "known": 3139,
+     "not_article": 4,
+     "stored": 587,
+     "to_fetch": 587
+    },
+    "translated": 587
+   },
+   "inosmi": {
+    "aborted": "",
+    "errors": [],
+    "new": 28,
+    "range": [
+     "2026-10-11",
+     "2026-10-17"
+    ],
+    "requests": 35,
+    "seconds": 91.2,
+    "stats": {
+     "known": 198,
+     "stored": 28,
+     "to_fetch": 28
+    },
+    "translated": 28
+   },
+   "iz": {
+    "aborted": "",
+    "errors": [],
+    "new": 468,
+    "range": [
+     "2026-10-11",
+     "2026-10-17"
+    ],
+    "requests": 472,
+    "seconds": 693.7,
+    "stats": {
+     "known": 2315,
+     "stored": 468,
+     "to_fetch": 468
+    },
+    "translated": 468
+   },
+   "kp": {
+    "aborted": "",
+    "errors": [],
+    "new": 349,
+    "range": [
+     "2026-10-05",
+     "2026-10-17"
+    ],
+    "requests": 374,
+    "seconds": 919.4,
+    "stats": {
+     "fail_network": 2,
+     "known": 3784,
+     "listed": 1,
+     "not_article": 434,
+     "skipped": 3,
+     "stored": 348,
+     "to_fetch": 350,
+     "to_upgrade": 1
+    },
+    "translated": 349
+   },
+   "kremlin": {
+    "aborted": "",
+    "errors": [],
+    "new": 0,
+    "range": [
+     "2026-10-11",
+     "2026-10-17"
+    ],
+    "requests": 1,
+    "seconds": 10.1,
+    "stats": {
+     "known": 13,
+     "not_article": 7,
+     "to_fetch": 0
+    },
+    "translated": 0
+   },
+   "kremlin-en": {
+    "aborted": "",
+    "errors": [],
+    "new": 1,
+    "range": [
+     "2026-10-11",
+     "2026-10-17"
+    ],
+    "requests": 1,
+    "seconds": 3.7,
+    "stats": {
+     "known": 13,
+     "not_article": 6,
+     "stored": 1,
+     "to_fetch": 1
+    },
+    "translated": 0
+   },
+   "lenta": {
+    "aborted": "",
+    "errors": [],
+    "new": 540,
+    "range": [
+     "2026-10-11",
+     "2026-10-17"
+    ],
+    "requests": 664,
+    "seconds": 722.7,
+    "stats": {
+     "known": 2788,
+     "not_article": 116,
+     "stored": 540,
+     "to_fetch": 540
+    },
+    "translated": 540
+   },
+   "life": {
+    "aborted": "",
+    "errors": [],
+    "new": 484,
+    "range": [
+     "2026-10-11",
+     "2026-10-17"
+    ],
+    "requests": 485,
+    "seconds": 615.5,
+    "stats": {
+     "known": 2523,
+     "not_article": 20,
+     "stored": 484,
+     "to_fetch": 484
+    },
+    "translated": 484
+   },
+   "mk": {
+    "aborted": "",
+    "errors": [
+     "html_list: https://www.mk.ru/news/2026/10/11/: ConnectTimeout: HTTPSConnectionPool(host='www.mk.ru', port=443): Max retries exceeded with url: /news/2026/10/11/ (Caused by ConnectTimeoutError(<HTTPSConnection(host='www.mk.ru', port=443) at 0x7fe4f41ecd10>, 'Connection to www.mk.ru timed out. (connect timeout=15)')); https://www.mk.ru/news/2026/10/12/: NoConnection: www.mk.ru did not answer the last 3 connection attempts; left alone for a while; https://www.mk.ru/news/2026/10/13/: NoConnection: www.mk.ru did not answer the last 3 connection attempts; left alone for a while",
+     "sitemap_index: https://www.mk.ru/sitemap/index.xml: NoConnection: www.mk.ru did not answer the last 3 connection attempts; left alone for a while"
+    ],
+    "new": 0,
+    "range": [
+     "2026-10-11",
+     "2026-10-17"
+    ],
+    "requests": 13,
+    "seconds": 409.4,
+    "stats": {
+     "known": 1611,
+     "not_article": 1,
+     "to_fetch": 0
+    },
+    "translated": 0
+   },
+   "pnp": {
+    "aborted": "",
+    "errors": [],
+    "new": 103,
+    "range": [
+     "2026-10-11",
+     "2026-10-17"
+    ],
+    "requests": 106,
+    "seconds": 131.8,
+    "stats": {
+     "known": 542,
+     "not_article": 8,
+     "stored": 103,
+     "to_fetch": 103
+    },
+    "translated": 103
+   },
+   "regnum": {
+    "aborted": "",
+    "errors": [],
+    "new": 8,
+    "range": [
+     "2026-10-11",
+     "2026-10-17"
+    ],
+    "requests": 1,
+    "seconds": 10.8,
+    "stats": {
+     "known": 209,
+     "not_article": 3,
+     "stored": 8,
+     "to_fetch": 8
+    },
+    "translated": 8
+   },
+   "rg": {
+    "aborted": "",
+    "errors": [],
+    "new": 150,
+    "range": [
+     "2026-10-11",
+     "2026-10-17"
+    ],
+    "requests": 158,
+    "seconds": 392.2,
+    "stats": {
+     "known": 2988,
+     "not_article": 107,
+     "stored": 150,
+     "to_fetch": 150
+    },
+    "translated": 150
+   },
+   "ria": {
+    "aborted": "",
+    "errors": [],
+    "new": 911,
+    "range": [
+     "2026-10-11",
+     "2026-10-17"
+    ],
+    "requests": 918,
+    "seconds": 1039.1,
+    "stats": {
+     "known": 4314,
+     "stored": 911,
+     "to_fetch": 911
+    },
+    "translated": 911
+   },
+   "rt": {
+    "aborted": "",
+    "errors": [],
+    "new": 0,
+    "range": [
+     "2026-10-11",
+     "2026-10-17"
+    ],
+    "requests": 1,
+    "seconds": 6.2,
+    "stats": {
+     "not_article": 248,
+     "to_fetch": 0
+    },
+    "translated": 0
+   },
+   "rt-ru": {
+    "aborted": "",
+    "errors": [],
+    "new": 434,
+    "range": [
+     "2026-10-11",
+     "2026-10-17"
+    ],
+    "requests": 438,
+    "seconds": 631.0,
+    "stats": {
+     "known": 2037,
+     "not_article": 40,
+     "stored": 434,
+     "to_fetch": 434
+    },
+    "translated": 434
+   },
+   "sputnik": {
+    "aborted": "",
+    "errors": [
+     "sitemap: https://sputnikglobe.com/sitemap_article.xml?date_start=20260902&date_end=20260902: ConnectTimeout: HTTPSConnectionPool(host='sputnikglobe.com', port=443): Max retries exceeded with url: /sitemap_article.xml?date_start=20260902&date_end=20260902 (Caused by ConnectTimeoutError(<HTTPSConnection(host='sputnikglobe.com', port=443) at 0x7fe4d02c0110>, 'Connection to sputnikglobe.com tim"
+    ],
+    "new": 12,
+    "range": [
+     "2026-09-02",
+     "2026-10-17"
+    ],
+    "requests": 15,
+    "seconds": 305.9,
+    "stats": {
+     "fail_network": 2,
+     "known": 910,
+     "not_article": 42,
+     "stored": 12,
+     "to_fetch": 14
+    },
+    "translated": 0
+   },
+   "tass": {
+    "aborted": "",
+    "errors": [
+     "rss: https://tass.ru/rss/yandex.xml: 403"
+    ],
+    "filled": 5,
+    "new": 28,
+    "range": [
+     "2026-10-11",
+     "2026-10-17"
+    ],
+    "requests": 12,
+    "seconds": 41.7,
+    "stats": {
+     "known": 596,
+     "stored": 28,
+     "to_fetch": 28
+    },
+    "translated": 28
+   },
+   "tass-en": {
+    "aborted": "",
+    "errors": [],
+    "new": 2,
+    "range": [
+     "2026-10-11",
+     "2026-10-17"
+    ],
+    "requests": 7,
+    "seconds": 17.4,
+    "stats": {
+     "known": 673,
+     "skipped": 2,
+     "stored": 2,
+     "to_fetch": 2
+    },
+    "translated": 0
+   },
+   "tsargrad": {
+    "aborted": "",
+    "errors": [],
+    "new": 1053,
+    "range": [
+     "2026-10-11",
+     "2026-10-17"
+    ],
+    "requests": 1098,
+    "seconds": 1011.3,
+    "stats": {
+     "fail_404": 44,
+     "known": 3981,
+     "not_article": 334,
+     "skipped": 74,
+     "stored": 1053,
+     "to_fetch": 1097
+    },
+    "translated": 1053
+   },
+   "ukraina": {
+    "aborted": "",
+    "errors": [],
+    "new": 73,
+    "range": [
+     "2026-10-11",
+     "2026-10-17"
+    ],
+    "requests": 80,
+    "seconds": 144.9,
+    "stats": {
+     "known": 353,
+     "stored": 73,
+     "to_fetch": 73
+    },
+    "translated": 73
+   },
+   "vesti": {
+    "aborted": "",
+    "errors": [],
+    "new": 585,
+    "range": [
+     "2026-10-11",
+     "2026-10-17"
+    ],
+    "requests": 586,
+    "seconds": 867.0,
+    "stats": {
+     "known": 151,
+     "not_article": 3,
+     "stored": 585,
+     "to_fetch": 585
+    },
+    "translated": 585
+   },
+   "zvezda": {
+    "aborted": "",
+    "errors": [],
+    "new": 5,
+    "range": [
+     "2026-10-11",
+     "2026-10-17"
+    ],
+    "requests": 7,
+    "seconds": 21.2,
+    "stats": {
+     "known": 95,
+     "stored": 5,
+     "to_fetch": 5
+    },
+    "translated": 5
+   }
+  },
+  "seconds": 1043
  }
 ]
