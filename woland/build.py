@@ -7,6 +7,9 @@
     _site/data/days/<date>.json  the daily digest: narratives, rising words; <date>.ex.json: its examples
     _site/data/examples/<id>.json  each narrative's examples of the last days (the Narratives page)
     _site/data/search/…          a static full-text index, one folder per month (gzip files)
+    _site/data/analysis/…        the Analysis page: voices, stories, countries and tags over the last 7 and 30
+                                 completed days and all of them (<kind>/<window>.json); each day's stories
+                                 (stories/day/<date>.json.gz)
 
 Months are cached in .cache/build/<YYYY-MM>/ and only rebuilt when their articles, the previous
 month, the lexicon, the translation glossary or this builder change: a daily build only redoes the
@@ -28,16 +31,17 @@ from datetime import date, datetime, timedelta
 from datetime import time as dtime
 from pathlib import Path
 
-from .config import ROOT, START_DATE, load_contexts, load_lexicon, load_outlets
+from . import analysis
+from .config import CONFIG_DIR, ROOT, START_DATE, load_contexts, load_lexicon, load_outlets
 from .glossary import Glossary
 from .lexicon import Lexicon
 from .store import available_days, day_dir, load_coverage, load_runs, read_day
 from .textproc import STOP_EN, STOP_RU, headline_words, index_terms
-from .util import MSK, iso_utc, parse_dt, today_msk, truncate
+from .util import MSK, iso_utc, normalize, parse_dt, today_msk, truncate
 
 log = logging.getLogger("woland.build")
 
-BUILD_VERSION = "6"
+BUILD_VERSION = "7"
 # A search downloads one index shard per month and one block per result it shows (20 at a time, mostly in
 # different blocks): with 256 shards and 25 documents a block, a search for "Finland" over September and
 # October 2026 needed ~160 KB of blocks instead of ~520 KB with 100, at four times as many files.
@@ -52,6 +56,12 @@ RISING_MIN = {"ru": 6, "en": 5}  # headlines a word needs on the day to be consi
 RISING_P = 1e-3
 RISING_SHOWN = 12                 # events listed per language
 EXAMPLES = 6
+WINDOWS = {"7": 7, "30": 30, "all": None}   # the Analysis page's periods, in completed days
+VOICES_SHOWN = 60        # speakers listed per language and kind of speaker
+STORY_OUTLETS = 4        # a story counts when this many outlets publish it on the same day
+STORIES_SHOWN = 60       # stories listed per day
+TAGS_SHOWN = 40
+SECTIONS_SHOWN = 15
 SEARCH_LEAD = 180  # characters of the lead kept in search documents (the archive keeps up to 240)
 # GitHub Pages sites must stay under 1 GB: publish the search index for the most recent months only.
 # Older months remain in the repository's data/ folder.
@@ -256,8 +266,9 @@ class Builder:
     def month_key(self, month: str, days: list[date], prev_key: str) -> str:
         h = hashlib.sha1(f"{BUILD_VERSION}|{self.lex_fp}|{self.glossary.fingerprint()}|{prev_key}|"
                          f"{[o.id for o in self.outlets]}".encode())
-        for src in ("build.py", "lexicon.py", "textproc.py", "glossary.py"):  # code changes invalidate the cache too
+        for src in ("build.py", "lexicon.py", "textproc.py", "glossary.py", "analysis.py"):  # code changes too
             h.update((Path(__file__).parent / src).read_bytes())
+        h.update((CONFIG_DIR / "countries.yaml").read_bytes())
         for d in days:
             for p in sorted(day_dir(d).glob("*.jsonl")):
                 h.update(p.name.encode())
@@ -280,6 +291,9 @@ class Builder:
             recs.sort(key=lambda r: (r["p"], r["o"], r["u"]))
             idx.day_starts.append([d.isoformat(), len(idx.docs)])
             summary[d.isoformat()] = self.day_aggregates(recs, idx)
+            shown, stats = self.day_stories(recs)
+            summary[d.isoformat()]["stories"] = stats
+            dump_gz(cdir / "stories" / f"{d.isoformat()}.json.gz", shown)
         idx.write(sdir)
         for d in days:  # digests need the rolling history, including this month's earlier days
             key = d.isoformat()
@@ -306,10 +320,27 @@ class Builder:
         form_counts = {"ru": defaultdict(Counter), "en": defaultdict(Counter)}
         stem_ex = {"ru": {}, "en": {}}
         examples = defaultdict(list)
+        voices = {"ru": {}, "en": {}}
+        countries = defaultdict(Counter)
+        tags, sections = defaultdict(Counter), defaultdict(Counter)
+        gaz = analysis.gazetteer()
         for r in recs:
             o = r["o"]
             lang = self.olang.get(o, "ru")
             totals[o] += 1
+            v = analysis.voice(r["t"], lang)
+            if v:
+                name, kind, verb, _ = v
+                e = voices[lang].setdefault(analysis.voice_key(name, kind),
+                                            {"y": {}, "f": {}, "o": {}, "v": {}, "ex": self.example(r, None)})
+                for field, val in (("y", kind), ("f", name), ("o", o), ("v", verb)):
+                    e[field][val] = e[field].get(val, 0) + 1
+            for code in gaz.find(f'{r["t"]} {r.get("d", "")}', lang):
+                countries[code][o] += 1
+            for tag in r.get("g") or []:
+                tags[o][tag] += 1
+            if r.get("s"):
+                sections[o][r["s"]] += 1
             listed[o] += self.headline_only(r)
             ks, snips = self.narratives_of(r)
             for k in ks:
@@ -362,7 +393,9 @@ class Builder:
         return {"totals": dict(totals), "listed": {o: v for o, v in listed.items() if v}, "framed": framed,
                 "nar": {k: dict(v) for k, v in nar.items()},
                 "df": {lang: dict(c) for lang, c in df.items()}, "forms": forms,
-                "examples": chosen, "stem_ex": stem_ex,
+                "examples": chosen, "stem_ex": stem_ex, "voices": voices,
+                "countries": {k: dict(v) for k, v in countries.items()},
+                "tags": {o: dict(c) for o, c in tags.items()}, "sections": {o: dict(c) for o, c in sections.items()},
                 "posts": {lang: {k: v for k, v in p.items() if len(v) >= RISING_MIN[lang]} for lang, p in posts.items()}}
 
     def headline_only(self, r: dict) -> int:
@@ -383,6 +416,157 @@ class Builder:
             if snippet_en:
                 ex["se"] = snippet_en
         return ex
+
+    def day_stories(self, recs: list[dict]) -> tuple[list[dict], dict]:
+        """The day's stories that STORY_OUTLETS or more outlets published (woland/analysis.py): the largest ones
+        to show, each outlet's first article in order of publication; and for the period views, which outlet
+        published each story first and how many minutes after it the others did."""
+        groups = analysis.stories(recs, [self.olang.get(r["o"], "ru") for r in recs])
+        shown, led, joined, lags, pairs = [], Counter(), Counter(), defaultdict(list), defaultdict(Counter)
+        sizes = Counter()
+        for g in groups:
+            first: dict[str, dict] = {}
+            for i in g:
+                first.setdefault(recs[i]["o"], recs[i])
+            if len(first) < STORY_OUTLETS:
+                continue
+            sizes[len(first)] += 1
+            members = list(first.values())
+            t0 = parse_dt(members[0]["p"])
+            leader = members[0]["o"]
+            led[leader] += 1
+            for r in members:
+                joined[r["o"]] += 1
+                if r["o"] != leader:
+                    lags[r["o"]].append(round((parse_dt(r["p"]) - t0).total_seconds() / 60))
+                    pairs[leader][r["o"]] += 1
+            shown.append({"n": len(first), "a": len(g), "m": [
+                {k: v for k, v in (("o", r["o"]), ("p", r["p"][11:16]), ("t", r["t"]), ("te", r.get("te")),
+                                   ("u", r["u"])) if v} for r in members]})
+        shown.sort(key=lambda st: (-st["n"], st["m"][0]["p"]))
+        stats = {"sizes": dict(sizes), "led": dict(led), "joined": dict(joined), "lags": dict(lags),
+                 "pairs": {k: dict(v) for k, v in pairs.items()}}
+        return shown[:STORIES_SHOWN], stats
+
+    # ── the Analysis page ─────────────────────────────────────────────────────
+    def write_analysis(self, days: list[date]):
+        """voices, stories, countries and tags over each period (WINDOWS) of completed days."""
+        through = self.complete_through(days)
+        done = [d for d in days if through and d.isoformat() <= through]
+        out = self.out / "data" / "analysis"
+        for w, n in WINDOWS.items():
+            wdays = done[-n:] if n else done
+            prev = done[-2 * n:-n] if n and len(done) >= 2 * n else []
+            sums = [self._summary_for(d) for d in wdays]
+            psums = [self._summary_for(d) for d in prev]
+            head = {"window": w, "days": [d.isoformat() for d in wdays],
+                    "totals": {o: sum(s.get("totals", {}).get(o, 0) for s in sums) for o in self.oidx}}
+            dump(out / "voices" / f"{w}.json", {**head, **self.voices_of(sums)})
+            dump(out / "stories" / f"{w}.json", {**head, **self.stories_of(sums)})
+            dump(out / "countries" / f"{w}.json", {**head, **self.countries_of(sums, psums)})
+            dump(out / "tags" / f"{w}.json", {**head, **self.tags_of(sums, psums)})
+        dump(out / "verbs.json", {"kinds": analysis.KINDS, "verbs": dict(sorted(
+            {analysis.VERB_BASE[f]: k for f, k in analysis.VERB_KIND.items()}.items()))})
+
+    def voices_of(self, sums: list[dict]) -> dict:
+        out, kinds = {}, {}
+        for lang in ("ru", "en"):
+            agg: dict[str, dict] = {}
+            for i, s in enumerate(sums):
+                for key, e in (s.get("voices") or {}).get(lang, {}).items():
+                    a = agg.setdefault(key, {"y": Counter(), "f": Counter(), "o": Counter(), "v": Counter(),
+                                             "d": [0] * len(sums), "ex": e["ex"], "exd": i})
+                    for field in ("y", "f", "o", "v"):
+                        a[field].update(e[field])
+                    a["d"][i] += sum(e["o"].values())
+                    a["ex"], a["exd"] = e["ex"], i      # the latest example
+            rows = []
+            by_kind = defaultdict(list)
+            for key, a in agg.items():
+                n = sum(a["d"])
+                by_kind[a["y"].most_common(1)[0][0]].append((n, key, a))
+            kinds[lang] = {}
+            for kind, items in by_kind.items():
+                kinds[lang][kind] = sum(n for n, _, _ in items)
+                for n, key, a in sorted(items, key=lambda x: (-x[0], x[1]))[:VOICES_SHOWN]:
+                    rows.append({"k": key, "name": a["f"].most_common(1)[0][0], "y": kind, "n": n,
+                                 "o": dict(a["o"].most_common(8)), "v": dict(a["v"].most_common(6)), "d": a["d"],
+                                 "ex": {**{k: v for k, v in a["ex"].items() if k in ("o", "t", "te", "u", "p", "id", "h", "r", "w", "ar", "f")},
+                                        "d": self._day_of(sums, a["exd"])}})
+            rows.sort(key=lambda r: -r["n"])
+            out[lang] = rows
+        # how many headlines name a speaker, per outlet and kind of speaker
+        by_outlet = defaultdict(Counter)
+        for s in sums:
+            for lang, entries in (s.get("voices") or {}).items():
+                for e in entries.values():
+                    kind = max(e["y"], key=e["y"].get)
+                    for o, c in e["o"].items():
+                        by_outlet[o][kind] += c
+        return {"voices": out, "kinds": kinds, "outlets": {o: dict(c) for o, c in by_outlet.items()}}
+
+    @staticmethod
+    def _day_of(sums: list[dict], i: int) -> str | None:
+        return sums[i].get("_day") if i < len(sums) else None
+
+    def stories_of(self, sums: list[dict]) -> dict:
+        led, joined, pairs, lags = Counter(), Counter(), defaultdict(Counter), defaultdict(list)
+        per_day = []
+        for s in sums:
+            st = s.get("stories") or {}
+            per_day.append({int(k): v for k, v in (st.get("sizes") or {}).items()})
+            led.update(st.get("led") or {})
+            joined.update(st.get("joined") or {})
+            for o, v in (st.get("lags") or {}).items():
+                lags[o].extend(v)
+            for a, by in (st.get("pairs") or {}).items():
+                pairs[a].update(by)
+
+        def quartiles(v: list[int]) -> list[int] | None:
+            if not v:
+                return None
+            v = sorted(v)
+            return [v[len(v) // 4], v[len(v) // 2], v[(3 * len(v)) // 4]]
+        return {"per_day": [sum(d.values()) for d in per_day],
+                "big": [sum(c for k, c in d.items() if k >= 8) for d in per_day],
+                "outlets": {o: {"j": joined[o], "l": led[o], "lag": quartiles(lags[o])} for o in joined},
+                "pairs": {a: dict(b) for a, b in pairs.items()}, "min": STORY_OUTLETS}
+
+    def countries_of(self, sums: list[dict], psums: list[dict]) -> dict:
+        agg: dict[str, dict] = {}
+        for i, s in enumerate(sums):
+            for code, by in (s.get("countries") or {}).items():
+                a = agg.setdefault(code, {"o": Counter(), "d": [0] * len(sums), "prev": 0})
+                a["o"].update(by)
+                a["d"][i] += sum(by.values())
+        for s in psums:
+            for code, by in (s.get("countries") or {}).items():
+                if code in agg:
+                    agg[code]["prev"] += sum(by.values())
+        names = analysis.gazetteer().names
+        return {"countries": {code: {"n": sum(a["d"]), "o": dict(a["o"]), "d": a["d"],
+                                     "prev": a["prev"] if psums else None} for code, a in agg.items()},
+                "names": {code: names[code] for code in agg if code in names}}
+
+    def tags_of(self, sums: list[dict], psums: list[dict]) -> dict:
+        def gather(ss, field):
+            out = defaultdict(lambda: defaultdict(Counter))   # outlet → key → spelling → n
+            for s in ss:
+                for o, by in (s.get(field) or {}).items():
+                    for tag, c in by.items():
+                        out[o][normalize(tag).strip()][tag] += c
+            return out
+        res = {}
+        for field, shown in (("tags", TAGS_SHOWN), ("sections", SECTIONS_SHOWN)):
+            now, before = gather(sums, field), gather(psums, field)
+            for o, keys in now.items():
+                ranked = sorted(keys.items(), key=lambda kv: -sum(kv[1].values()))[:shown]
+                res.setdefault(o, {})[field] = [
+                    [spell.most_common(1)[0][0], sum(spell.values()),
+                     sum(before[o][k].values()) if psums else None] for k, spell in ranked]
+                tagged = sum(sum(s.get(field, {}).get(o, {}).values()) for s in sums)
+                res[o][f"{field}_n"] = tagged
+        return {"outlets": res}
 
     # ── digests ───────────────────────────────────────────────────────────────
     def digest(self, d: date, history: dict) -> dict:
@@ -512,6 +696,7 @@ class Builder:
             if month in month_list[-SEARCH_MONTHS:]:
                 shutil.copytree(cdir / "search", data / "search", dirs_exist_ok=True)
             shutil.copytree(cdir / "days", data / "days", dirs_exist_ok=True)
+            shutil.copytree(cdir / "stories", data / "analysis" / "stories" / "day", dirs_exist_ok=True)
             prev_key = key
             # keep only what later digests need
             keep = sorted(history)[-max(BASELINE_DAYS, RISING_BASELINE, 30) - 1:]
@@ -519,6 +704,7 @@ class Builder:
         cov = load_coverage()
         self.write_series(days, cov)
         self.write_examples(days)
+        self.write_analysis(days)
         self.write_meta(days, month_list[-SEARCH_MONTHS:], cov)
         log.info("site built in %.1fs → %s", time.monotonic() - t0, self.out)
 
@@ -637,7 +823,7 @@ class Builder:
         if month not in self._summary_cache:
             with open(CACHE / month / "summary.json", encoding="utf-8") as fh:
                 self._summary_cache[month] = json.load(fh)
-        return self._summary_cache[month].get(d.isoformat(), {})
+        return {**self._summary_cache[month].get(d.isoformat(), {}), "_day": d.isoformat()}
 
     def write_meta(self, days: list[date], months: list[str], cov: dict):
         per_outlet = defaultdict(lambda: {"n": 0, "days": 0, "first": None, "last": None, "listed": 0})

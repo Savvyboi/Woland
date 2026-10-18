@@ -2,6 +2,7 @@
 strings exist in English, Finnish and Swedish."""
 from __future__ import annotations
 
+import gzip
 import json
 import re
 import shutil
@@ -232,12 +233,36 @@ def test_hours_between_readings_of_a_feed_that_rolled_over_are_listed(archive):
 
 def test_every_page_is_assembled_from_the_partials(built_site):
     pages = sorted(p.name for p in SITE.glob("*.html"))
-    assert pages == ["archive.html", "index.html", "method.html", "narratives.html", "outlets.html"]
+    assert pages == ["analysis.html", "archive.html", "index.html", "method.html", "narratives.html", "outlets.html"]
     for name in pages:
         html = (built_site / name).read_text(encoding="utf-8")
         assert "include:" not in html and 'class="masthead"' in html, name
     days = sorted(p.stem for p in (built_site / "data" / "days").glob("*.json") if not p.stem.endswith(".ex"))
     assert days[0] == "2026-09-01" and days[-1] == "2026-09-08"
+
+
+def test_analysis_counts_completed_days_only(built_site):
+    """The Analysis page's files: who speaks, countries named, the outlets' tags and stories, over completed days
+    (1–6 September here: 7 and 8 September are still being collected)."""
+    folder = built_site / "data" / "analysis"
+    voices = json.loads((folder / "voices" / "all.json").read_text(encoding="utf-8"))
+    assert voices["days"][0] == "2026-09-01" and voices["days"][-1] == "2026-09-06"
+    lavrov = next(v for v in voices["voices"]["ru"] if v["k"] == "лавров")
+    assert lavrov["n"] == 6 and lavrov["y"] == "person" and lavrov["v"] == {"обвинил": 6} and lavrov["d"] == [1] * 6
+    assert lavrov["ex"]["t"].startswith("Лавров") and lavrov["ex"]["d"] == "2026-09-06"
+    assert voices["kinds"]["ru"]["person"] >= 6 and voices["outlets"]["ria"]["person"] >= 6
+    week = json.loads((folder / "voices" / "7.json").read_text(encoding="utf-8"))
+    assert len(week["days"]) == 6                                # fewer completed days than the period
+    verbs = json.loads((folder / "verbs.json").read_text(encoding="utf-8"))
+    assert verbs["verbs"]["обвинил"] == "judges" and verbs["kinds"][0] == "quotes"
+    countries = json.loads((folder / "countries" / "all.json").read_text(encoding="utf-8"))
+    assert countries["countries"]["FI"]["n"] == 6 and countries["countries"]["FI"]["o"] == {"rt": 6}
+    assert countries["countries"]["RU"]["n"] >= 6 and countries["names"]["FI"] == "Finland"
+    stories = json.loads((folder / "stories" / "all.json").read_text(encoding="utf-8"))
+    assert stories["per_day"] == [0] * 6 and stories["min"] == 4     # two outlets: no story reaches four
+    assert json.loads(gzip.decompress((folder / "stories" / "day" / "2026-09-03.json.gz").read_bytes())) == []
+    tags = json.loads((folder / "tags" / "all.json").read_text(encoding="utf-8"))
+    assert tags["outlets"] == {}                                 # the test records carry no tags or sections
 
 
 # ── interface strings ─────────────────────────────────────────────────────────

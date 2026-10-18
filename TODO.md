@@ -132,6 +132,28 @@ translated as they are collected, and `woland translate` (the nightly step) fill
 
 ## 5. Site
 
+- [ ] **Analysis page (added 18 October 2026, the user's request).** Who speaks, stories and who goes first,
+      countries, the outlets' own tags (`woland/analysis.py`, `site/assets/js/analysis.js`). Still to do:
+      - **Keep the previous headline when an outlet rewrites one** (the user said yes on 18 October): a collection
+        change (`store.py` keeps only the latest headline when a record is read again), so it waits until the
+        RT English, Sputnik and MK work on collection is merged. Then a "rewritten headlines" view.
+      - **Speakers** are found by patterns at the start of a headline (the end, in English): a quotation in the
+        middle, in the lead, or after "по словам" is missed; two people with one surname are one (Dmitry and Daniil
+        Medvedev); pymorphy3 takes some foreign surnames for common nouns ("Мадьяр", listed in `PERSON_RU`).
+        A random sample of 50 speaking headlines should be read, as for the framings, before the figures are quoted.
+      - **Stories** use tf-idf over English headlines and leads (`STORY_SIM` 0.3, read on 15 October: 354 stories
+        in 5+ outlets, one wrong pair in the sample of four). The user agreed to heavier methods (sentence
+        embeddings): try them if stories split or merge too often. Stories are found within one Moscow day.
+      - **Argumenty i Fakty's times look early**: it "goes first" in 54% of its stories, yet for the 55 October
+        headlines it shares word for word with TASS (which it copies) its time is earlier by a median 1.7 hours
+        (mostly 1-3 h). Its listing dates (`text_box__date` in `outlets.yaml`) may not be Moscow time. Check one
+        article's page against its listing before trusting "who goes first" for AiF (a collection fix).
+      - **Build time**: the analyses add ~4 minutes to a month's build (September: 645 s against ~415 s), mostly the
+        story grouping (~5 s a day); a daily build redoes only the current month.
+      - **Size**: `analysis/voices/all.json` and `countries/all.json` keep a count per day for every speaker and
+        country listed; after a year switch the "all" period to weekly counts.
+      - The Finnish and Swedish strings and Method sections of the Analysis page need a native speaker's review.
+
 - [ ] **Load time** (measured 28 September from Finland on the live site; sizes compressed): Today ~104 KB and
       loaded in ~1.2 s, Narratives ~145 KB, Outlets ~70 KB. (Narratives read two or three whole day digests,
       ~57 KB each, for its dozen examples; since 10 October one file per framing, ~10 KB: ~60 KB in all. Today's

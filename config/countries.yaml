@@ -1,0 +1,211 @@
+# Countries for the Analysis page: which countries an article's headline and lead name.
+#
+# For every country (ISO 3166-1 alpha-2 code): the words that count as naming it, in Russian (`ru`) and English
+# (`en`): its names, the adjective, the people, and for the countries in the news most often the capital, which
+# both presses use for the government ("Киев заявил", "Washington says"). Russian words are written in their
+# dictionary form and matched in every form (pymorphy3's lemmas, as for rising words); English words are matched
+# as written, with "s" for the plural where it applies. A word written with a capital letter counts only when
+# the text capitalises it too ("Чад" the country, not "чад" the fumes); one written in lower case counts either
+# way (adjectives, which start a headline with a capital); one written in capitals (США, US) only in capitals.
+#
+# Left out because they mean too many other things: "Корея" alone (which one?), "Штаты", "РК", "Georgia"'s
+# American namesake cannot be told apart (counted as the country), "Jordan" may be a person. Russia is counted
+# like any other country but drawn apart on the map: it is the home country of nearly every article.
+
+AF: {ru: [Афганистан, афганский, афганец, Кабул], en: [Afghanistan, Afghan, Afghans, Kabul]}
+AL: {ru: [Албания, албанский], en: [Albania, Albanian]}
+DZ: {ru: [Алжир, алжирский], en: [Algeria, Algerian]}
+AD: {ru: [Андорра], en: [Andorra]}
+AO: {ru: [Ангола, ангольский], en: [Angola, Angolan]}
+AG: {ru: [Антигуа и Барбуда], en: [Antigua and Barbuda]}
+AR: {ru: [Аргентина, аргентинский], en: [Argentina, Argentine, Argentinian]}
+AM: {ru: [Армения, армянский, Ереван], en: [Armenia, Armenian, Armenians, Yerevan]}
+AU: {ru: [Австралия, австралийский], en: [Australia, Australian, Australians, Canberra]}
+AT: {ru: [Австрия, австрийский, Вена], en: [Austria, Austrian, Vienna]}
+AZ: {ru: [Азербайджан, азербайджанский, Баку], en: [Azerbaijan, Azerbaijani, Azerbaijanis, Baku]}
+BS: {ru: [Багамы, Багамские острова], en: [Bahamas]}
+BH: {ru: [Бахрейн], en: [Bahrain]}
+BD: {ru: [Бангладеш], en: [Bangladesh, Bangladeshi]}
+BB: {ru: [Барбадос], en: [Barbados]}
+BY: {ru: [Белоруссия, Беларусь, белорусский, белорус, Минск], en: [Belarus, Belarusian, Belarusians, Minsk]}
+BE: {ru: [Бельгия, бельгийский], en: [Belgium, Belgian]}
+BZ: {ru: [Белиз], en: [Belize]}
+BJ: {ru: [Бенин], en: [Benin]}
+BT: {ru: [Бутан], en: [Bhutan]}
+BO: {ru: [Боливия, боливийский], en: [Bolivia, Bolivian]}
+BA: {ru: [Босния и Герцеговина, Босния, боснийский], en: [Bosnia and Herzegovina, Bosnia, Bosnian]}
+BW: {ru: [Ботсвана], en: [Botswana]}
+BR: {ru: [Бразилия, бразильский], en: [Brazil, Brazilian, Brasilia]}
+BN: {ru: [Бруней], en: [Brunei]}
+BG: {ru: [Болгария, болгарский], en: [Bulgaria, Bulgarian]}
+BF: {ru: [Буркина Фасо], en: [Burkina Faso]}
+BI: {ru: [Бурунди], en: [Burundi]}
+CV: {ru: [Кабо Верде], en: [Cape Verde, Cabo Verde]}
+KH: {ru: [Камбоджа, камбоджийский], en: [Cambodia, Cambodian]}
+CM: {ru: [Камерун], en: [Cameroon]}
+CA: {ru: [Канада, канадский, Оттава], en: [Canada, Canadian, Canadians, Ottawa]}
+CF: {ru: [ЦАР, Центральноафриканская Республика], en: [Central African Republic]}
+TD: {ru: [Чад], en: [Chad]}
+CL: {ru: [Чили, чилийский], en: [Chile, Chilean]}
+CN: {ru: [Китай, КНР, китайский, китаец, Пекин], en: [China, Chinese, Beijing, PRC]}
+CO: {ru: [Колумбия, колумбийский], en: [Colombia, Colombian]}
+KM: {ru: [Коморы, Коморские острова], en: [Comoros]}
+CG: {ru: [Республика Конго], en: [Republic of the Congo]}
+CD: {ru: [ДР Конго, ДРК, Демократическая Республика Конго], en: [DR Congo, DRC, Democratic Republic of the Congo]}
+CR: {ru: [Коста Рика], en: [Costa Rica]}
+CI: {ru: [Кот д’Ивуар, Кот д'Ивуар], en: [Ivory Coast, Côte d'Ivoire]}
+HR: {ru: [Хорватия, хорватский], en: [Croatia, Croatian]}
+CU: {ru: [Куба, кубинский, Гавана], en: [Cuba, Cuban, Havana]}
+CY: {ru: [Кипр, кипрский], en: [Cyprus, Cypriot]}
+CZ: {ru: [Чехия, чешский, Прага], en: [Czech Republic, Czechia, Czech, Prague]}
+DK: {ru: [Дания, датский, Копенгаген], en: [Denmark, Danish, Copenhagen]}
+DJ: {ru: [Джибути], en: [Djibouti]}
+DM: {ru: [Доминика], en: [Dominica]}
+DO: {ru: [Доминиканская Республика, Доминикана], en: [Dominican Republic]}
+EC: {ru: [Эквадор, эквадорский], en: [Ecuador, Ecuadorian]}
+EG: {ru: [Египет, египетский, Каир], en: [Egypt, Egyptian, Egyptians, Cairo]}
+SV: {ru: [Сальвадор], en: [El Salvador]}
+GQ: {ru: [Экваториальная Гвинея], en: [Equatorial Guinea]}
+ER: {ru: [Эритрея], en: [Eritrea]}
+EE: {ru: [Эстония, эстонский, Таллин], en: [Estonia, Estonian, Estonians, Tallinn]}
+SZ: {ru: [Эсватини, Свазиленд], en: [Eswatini, Swaziland]}
+ET: {ru: [Эфиопия, эфиопский], en: [Ethiopia, Ethiopian]}
+FJ: {ru: [Фиджи], en: [Fiji]}
+FI: {ru: [Финляндия, финский, финн, Хельсинки], en: [Finland, Finnish, Finns, Helsinki]}
+FR: {ru: [Франция, французский, француз, Париж], en: [France, French, Paris]}
+GA: {ru: [Габон], en: [Gabon]}
+GM: {ru: [Гамбия], en: [Gambia]}
+GE: {ru: [Грузия, грузинский, Тбилиси], en: [Georgia, Georgian, Georgians, Tbilisi]}
+DE: {ru: [Германия, ФРГ, немецкий, германский, немец, Берлин], en: [Germany, German, Germans, Berlin]}
+GH: {ru: [Гана], en: [Ghana, Ghanaian]}
+GR: {ru: [Греция, греческий, Афины], en: [Greece, Greek, Athens]}
+GD: {ru: [Гренада], en: [Grenada]}
+GT: {ru: [Гватемала], en: [Guatemala]}
+GN: {ru: [Гвинея], en: [Guinea]}
+GW: {ru: [Гвинея Бисау], en: [Guinea-Bissau]}
+GY: {ru: [Гайана], en: [Guyana]}
+HT: {ru: [Гаити], en: [Haiti]}
+HN: {ru: [Гондурас], en: [Honduras]}
+HU: {ru: [Венгрия, венгерский, Будапешт], en: [Hungary, Hungarian, Budapest]}
+IS: {ru: [Исландия, исландский], en: [Iceland, Icelandic]}
+IN: {ru: [Индия, индийский, Нью Дели], en: [India, Indian, Indians, New Delhi]}
+ID: {ru: [Индонезия, индонезийский], en: [Indonesia, Indonesian]}
+IR: {ru: [Иран, иранский, Тегеран], en: [Iran, Iranian, Iranians, Tehran]}
+IQ: {ru: [Ирак, иракский, Багдад], en: [Iraq, Iraqi, Baghdad]}
+IE: {ru: [Ирландия, ирландский], en: [Ireland, Irish, Dublin]}
+IL: {ru: [Израиль, израильский, израильтянин, Тель Авив], en: [Israel, Israeli, Israelis, Tel Aviv]}
+IT: {ru: [Италия, итальянский, итальянец, Рим], en: [Italy, Italian, Italians, Rome]}
+JM: {ru: [Ямайка], en: [Jamaica]}
+JP: {ru: [Япония, японский, японец, Токио], en: [Japan, Japanese, Tokyo]}
+JO: {ru: [Иордания, иорданский], en: [Jordan, Jordanian]}
+KZ: {ru: [Казахстан, казахстанский, казахский, Астана], en: [Kazakhstan, Kazakh, Astana]}
+KE: {ru: [Кения, кенийский], en: [Kenya, Kenyan]}
+KI: {ru: [Кирибати], en: [Kiribati]}
+KP: {ru: [КНДР, Северная Корея, северокорейский, Пхеньян], en: [North Korea, North Korean, DPRK, Pyongyang]}
+KR: {ru: [Южная Корея, южнокорейский, Сеул], en: [South Korea, South Korean, Seoul]}
+XK: {ru: [Косово], en: [Kosovo]}
+KW: {ru: [Кувейт], en: [Kuwait]}
+KG: {ru: [Киргизия, Кыргызстан, киргизский, кыргызский, Бишкек], en: [Kyrgyzstan, Kyrgyz, Bishkek]}
+LA: {ru: [Лаос], en: [Laos]}
+LV: {ru: [Латвия, латвийский, латышский, Рига], en: [Latvia, Latvian, Latvians, Riga]}
+LB: {ru: [Ливан, ливанский, Бейрут], en: [Lebanon, Lebanese, Beirut]}
+LS: {ru: [Лесото], en: [Lesotho]}
+LR: {ru: [Либерия], en: [Liberia]}
+LY: {ru: [Ливия, ливийский, Триполи], en: [Libya, Libyan, Tripoli]}
+LI: {ru: [Лихтенштейн], en: [Liechtenstein]}
+LT: {ru: [Литва, литовский, Вильнюс], en: [Lithuania, Lithuanian, Lithuanians, Vilnius]}
+LU: {ru: [Люксембург], en: [Luxembourg]}
+MG: {ru: [Мадагаскар], en: [Madagascar]}
+MW: {ru: [Малави], en: [Malawi]}
+MY: {ru: [Малайзия, малайзийский], en: [Malaysia, Malaysian]}
+MV: {ru: [Мальдивы], en: [Maldives]}
+ML: {ru: [Мали, малийский], en: [Mali, Malian]}
+MT: {ru: [Мальта, мальтийский], en: [Malta, Maltese]}
+MH: {ru: [Маршалловы острова], en: [Marshall Islands]}
+MR: {ru: [Мавритания], en: [Mauritania]}
+MU: {ru: [Маврикий], en: [Mauritius]}
+MX: {ru: [Мексика, мексиканский], en: [Mexico, Mexican, Mexicans]}
+FM: {ru: [Микронезия], en: [Micronesia]}
+MD: {ru: [Молдавия, Молдова, молдавский, Кишинев], en: [Moldova, Moldovan, Moldovans, Chisinau]}
+MC: {ru: [Монако], en: [Monaco]}
+MN: {ru: [Монголия, монгольский], en: [Mongolia, Mongolian]}
+ME: {ru: [Черногория, черногорский], en: [Montenegro, Montenegrin]}
+MA: {ru: [Марокко, марокканский], en: [Morocco, Moroccan]}
+MZ: {ru: [Мозамбик], en: [Mozambique]}
+MM: {ru: [Мьянма], en: [Myanmar]}
+NA: {ru: [Намибия], en: [Namibia]}
+NR: {ru: [Науру], en: [Nauru]}
+NP: {ru: [Непал], en: [Nepal, Nepalese]}
+NL: {ru: [Нидерланды, Голландия, нидерландский, голландский, Амстердам], en: [Netherlands, Dutch, Amsterdam]}
+NZ: {ru: [Новая Зеландия, новозеландский], en: [New Zealand]}
+NI: {ru: [Никарагуа], en: [Nicaragua]}
+NE: {ru: [Нигер], en: [Niger]}
+NG: {ru: [Нигерия, нигерийский], en: [Nigeria, Nigerian]}
+MK: {ru: [Северная Македония, Македония, македонский], en: [North Macedonia, Macedonia, Macedonian]}
+"NO": {ru: [Норвегия, норвежский, Осло], en: [Norway, Norwegian, Oslo]}
+OM: {ru: [Оман], en: [Oman]}
+PK: {ru: [Пакистан, пакистанский, Исламабад], en: [Pakistan, Pakistani, Islamabad]}
+PW: {ru: [Палау], en: [Palau]}
+PS: {ru: [Палестина, палестинский, палестинец, Газа, сектор Газа], en: [Palestine, Palestinian, Palestinians, Gaza]}
+PA: {ru: [Панама], en: [Panama]}
+PG: {ru: [Папуа Новая Гвинея], en: [Papua New Guinea]}
+PY: {ru: [Парагвай], en: [Paraguay]}
+PE: {ru: [Перу, перуанский], en: [Peru, Peruvian]}
+PH: {ru: [Филиппины, филиппинский], en: [Philippines, Philippine, Filipino]}
+PL: {ru: [Польша, польский, поляк, Варшава], en: [Poland, Polish, Poles, Warsaw]}
+PT: {ru: [Португалия, португальский, Лиссабон], en: [Portugal, Portuguese, Lisbon]}
+QA: {ru: [Катар, катарский], en: [Qatar, Qatari, Doha]}
+RO: {ru: [Румыния, румынский, Бухарест], en: [Romania, Romanian, Romanians, Bucharest]}
+RU: {ru: [Россия, РФ, российский, россиянин, русский, Москва, Кремль], en: [Russia, Russian, Russians, Moscow, Kremlin]}
+RW: {ru: [Руанда], en: [Rwanda]}
+KN: {ru: [Сент Китс и Невис], en: [Saint Kitts and Nevis]}
+LC: {ru: [Сент Люсия], en: [Saint Lucia]}
+VC: {ru: [Сент Винсент и Гренадины], en: [Saint Vincent and the Grenadines]}
+WS: {ru: [Самоа], en: [Samoa]}
+SM: {ru: [Сан Марино], en: [San Marino]}
+ST: {ru: [Сан Томе и Принсипи], en: [Sao Tome and Principe]}
+SA: {ru: [Саудовская Аравия, саудовский, Эр Рияд], en: [Saudi Arabia, Saudi, Riyadh]}
+SN: {ru: [Сенегал], en: [Senegal]}
+RS: {ru: [Сербия, сербский, серб, Белград], en: [Serbia, Serbian, Serbs, Belgrade]}
+SC: {ru: [Сейшелы, Сейшельские острова], en: [Seychelles]}
+SL: {ru: [Сьерра Леоне], en: [Sierra Leone]}
+SG: {ru: [Сингапур, сингапурский], en: [Singapore]}
+SK: {ru: [Словакия, словацкий, Братислава], en: [Slovakia, Slovak, Bratislava]}
+SI: {ru: [Словения, словенский], en: [Slovenia, Slovenian]}
+SB: {ru: [Соломоновы острова], en: [Solomon Islands]}
+SO: {ru: [Сомали], en: [Somalia, Somali]}
+ZA: {ru: [ЮАР, Южная Африка, южноафриканский], en: [South Africa, South African]}
+SS: {ru: [Южный Судан], en: [South Sudan]}
+ES: {ru: [Испания, испанский, Мадрид], en: [Spain, Spanish, Madrid]}
+LK: {ru: [Шри Ланка], en: [Sri Lanka]}
+SD: {ru: [Судан, суданский], en: [Sudan, Sudanese]}
+SR: {ru: [Суринам], en: [Suriname]}
+SE: {ru: [Швеция, шведский, швед, Стокгольм], en: [Sweden, Swedish, Swedes, Stockholm]}
+CH: {ru: [Швейцария, швейцарский, Берн], en: [Switzerland, Swiss]}
+SY: {ru: [Сирия, сирийский, Дамаск], en: [Syria, Syrian, Syrians, Damascus]}
+TW: {ru: [Тайвань, тайваньский, Тайбэй], en: [Taiwan, Taiwanese, Taipei]}
+TJ: {ru: [Таджикистан, таджикский, Душанбе], en: [Tajikistan, Tajik, Dushanbe]}
+TZ: {ru: [Танзания], en: [Tanzania]}
+TH: {ru: [Таиланд, тайский], en: [Thailand, Thai]}
+TL: {ru: [Восточный Тимор], en: [East Timor, Timor-Leste]}
+TG: {ru: [], en: [Togo]}   # "Того" starts too many headlines
+TO: {ru: [Тонга], en: [Tonga]}
+TT: {ru: [Тринидад и Тобаго], en: [Trinidad and Tobago]}
+TN: {ru: [Тунис, тунисский], en: [Tunisia, Tunisian]}
+TR: {ru: [Турция, турецкий, Анкара], en: [Turkey, Türkiye, Turkish, Ankara]}
+TM: {ru: [Туркмения, Туркменистан, туркменский, Ашхабад], en: [Turkmenistan, Turkmen, Ashgabat]}
+TV: {ru: [Тувалу], en: [Tuvalu]}
+UG: {ru: [Уганда], en: [Uganda]}
+UA: {ru: [Украина, украинский, украинец, Киев, Незалежная], en: [Ukraine, Ukrainian, Ukrainians, Kiev, Kyiv]}
+AE: {ru: [ОАЭ, Объединенные Арабские Эмираты, эмиратский, Абу Даби, Дубай], en: [UAE, United Arab Emirates, Emirati, Abu Dhabi, Dubai]}
+GB: {ru: [Великобритания, Британия, Англия, британский, английский, британец, Лондон], en: [Britain, United Kingdom, UK, England, British, Briton, Britons, London]}
+US: {ru: [США, Соединенные Штаты, Америка, американский, американец, Вашингтон, Белый дом], en: [United States, US, USA, America, American, Americans, Washington, White House]}
+UY: {ru: [Уругвай], en: [Uruguay]}
+UZ: {ru: [Узбекистан, узбекский, Ташкент], en: [Uzbekistan, Uzbek, Tashkent]}
+VU: {ru: [Вануату], en: [Vanuatu]}
+VA: {ru: [Ватикан], en: [Vatican, Holy See]}
+VE: {ru: [Венесуэла, венесуэльский, Каракас], en: [Venezuela, Venezuelan, Caracas]}
+VN: {ru: [Вьетнам, вьетнамский, Ханой], en: [Vietnam, Vietnamese, Hanoi]}
+YE: {ru: [Йемен, йеменский, хуситы], en: [Yemen, Yemeni, Houthi, Houthis]}
+ZM: {ru: [Замбия], en: [Zambia]}
+ZW: {ru: [Зимбабве], en: [Zimbabwe]}
