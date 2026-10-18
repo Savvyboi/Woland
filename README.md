@@ -7,7 +7,7 @@ a searchable, citable record of what it published: every headline, its lead, whe
 propaganda framings its words match. It is made for researchers, journalists and activists, and runs entirely on
 GitHub: GitHub Actions collects, the repository stores, GitHub Pages publishes.
 
-The website has five chapters (and an interface in English, Finnish and Swedish):
+The website has six chapters (and an interface in English, Finnish and Swedish):
 
 | | Page | What it shows |
 |---|---|---|
@@ -15,6 +15,7 @@ The website has five chapters (and an interface in English, Finnish and Swedish)
 | II | **Narratives** — *There Were Doings at Griboyedov's* | one framing or topic over time, on completed days: overall (with the articles and outlets behind every share), by type of outlet, at home vs. abroad, by outlet, outlet × day heatmap (not collected ≠ no articles), optionally only the outlets collected every day; recent examples, the exact patterns and how many of a sample of matches fit the definition |
 | III | **Archive** — *Manuscripts Don't Burn* | full-text search over every headline and lead (all word forms; English queries also hit the machine translations of Russian headlines and leads, and either spelling of place names), active filters as chips, timeline, per-outlet counts, CSV export |
 | IV | **Outlets** — *Satan's Great Ball* | the 23 outlets: owner, language, EU-blocking status, how Woland reads them, what is known about gaps, headline-only records, what they lean on, collection day by day, the log of collection runs |
+| V | **Analysis** — *Sturgeon of the Second Freshness* | over the last 7 or 30 completed days, or all of them: who the headlines quote (people, institutions, unnamed "experts", other outlets) and with which verb; the stories that four or more outlets ran on the same day, who ran each first and how long the others took; the countries named, on a map; the outlets' own tags and sections |
 | ❦ | **Method** — *Epilogue* | methodology, limitations, citation, data access, legal notes, the full lexicon |
 
 Every article can be opened in the original, in the Internet Archive (important: many of these sites are
@@ -92,6 +93,10 @@ From then on everything is automatic:
 * **Rising words** (`woland/build.py`, `woland/textproc.py`) — headline words grouped by dictionary form
   (pymorphy3 for Russian, Snowball stems otherwise) and, when they share most of their headlines or were first
   used in the same one, into one event.
+* **Analysis** (`woland/analysis.py`, `config/countries.yaml`) — speakers found by headline patterns ("Песков: …",
+  "Лавров заявил…", "… – Lavrov") and sorted with pymorphy3; stories grouped by tf-idf similarity of each day's
+  English headlines and leads (machine translations for Russian ones); countries from a word list matched in every
+  grammatical form; the outlets' own tags as stored. Computed at build time for the Analysis page.
 * **The site** (`site/`, `woland/build.py`) — plain HTML, CSS and JavaScript modules; no framework, no build
   tool. Search runs in the browser against a static inverted index sharded by month and by word, so only a
   few small gzip files are downloaded per query. Unchanged months are cached between builds.
@@ -156,6 +161,8 @@ own situation.
   entry (see `docs/lexicon-audit.md`).
 * **Translation glossary** — `config/glossary.yaml`: a Russian name or term, what the model writes instead, and
   the right English. Applied at the next build; check with `python -m woland mtcheck`.
+* **Countries** — `config/countries.yaml`: the words that count as naming each country on the Analysis page
+  (names, adjectives, peoples, capitals), with the case rules explained at its top. Applied at the next build.
 * **Outlet notes** — the optional `note` of an outlet in `config/outlets.yaml` (in English, Finnish and Swedish)
   is shown on the Outlets page: what readers should know about its coverage.
 * **Start date** — `WOLAND_START` (default `2026-09-01`).
