@@ -73,6 +73,25 @@ def test_known_and_previously_rejected_urls_are_not_fetched_again(fake_site):
     assert run.stats["known"] == 1 and run.stats["skipped"] == 1
 
 
+def test_an_article_stored_under_the_sites_former_address_is_not_stored_again(fake_site):
+    moved = outlet()
+    moved.home, moved.former = "https://new.ru", ["https://t.ru"]
+    moved.article = re.compile(r"^https://(?:t|new)\.ru/a/\d+$")
+    fake_site["cands"] = [Candidate(url=f"https://new.ru/a/{i}") for i in range(2)]
+    fake_site["pages"] = {"https://new.ru/a/1": page_info(D, 1)}
+    run = collect.collect_outlet(moved, D, D, LEX, known={"https://t.ru/a/0": ("page", "2026-09-10")},
+                                 rejected_before={})
+    assert [r["u"] for r in run.records] == ["https://new.ru/a/1"]
+    assert run.stats["known"] == 1
+
+
+def test_a_listing_with_no_article_in_it_is_reported(fake_site):
+    fake_site["cands"] = [Candidate(url=f"https://elsewhere.ru/a/{i}") for i in range(25)]
+    run = collect.collect_outlet(outlet(), D, D, LEX, known=set(), rejected_before={})
+    assert not run.records and run.stats["not_article"] == 25
+    assert any("looks like an article" in e for e in run.errors)
+
+
 def test_records_reach_the_sink_in_batches(fake_site):
     fake_site["cands"] = [Candidate(url=f"https://t.ru/a/{i}") for i in range(25)]
     fake_site["pages"] = {f"https://t.ru/a/{i}": page_info(D, i) for i in range(25)}
