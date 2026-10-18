@@ -15,6 +15,12 @@ Open work for future sessions, most urgent first. State of the archive when this
 
 ## 1. Collection on GitHub (watch the next runs)
 
+- [ ] **RT English moved to rt-english.com on 13 October 2026** (www.rt.com answers 301 to it since), and
+      nothing was stored for 13–17 October: every URL of its sitemap failed the `article` pattern, which no run
+      reported. Fixed on 18 October: `home`, sitemap and pattern take the new address, `former` keeps the
+      articles stored under www.rt.com from being stored again, and a source that lists 20 or more URLs none
+      of which looks like an article is now reported as an error. The next nightly run reads back a week
+      (from 11 October); 13–17 October will need no backfill if it fills them — check.
 - [ ] **TASS's feed for news aggregators refuses GitHub more often than not** (since 8 October). It failed
       unreported on 7–8 October (readings found ~170 items in TASS's feeds instead of ~800, because a source
       only reported an error when *all* its feeds failed; fixed on 9 October, `SourcePartial` in `discover.py`).
@@ -33,6 +39,14 @@ Open work for future sessions, most urgent first. State of the archive when this
 - [ ] **Hourly feeds run every three to seven hours** (4–6 polls a day, 30 September – 9 October). Decided on 28
       September: no outside trigger; reconsider now that TASS's fullest feed refuses (above): with only the main
       feed's three hours, TASS loses hours at every longer interval. The decision is the user's.
+- [ ] **Sputnik: the Internet Archive stopped capturing it on 13 October** (CDX for October: 27–52 articles a
+      day on 1–12 October, 11 on the 13th, 0–4 since), so Woland, which reads only the Archive's copies, has
+      next to nothing from then on; its note says so. Checked from GitHub on 18 October: sputnikglobe.com
+      answered a runner's first two or three requests (feed, sitemap) and then timed out on every connection
+      from it, curl and Python alike. That is a site shutting out automated readers, so no way round it is
+      tried (ground rules). Watch whether the Archive resumes.
+- [ ] MK did not answer GitHub on the night of 17 October (16 October: 121 articles of ~550); it answered
+      again at 01:00 UTC on 18 October, and the next nightly run reads the week back.
 - [ ] The nightly run (01:17 UTC) starts at 06:30–07:35 UTC and takes 70–100 minutes when MK answers (its
       90-minute cap dominates; 18 minutes on 9 October, when MK did not answer), the site build ~10 more: late
       runs cost nothing but a later site. Translating leads as well (from 9 October) made each outlet's reading
@@ -110,7 +124,8 @@ translated as they are collected, and `woland translate` (the nightly step) fill
       `archive.syntax`, `archive.scope.words`, `today.lede.rising.one`, `outlets.perday.hint`, `problem.*`,
       `title.*`, `nav.contents`, `nav.days`; "narratiiveja" and "narrativ" for "kehystyksiä" and "inramningar"
       in TASS's note and Method paragraph (the words the rest of the site uses); and on 10 October: the end of
-      TASS's note (its section feeds) and the Method page's sentence on how rising words are grouped.
+      TASS's note (its section feeds) and the Method page's sentence on how rising words are grouped; and on 18
+      October: the last sentence of Sputnik's note.
 - [ ] **Legal**: most of these outlets fall under the EU broadcasting ban. Woland shows headlines, leads
       (≤ 240 characters) and snippets (≤ ~170) for analysis, and now their machine translations; the README
       flags this, but it is not legal advice.

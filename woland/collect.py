@@ -177,6 +177,9 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict,
             run.stats["not_article" if c.url not in urls else "duplicate"] += 1
             continue
         urls.add(c.url)
+        if c.url not in known and any(u in known for u in o.former_urls(c.url)):
+            run.stats["known"] += 1  # stored under the site's former address
+            continue
         if c.hint and start <= msk_day(c.hint) <= end:
             run.found_by_day[msk_day(c.hint).isoformat()] += 1
         if c.url in known:
@@ -197,6 +200,11 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict,
                 urls.add(r["u"])
                 upgrades.append(Candidate(url=r["u"], hint=parse_dt(r["p"]), title=r["t"], lead=r.get("d", ""),
                                           via="stored"))
+    if len(cands) >= 20 and not urls:
+        # Everything listed was refused by the `article` pattern: the site has most likely changed its
+        # addresses (RT moved to rt-english.com on 13 October 2026, unnoticed for five days).
+        run.errors.append(f"none of the {len(cands)} URLs listed looks like an article (e.g. {cands[0].url}):"
+                          " has the site changed its addresses?")
     if not cands and run.errors and all(_NO_CONNECTION.search(e) for e in run.errors):
         run.aborted = f"no connection to {o.host}"
 

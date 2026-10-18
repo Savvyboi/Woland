@@ -47,6 +47,8 @@
 #               longer than `minutes` between two stored articles (URLs matching the pattern `skip` aside:
 #               sections a feed of their own covers for longer) is shown as hours not collected
 #   video       a pattern for the URLs of video items, whose text is only a caption: labelled "video" on the site
+#   former      addresses the site used before it moved: an article found under `home` that is already
+#               stored under one of them is not stored again
 #   enabled     false = skipped (kept for documentation)
 
 defaults:
@@ -431,15 +433,18 @@ outlets:
     name_ru: RT (англ.)
     lang: en
     group: foreign
-    home: https://www.rt.com
+    home: https://rt-english.com
+    # www.rt.com has sent every request to rt-english.com since 13 October 2026 (a 302, so perhaps not for
+    # good); the articles stored before then keep their www.rt.com addresses.
+    former: ['https://www.rt.com']
     eu_blocked: true
     about:
       en: English-language flagship of the state-funded RT network, aimed at foreign audiences.
       fi: Valtion rahoittaman RT-verkon englanninkielinen lippulaiva, suunnattu ulkomaiselle yleisölle.
       sv: Det statligt finansierade RT-nätverkets engelskspråkiga flaggskepp, riktat till utländsk publik.
-    article: '^https://www\.rt\.com/[a-z-]+/\d+-[^/?#]+/?$'
+    article: '^https://(?:www\.rt\.com|rt-english\.com)/[a-z-]+/\d+-[^/?#]+/?$'
     sources:
-      - {type: sitemap, per: year, url: 'https://www.rt.com/sitemap_{y}.xml'}
+      - {type: sitemap, per: year, url: 'https://rt-english.com/sitemap_{y}.xml'}
 
   - id: tass-en
     name: TASS (English)
@@ -471,11 +476,13 @@ outlets:
       fi: Rossija Segodnjan kansainvälinen englanninkielinen brändi (aiemmin Sputnik News).
       sv: Rossija Segodnjas internationella engelskspråkiga varumärke (tidigare Sputnik News).
     note:
-      en: 'Blocked on the network in Finland where Woland was set up, and it does not answer GitHub''s servers, where the collection runs, either (since 27 September 2026). Only the articles the Internet Archive has captured are read, from its copies: some 15–30 a day in September 2026, a fraction of what Sputnik publishes.'
-      fi: 'Estetty Suomessa siinä verkossa, jossa Woland perustettiin, eikä se vastaa myöskään GitHubin palvelimille, joilla keruu toimii (27.9.2026 alkaen). Vain Internet Archiven tallentamat artikkelit luetaan sen kopioista: syyskuussa 2026 noin 15–30 päivässä, murto-osa Sputnikin julkaisuista.'
-      sv: 'Blockerad i det finländska nätverk där Woland sattes upp, och den svarar inte heller GitHubs servrar, där insamlingen körs (sedan den 27 september 2026). Bara de artiklar som Internet Archive har sparat läses, från dess kopior: omkring 15–30 om dagen i september 2026, en bråkdel av vad Sputnik publicerar.'
+      en: 'Blocked on the network in Finland where Woland was set up, and it does not answer GitHub''s servers, where the collection runs, either (since 27 September 2026). Only the articles the Internet Archive has captured are read, from its copies: some 15–30 a day in September 2026, a fraction of what Sputnik publishes. Since 13 October 2026 the Archive has captured hardly any, so few or none of its articles are shown from then on.'
+      fi: 'Estetty Suomessa siinä verkossa, jossa Woland perustettiin, eikä se vastaa myöskään GitHubin palvelimille, joilla keruu toimii (27.9.2026 alkaen). Vain Internet Archiven tallentamat artikkelit luetaan sen kopioista: syyskuussa 2026 noin 15–30 päivässä, murto-osa Sputnikin julkaisuista. Internet Archive ei ole 13.10.2026 jälkeen tallentanut juuri yhtään, joten siitä eteenpäin artikkeleita näkyy vähän tai ei lainkaan.'
+      sv: 'Blockerad i det finländska nätverk där Woland sattes upp, och den svarar inte heller GitHubs servrar, där insamlingen körs (sedan den 27 september 2026). Bara de artiklar som Internet Archive har sparat läses, från dess kopior: omkring 15–30 om dagen i september 2026, en bråkdel av vad Sputnik publicerar. Sedan den 13 oktober 2026 har Internet Archive knappt sparat några, så från och med då visas få eller inga av dess artiklar.'
     # Every connection timed out from GitHub's servers on 27 September 2026, as from Finland. The pages the
-    # Internet Archive captured are read from its copies.
+    # Internet Archive captured are read from its copies. On 18 October 2026 a runner got two or three answers
+    # (feed, sitemap) before every connection from it timed out, for curl as for Python: it shuts out
+    # automated readers after a few requests, so it stays as it is.
     article: '^https://sputnikglobe\.com/\d{8}/[^/]+\.html$'
     sources:
       - {type: sitemap, per: day, url: 'https://sputnikglobe.com/sitemap_article.xml?date_start={ymd}&date_end={ymd}'}

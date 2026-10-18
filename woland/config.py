@@ -48,6 +48,9 @@ class Outlet:
     # hours not collected.
     gaps: dict = field(default_factory=dict)
     video: str | None = None  # URLs of video items (a caption for text), labelled as such on the site
+    # Addresses the site used before it moved (e.g. https://www.rt.com/ for RT, now at rt-english.com): an
+    # article found under the home is the one already stored under a former address, not a new one.
+    former: list[str] = field(default_factory=list)
 
     @property
     def host(self) -> str:
@@ -75,6 +78,13 @@ class Outlet:
 
     def is_article(self, url: str) -> bool:
         return bool(self.article.search(url))
+
+    def former_urls(self, url: str) -> list[str]:
+        """The same article's URL under each of the site's former addresses."""
+        home = self.home.rstrip("/") + "/"
+        if not url.startswith(home):
+            return []
+        return [f.rstrip("/") + "/" + url[len(home):] for f in self.former]
 
     def public(self) -> dict:
         """What the website is told about the outlet."""
@@ -105,7 +115,7 @@ def load_outlets(path: Path | None = None, include_disabled: bool = False) -> li
             feed_fulltext=bool(o.get("feed_fulltext", False)), cookies=dict(o.get("cookies") or {}),
             headline=o.get("headline", "meta"), note=o.get("note") or {},
             budget=float(o["budget"]) if o.get("budget") else None, gaps=dict(o.get("gaps") or {}),
-            video=o.get("video"),
+            video=o.get("video"), former=list(o.get("former") or []),
         )
         if outlet.enabled or include_disabled:
             outlets.append(outlet)
