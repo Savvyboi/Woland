@@ -43,14 +43,8 @@
  },
  "kp": {
   "https://www.kp.ru/online/news/7205247/": "2026-10-12",
-  "https://www.kp.ru/online/news/7211722/": "2026-10-08",
-  "https://www.kp.ru/online/news/7211723/": "2026-10-08",
-  "https://www.kp.ru/online/news/7211726/": "2026-10-08",
   "https://www.kp.ru/online/news/7217128/": "2026-10-15",
   "https://www.kp.ru/online/news/7223157/": "2026-10-15"
- },
- "mk": {
-  "https://www.mk.ru/incident/2026/10/08/data-centr-yandeksa-v-ryazanskoy-oblasti-ostanovil-rabotu-posle-ataki-bpla.html": "2026-10-08"
  },
  "tass-en": {
   "https://tass.com/economy/2202165": "2026-10-14",
@@ -64,7 +58,6 @@
   "https://tsargrad.tv/articles/dengi-ne-pahnut-potap-i-nastja-zarabatyvajut-na-beglyh-russkih-shema-zhutko-hitraja_1905138": "2026-10-15",
   "https://tsargrad.tv/articles/duhovnye-otcy-tretego-rima-pamjat-svjatitelej-moskovskih-pravoslavnyj-kalendar-na-18-oktjabrja_1905443": "2026-10-17",
   "https://tsargrad.tv/articles/dvazhdy-svjataja-den-blagovernoj-knjagini-anny-kashinskoj-pravoslavnyj-kalendar-na-15-oktjabrja_1904310": "2026-10-14",
-  "https://tsargrad.tv/articles/ejo-galkin-bjot-alla-pugachjova-sfotografirovalas-s-fanatom-polzovateli-uvideli-koe-chto-strashnoe_1897737": "2026-10-08",
   "https://tsargrad.tv/articles/glavnoe-ne-tolko-vovremja-pereobutsja-poshagovaja-instrukcija-po-podgotovke-avto-k-zime_1914072": "2026-10-21",
   "https://tsargrad.tv/articles/harizmatichnye-predateli-begut-iz-vysokih-kabinetov-general-skazal-kak-jeto-bylo-no-kto-im-pozvolil_1898282": "2026-10-09",
   "https://tsargrad.tv/articles/hristovy-voiny-pamjat-svjatyh-muchenikov-sergija-i-vakha-pravoslavnyj-kalendar-na-20-oktjabrja_1909742": "2026-10-19",
@@ -114,7 +107,6 @@
   "https://tsargrad.tv/articles/svjatost-severa-pamjat-prepodobnogo-savvatija-soloveckogo-pravoslavnyj-kalendar-na-10-oktjabrja_1899148": "2026-10-09",
   "https://tsargrad.tv/articles/svjatye-roditeli-pamjat-prepodobnyh-kirilla-i-marii-radonezhskih-cerkovnyj-kalendar-na-11-oktjabrja_1899188": "2026-10-10",
   "https://tsargrad.tv/articles/svo-prevratilas-v-igru-prestolov-zelenskij-menjaet-vlast-na-mir-sekret-dvuh-mesjacev-peredyshki-na-fronte_1904341": "2026-10-17",
-  "https://tsargrad.tv/articles/syn-groma-pamjat-apostola-i-evangelista-ioanna-bogoslova-pravoslavnyj-kalendar-na-9-oktjabrja_1896174": "2026-10-08",
   "https://tsargrad.tv/articles/terpim-dve-nedeli-v-kieve-predrekli-bolshuju-vojnu-beda-v-donbasse-na-svjaz-vyshel-sladkov-ssha-prinjali-neozhidannoe-reshenie_1909203": "2026-10-18",
   "https://tsargrad.tv/articles/topit-turok-v-chjornom-more-plohaja-ideja-otvet-uzhe-dan-vperedi-drugaja-vojna_1896857": "2026-10-10",
   "https://tsargrad.tv/articles/turki-gotovy-rasterzat-maksima-galkina-beglyj-komik-opjat-opozorilsja_1914252": "2026-10-21",
@@ -143,7 +135,6 @@
   "https://tsargrad.tv/news/chistka-zubov-obernulas-operaciej-na-serdce-pacienta-ele-spasli_1903311": "2026-10-17",
   "https://tsargrad.tv/news/chto-stalo-s-bankirami-kotorye-pomogli-elcinu-zahvatit-vlast_1899836": "2026-10-11",
   "https://tsargrad.tv/news/dagestanka-rasskazala-o-pogibshem-na-svo-syne-zal-vstal-sljoz-nikto-ne-sderzhal_1897650": "2026-10-09",
-  "https://tsargrad.tv/news/den-goroda-podolska-10-oktjabrja-2026-goda-polnaja-programma-245-letija_1897378": "2026-10-08",
   "https://tsargrad.tv/news/deputat-panesh-predlozhil-vvesti-proverki-otkazov-skoroj-dlja-pozhilyh-ljudej-starshe-80-let_1904043": "2026-10-13",
   "https://tsargrad.tv/news/devochka-ochnulas-v-grobu-vo-vremja-sobstvennyh-pohoron_1906905": "2026-10-18",
   "https://tsargrad.tv/news/diplom-vracha-za-tri-barana-istorija-migranta-kotoruju-ni-v-koem-sluchae-nelzja-zabyvat_1897880": "2026-10-10",
@@ -167,7 +158,6 @@
   "https://tsargrad.tv/news/kak-rastjanut-platezhi-za-otoplenie-poleznye-sovety-vzlom-zhkh_1904780": "2026-10-17",
   "https://tsargrad.tv/news/kak-sejchas-vygljadit-92-letnjaja-sofi-loren-i-pochemu-ej-net-dela-do-travli_1906305": "2026-10-17",
   "https://tsargrad.tv/news/kak-vygljadjat-aktjory-iz-santa-barbary-spustja-42-goda_1903653": "2026-10-17",
-  "https://tsargrad.tv/news/kakie-versii-ischeznovenija-usolcevyh-proverjaet-sledstvie-pobeg-iskljuchjon_1895661": "2026-10-08",
   "https://tsargrad.tv/news/kashpirovskij-pered-smertju-priznalsja-v-globalnoj-oshibke-a-ego-syn-otkazalsja-priezzhat-na-pohorony_1896141": "2026-10-10",
   "https://tsargrad.tv/news/kazhdyj-20-j-sluchaj-razvitija-raka-iz-za-alkogolja_1914377": "2026-10-21",
   "https://tsargrad.tv/news/kedmi-armenija-obrechena-vsjo-idjot-kak-po-notam_1904523": "2026-10-17",
@@ -195,7 +185,6 @@
   "https://tsargrad.tv/news/nakonec-to-zhdali-5-let-i-rossija-reshilas_1898597": "2026-10-10",
   "https://tsargrad.tv/news/nalogi-na-vklady-i-prodazhu-kvartir-novye-iniciativy-gosdumy-kosnutsja-kazhdogo_1899889": "2026-10-09",
   "https://tsargrad.tv/news/nazhmjom-knopku-vse-drony-popadajut-illjuzii-razvejal-konstruktor-volshebnogo-sredstva-pvo-net-i-ne-budet_1905387": "2026-10-18",
-  "https://tsargrad.tv/news/nazvany-4-vida-ryby-kotorye-opasnee-kolbasy-mogut-soderzhat-rtut-omega-6-i-antibiotiki_1898198": "2026-10-08",
   "https://tsargrad.tv/news/ne-konspirologija-dokazannyj-fakt-kak-razvedka-ssha-sozdajot-neulovimyh-shpionov_1904222": "2026-10-19",
   "https://tsargrad.tv/news/ne-zhdite-chto-dengi-pridut-sami-tri-nadbavki-k-pensii-kotorye-ne-nachisljat-bez-vashego-zajavlenija_1904280": "2026-10-17",
   "https://tsargrad.tv/news/nemcy-trebujut-sdelki-s-russkimi-merc-protiv_1907175": "2026-10-18",
