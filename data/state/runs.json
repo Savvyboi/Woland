@@ -11971,134 +11971,6 @@
   "seconds": 1051
  },
  {
-  "at": "2026-10-27T12:25:58Z",
-  "lexicon": "6ffff3b0",
-  "mode": "poll",
-  "outlets": {
-   "kremlin": {
-    "aborted": "",
-    "errors": [],
-    "new": 4,
-    "range": [
-     "2026-10-26",
-     "2026-10-27"
-    ],
-    "requests": 1,
-    "seconds": 14.4,
-    "stats": {
-     "known": 5,
-     "stored": 4,
-     "to_fetch": 4
-    },
-    "translated": 4
-   },
-   "kremlin-en": {
-    "aborted": "",
-    "errors": [],
-    "new": 2,
-    "range": [
-     "2026-10-26",
-     "2026-10-27"
-    ],
-    "requests": 1,
-    "seconds": 2.8,
-    "stats": {
-     "known": 5,
-     "stored": 2,
-     "to_fetch": 2
-    },
-    "translated": 0
-   },
-   "regnum": {
-    "aborted": "",
-    "errors": [],
-    "new": 81,
-    "range": [
-     "2026-10-26",
-     "2026-10-27"
-    ],
-    "requests": 1,
-    "seconds": 13.5,
-    "stats": {
-     "known": 118,
-     "not_article": 1,
-     "stored": 81,
-     "to_fetch": 81
-    },
-    "translated": 81
-   },
-   "rg": {
-    "aborted": "",
-    "errors": [],
-    "new": 98,
-    "range": [
-     "2026-10-26",
-     "2026-10-27"
-    ],
-    "requests": 99,
-    "seconds": 117.7,
-    "stats": {
-     "not_article": 2,
-     "stored": 98,
-     "to_fetch": 98
-    },
-    "translated": 98
-   },
-   "tass": {
-    "aborted": "no connection to tass.ru",
-    "errors": [
-     "rss: https://tass.ru/rss/yandex.xml: ConnectTimeout: HTTPSConnectionPool(host='tass.ru', port=443): Max retries exceeded with url: /rss/yandex.xml (Caused by ConnectTimeoutError(<HTTPSConnection(host='tass.ru', port=443) at 0x7f9b5cc9cbf0>, 'Connection to tass.ru timed out. (connect timeout=15)')); https://tass.ru/rss/v2.xml?sections=MjE3Ng%3D%3D: NoConnection: tass.ru did not answer the last 3 connection attempts; left alone for a while; https://tass.ru/rss/v2.xml?sections=MjI%3D: NoConnection: tass.ru did not answer the last 3 connection attempts; left alone for a while; https://tass.ru/rss/v2.xml?sections=MjM%3D: NoConnection: tass.ru did not answer the last 3 connection attempts; left alone for a while; https://tass.ru/rss/v2.xml?sections=MjQ%3D: NoConnection: tass.ru did not answer the last 3 connection attempts; left alone for a while; https://tass.ru/rss/v2.xml?sections=MjU%3D: NoConnection: tass.ru did not answer the last 3 connection attempts; left alone for a while; https://tass.ru/rss/v2.xml?sections=Mjc%3D: NoConnection: tass.ru did not answer the last 3 connection attempts; left alone for a while; https://tass.ru/rss/v2.xml?sections=Mjg%3D: NoConnection: tass.ru did not answer the last 3 connection attempts; left alone for a while; https://tass.ru/rss/v2.xml: NoConnection: tass.ru did not answer the last 3 connection attempts; left alone for a while"
-    ],
-    "new": 0,
-    "range": [
-     "2026-10-26",
-     "2026-10-27"
-    ],
-    "requests": 1,
-    "seconds": 209.7,
-    "stats": {
-     "to_fetch": 0
-    },
-    "translated": 0
-   },
-   "tass-en": {
-    "aborted": "no connection to tass.com",
-    "errors": [
-     "rss: https://tass.com/rss/v2.xml: ConnectTimeout: HTTPSConnectionPool(host='tass.com', port=443): Max retries exceeded with url: /rss/v2.xml (Caused by ConnectTimeoutError(<HTTPSConnection(host='tass.com', port=443) at 0x7f9b5cc9d430>, 'Connection to tass.com timed out. (connect timeout=15)'))"
-    ],
-    "new": 0,
-    "range": [
-     "2026-10-26",
-     "2026-10-27"
-    ],
-    "requests": 1,
-    "seconds": 139.8,
-    "stats": {
-     "to_fetch": 0
-    },
-    "translated": 0
-   },
-   "zvezda": {
-    "aborted": "",
-    "errors": [],
-    "new": 31,
-    "range": [
-     "2026-10-26",
-     "2026-10-27"
-    ],
-    "requests": 33,
-    "seconds": 30.7,
-    "stats": {
-     "known": 69,
-     "stored": 31,
-     "to_fetch": 31
-    },
-    "translated": 31
-   }
-  },
-  "seconds": 211
- },
- {
   "at": "2026-10-27T18:13:14Z",
   "lexicon": "6ffff3b0",
   "mode": "poll",
@@ -22957,5 +22829,138 @@
    }
   },
   "seconds": 56
+ },
+ {
+  "at": "2026-11-07T16:37:22Z",
+  "lexicon": "6ffff3b0",
+  "mode": "poll",
+  "outlets": {
+   "kremlin": {
+    "aborted": "",
+    "errors": [],
+    "new": 0,
+    "range": [
+     "2026-11-06",
+     "2026-11-07"
+    ],
+    "requests": 1,
+    "seconds": 8.3,
+    "stats": {
+     "known": 4,
+     "not_article": 2,
+     "to_fetch": 0
+    },
+    "translated": 0
+   },
+   "kremlin-en": {
+    "aborted": "",
+    "errors": [],
+    "new": 2,
+    "range": [
+     "2026-11-06",
+     "2026-11-07"
+    ],
+    "requests": 1,
+    "seconds": 3.2,
+    "stats": {
+     "known": 2,
+     "not_article": 1,
+     "stored": 2,
+     "to_fetch": 2
+    },
+    "translated": 0
+   },
+   "regnum": {
+    "aborted": "",
+    "errors": [],
+    "new": 62,
+    "range": [
+     "2026-11-06",
+     "2026-11-07"
+    ],
+    "requests": 1,
+    "seconds": 8.2,
+    "stats": {
+     "known": 113,
+     "not_article": 1,
+     "stored": 62,
+     "to_fetch": 62
+    },
+    "translated": 62
+   },
+   "rg": {
+    "aborted": "",
+    "errors": [],
+    "new": 74,
+    "range": [
+     "2026-11-06",
+     "2026-11-07"
+    ],
+    "requests": 75,
+    "seconds": 92.0,
+    "stats": {
+     "known": 23,
+     "not_article": 3,
+     "stored": 74,
+     "to_fetch": 74
+    },
+    "translated": 74
+   },
+   "tass": {
+    "aborted": "",
+    "errors": [
+     "rss: https://tass.ru/rss/yandex.xml: bot check"
+    ],
+    "filled": 1,
+    "new": 170,
+    "range": [
+     "2026-11-06",
+     "2026-11-07"
+    ],
+    "requests": 9,
+    "seconds": 21.7,
+    "stats": {
+     "known": 354,
+     "stored": 170,
+     "to_fetch": 170
+    },
+    "translated": 170
+   },
+   "tass-en": {
+    "aborted": "",
+    "errors": [],
+    "new": 13,
+    "range": [
+     "2026-11-06",
+     "2026-11-07"
+    ],
+    "requests": 14,
+    "seconds": 10.2,
+    "stats": {
+     "known": 84,
+     "stored": 13,
+     "to_fetch": 13
+    },
+    "translated": 0
+   },
+   "zvezda": {
+    "aborted": "",
+    "errors": [],
+    "new": 27,
+    "range": [
+     "2026-11-06",
+     "2026-11-07"
+    ],
+    "requests": 29,
+    "seconds": 25.0,
+    "stats": {
+     "known": 73,
+     "stored": 27,
+     "to_fetch": 27
+    },
+    "translated": 27
+   }
+  },
+  "seconds": 93
  }
 ]
