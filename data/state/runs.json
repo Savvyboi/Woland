@@ -12371,137 +12371,6 @@
   "seconds": 2686
  },
  {
-  "at": "2026-10-29T09:49:16Z",
-  "lexicon": "6ffff3b0",
-  "mode": "poll",
-  "outlets": {
-   "kremlin": {
-    "aborted": "",
-    "errors": [],
-    "new": 1,
-    "range": [
-     "2026-10-28",
-     "2026-10-29"
-    ],
-    "requests": 1,
-    "seconds": 11.3,
-    "stats": {
-     "known": 11,
-     "stored": 1,
-     "to_fetch": 1
-    },
-    "translated": 1
-   },
-   "kremlin-en": {
-    "aborted": "",
-    "errors": [],
-    "new": 2,
-    "range": [
-     "2026-10-28",
-     "2026-10-29"
-    ],
-    "requests": 1,
-    "seconds": 4.4,
-    "stats": {
-     "known": 8,
-     "stored": 2,
-     "to_fetch": 2
-    },
-    "translated": 0
-   },
-   "regnum": {
-    "aborted": "",
-    "errors": [],
-    "new": 43,
-    "range": [
-     "2026-10-28",
-     "2026-10-29"
-    ],
-    "requests": 1,
-    "seconds": 10.9,
-    "stats": {
-     "known": 193,
-     "not_article": 1,
-     "stored": 43,
-     "to_fetch": 43
-    },
-    "translated": 43
-   },
-   "rg": {
-    "aborted": "",
-    "errors": [],
-    "new": 91,
-    "range": [
-     "2026-10-28",
-     "2026-10-29"
-    ],
-    "requests": 92,
-    "seconds": 112.1,
-    "stats": {
-     "not_article": 9,
-     "stored": 91,
-     "to_fetch": 91
-    },
-    "translated": 91
-   },
-   "tass": {
-    "aborted": "",
-    "errors": [
-     "rss: https://tass.ru/rss/yandex.xml: 403"
-    ],
-    "filled": 1,
-    "new": 281,
-    "range": [
-     "2026-10-28",
-     "2026-10-29"
-    ],
-    "requests": 12,
-    "seconds": 58.6,
-    "stats": {
-     "known": 330,
-     "stored": 281,
-     "to_fetch": 281
-    },
-    "translated": 281
-   },
-   "tass-en": {
-    "aborted": "",
-    "errors": [],
-    "new": 14,
-    "range": [
-     "2026-10-28",
-     "2026-10-29"
-    ],
-    "requests": 15,
-    "seconds": 13.1,
-    "stats": {
-     "known": 86,
-     "stored": 14,
-     "to_fetch": 14
-    },
-    "translated": 0
-   },
-   "zvezda": {
-    "aborted": "",
-    "errors": [],
-    "new": 12,
-    "range": [
-     "2026-10-28",
-     "2026-10-29"
-    ],
-    "requests": 14,
-    "seconds": 13.9,
-    "stats": {
-     "known": 88,
-     "stored": 12,
-     "to_fetch": 12
-    },
-    "translated": 12
-   }
-  },
-  "seconds": 113
- },
- {
   "at": "2026-10-29T16:27:21Z",
   "lexicon": "6ffff3b0",
   "mode": "poll",
@@ -23342,5 +23211,135 @@
    }
   },
   "seconds": 58
+ },
+ {
+  "at": "2026-11-09T19:14:35Z",
+  "lexicon": "6ffff3b0",
+  "mode": "poll",
+  "outlets": {
+   "kremlin": {
+    "aborted": "",
+    "errors": [],
+    "new": 7,
+    "range": [
+     "2026-11-08",
+     "2026-11-09"
+    ],
+    "requests": 1,
+    "seconds": 8.5,
+    "stats": {
+     "known": 1,
+     "not_article": 2,
+     "stored": 7,
+     "to_fetch": 7
+    },
+    "translated": 7
+   },
+   "kremlin-en": {
+    "aborted": "",
+    "errors": [],
+    "new": 4,
+    "range": [
+     "2026-11-08",
+     "2026-11-09"
+    ],
+    "requests": 1,
+    "seconds": 2.8,
+    "stats": {
+     "stored": 4,
+     "to_fetch": 4
+    },
+    "translated": 0
+   },
+   "regnum": {
+    "aborted": "",
+    "errors": [],
+    "new": 121,
+    "range": [
+     "2026-11-08",
+     "2026-11-09"
+    ],
+    "requests": 1,
+    "seconds": 8.1,
+    "stats": {
+     "known": 107,
+     "not_article": 2,
+     "stored": 121,
+     "to_fetch": 121
+    },
+    "translated": 121
+   },
+   "rg": {
+    "aborted": "",
+    "errors": [],
+    "new": 97,
+    "range": [
+     "2026-11-08",
+     "2026-11-09"
+    ],
+    "requests": 98,
+    "seconds": 105.4,
+    "stats": {
+     "not_article": 3,
+     "stored": 97,
+     "to_fetch": 97
+    },
+    "translated": 97
+   },
+   "tass": {
+    "aborted": "",
+    "errors": [
+     "rss: https://tass.ru/rss/yandex.xml: bot check"
+    ],
+    "new": 555,
+    "range": [
+     "2026-11-08",
+     "2026-11-09"
+    ],
+    "requests": 9,
+    "seconds": 28.6,
+    "stats": {
+     "known": 48,
+     "stored": 555,
+     "to_fetch": 555
+    },
+    "translated": 555
+   },
+   "tass-en": {
+    "aborted": "",
+    "errors": [],
+    "new": 91,
+    "range": [
+     "2026-11-08",
+     "2026-11-09"
+    ],
+    "requests": 92,
+    "seconds": 56.3,
+    "stats": {
+     "known": 9,
+     "stored": 91,
+     "to_fetch": 91
+    },
+    "translated": 0
+   },
+   "zvezda": {
+    "aborted": "",
+    "errors": [],
+    "new": 50,
+    "range": [
+     "2026-11-08",
+     "2026-11-09"
+    ],
+    "requests": 52,
+    "seconds": 45.8,
+    "stats": {
+     "known": 50,
+     "stored": 50,
+     "to_fetch": 50
+    },
+    "translated": 50
+   }
+  },
+  "seconds": 106
  }
 ]
