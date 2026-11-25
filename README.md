@@ -7,7 +7,7 @@ a searchable, citable record of what it published: every headline, its lead, whe
 propaganda framings its words match. It is made for researchers, journalists and activists, and runs entirely on
 GitHub: GitHub Actions collects, the repository stores, GitHub Pages publishes.
 
-The website has six chapters (and an interface in English, Finnish and Swedish):
+The website has seven chapters (and an interface in English, Finnish and Swedish):
 
 | | Page | What it shows |
 |---|---|---|
@@ -16,7 +16,16 @@ The website has six chapters (and an interface in English, Finnish and Swedish):
 | III | **Archive** — *Manuscripts Don't Burn* | full-text search over every headline and lead (all word forms; English queries also hit the machine translations of Russian headlines and leads, and either spelling of place names), active filters as chips, timeline, per-outlet counts, CSV export |
 | IV | **Outlets** — *Satan's Great Ball* | the 23 outlets: owner, language, EU-blocking status, how Woland reads them, what is known about gaps, headline-only records, what they lean on, collection day by day, the log of collection runs |
 | V | **Analysis** — *Sturgeon of the Second Freshness* | over the last 7 or 30 completed days, or all of them: who the headlines quote (people, institutions, unnamed "experts", other outlets) and with which verb; the stories that four or more outlets ran on the same day, who ran each first and how long the others took; the countries named, on a map; the outlets' own tags and sections |
+| VI | **Week** — *News from Yalta* | each completed Monday-to-Sunday week: the framings and topics that rose or fell against the four weeks before, the words that rose most, the stories the most outlets ran, who was quoted and which countries were named, what was not collected; and the Atom feeds that let readers follow Woland in a feed reader |
 | ❦ | **Method** — *Epilogue* | methodology, limitations, citation, data access, legal notes, the full lexicon |
+
+**Feeds.** Every framing and topic, outlet, country named and saved search (`config/feeds.yaml`) has an Atom feed
+(`feeds/<kind>/<id>.xml` on the site) of its newest 40 articles of the last seven days, with English machine
+translations and a link to the Internet Archive's copy; the weekly brief has one too (`feeds/brief.xml`).
+
+**Machine-written items.** Items an outlet itself labels machine-written (Tsargrad's byline "Регионы Нейросеть",
+61% of its items since 9 September 2026; `machine` in `config/outlets.yaml`) stay in the archive, marked, but are
+left out of every count, share, feed and analysis.
 
 Every article can be opened in the original, in the Internet Archive (important: many of these sites are
 blocked in the EU) and cited in APA, Chicago or BibTeX, with a content fingerprint; its *Details* show how Woland

@@ -161,7 +161,8 @@ async function renderNarrative(id) {
   kids.push(el("h2", { style: { font: "500 2.1rem/1.15 var(--display)", margin: "0 0 .3rem" } }, tl(n.label)));
   if (n.about) kids.push(el("p", { style: { color: "var(--text-2)", margin: "0 0 .4rem", maxWidth: "46rem" } }, tl(n.about)));
   kids.push(el("p", { class: "syntax" }, t("narratives.total", { n: fmtInt(sum(all.hits)), all: fmtInt(sum(all.totals)) }), " · ",
-    el("a", { href: archiveSearch({ k: id, from: days[0], to: days[days.length - 1] }) }, `${t("nav.archive")} →`)));
+    el("a", { href: archiveSearch({ k: id, from: days[0], to: days[days.length - 1] }) }, `${t("nav.archive")} →`), " · ",
+    el("a", { href: `feeds/framing/${id}.xml`, type: "application/atom+xml", title: t("brief.follow.about", { n: 40, days: 7 }) }, t("narratives.feed"))));
   kids.push(...controls(w, dropped));
 
   // Plate I — share over time, with what it is a share of
