@@ -1009,7 +1009,8 @@ class Builder:
                     for o, v in by.items():
                         if o in nar[nid]:
                             nar[nid][o][i] = v
-        self._cov_codes = self.coverage_codes(days, totals, cov)   # (the weekly brief lists the gaps)
+        # (a day of machine-written items only is collected, not a gap)
+        self._cov_codes = self.coverage_codes(days, {o: [a + b for a, b in zip(totals[o], machine[o])] for o in ids}, cov)   # (the weekly brief lists the gaps)
         # drop all-zero rows to keep the file small
         dump(self.out / "data" / "series.json", {
             "days": [d.isoformat() for d in days],

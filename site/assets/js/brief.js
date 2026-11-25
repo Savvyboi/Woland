@@ -24,7 +24,7 @@ function change(n, prev) {
 const weekSpan = (b) => `${fmtDayShort(b.from)} – ${fmtDay(b.to)}`;
 const headline = (x) => el("a", { href: x.u, rel: "noopener noreferrer nofollow", target: "_blank", lang: outlet(x.o).lang }, x.t);
 const translation = (x) => (x.te && outlet(x.o).lang !== "en" ? el("span", { class: "tr", lang: "en" },
-  el("abbr", { class: "mt", title: t("article.mt.title") }, t("article.mt")), x.te) : null);
+  el("abbr", { class: "mt", title: t("article.mt.title") }, t("article.mt")), " ", x.te) : null);
 
 function framings(b) {
   const row = (r) => {
