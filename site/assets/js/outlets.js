@@ -110,12 +110,14 @@ function card(o, series, cov, upto) {
       el("span", {}, el("b", {}, fmtInt(o.n)), ` ${t("outlets.articles")}`),
       el("span", { title: t("outlets.perday.hint") }, el("b", {}, fmtInt(usual.perDay)), ` ${t("outlets.perday")}`),
       since ? el("span", {}, `${t("outlets.since")} ${fmtDay(since)}`) : null,
-      o.listed ? el("span", { title: t("article.listed.title") }, el("b", {}, fmtInt(o.listed)), ` ${t("outlets.listed")}`) : null)
+      o.listed ? el("span", { title: t("article.listed.title") }, el("b", {}, fmtInt(o.listed)), ` ${t("outlets.listed")}`) : null,
+      o.machine ? el("span", { title: t("article.machine.title") }, el("b", {}, fmtInt(o.machine)), ` ${t("outlets.machine")}`) : null)
       : o.enabled ? el("p", { class: "facts notyet" }, t("outlets.notyet")) : null,
     o.note ? el("p", { class: "note" }, tl(o.note)) : null,
     recent.length > 1 && collected ? sparkline(recent, { width: 220, height: 30, label: sparkLabel }) : null,
     el("div", { class: "facts" }, o.enabled && collected ? [t(`outlets.method.${o.method}`), " · "] : null,
-      el("a", { href: o.home, rel: "noopener noreferrer nofollow", target: "_blank" }, o.home.replace(/^https?:\/\//, ""))),
+      el("a", { href: o.home, rel: "noopener noreferrer nofollow", target: "_blank" }, o.home.replace(/^https?:\/\//, "")),
+      o.enabled && collected ? [" · ", el("a", { href: `feeds/outlet/${o.id}.xml`, type: "application/atom+xml", title: t("narratives.feed") }, t("outlets.feed"))] : null),
     leans.length ? el("div", { class: "facts" }, el("span", { title: t("outlets.top.hint") }, `${t("outlets.top")}:`),
       ...leans.map((x) => el("a", { class: "tag framing", href: `narratives.html#${x.n.id}` }, `${tl(x.n.label)} ×${fmtRatio(x.r)}`))) : null,
     o.enabled ? coverage(o, series, cov) : null,

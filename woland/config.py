@@ -51,6 +51,17 @@ class Outlet:
     # Addresses the site used before it moved (e.g. https://www.rt.com/ for RT, now at rt-english.com): an
     # article found under the home is the one already stored under a former address, not a new one.
     former: list[str] = field(default_factory=list)
+    # A byline (the record's `a`) that the outlet itself gives to machine-written items, as a regular
+    # expression: such records stay in the archive, labelled, but are left out of every count and analysis.
+    machine: str | None = None
+
+    def is_machine(self, rec: dict) -> bool:
+        """Did the outlet label this record as written by a machine (its byline matches `machine`)?"""
+        if not self.machine or not rec.get("a"):
+            return False
+        if not hasattr(self, "_machine_re"):
+            self._machine_re = re.compile(self.machine)
+        return bool(self._machine_re.search(rec["a"]))
 
     @property
     def host(self) -> str:
@@ -93,6 +104,7 @@ class Outlet:
             "group": self.group, "home": self.home, "about": self.about,
             "eu_blocked": self.eu_blocked, "method": self.method,
             "enabled": self.enabled, "note": self.note or None, "video": self.video,
+            "machine": self.machine,
         }
 
 
@@ -115,7 +127,7 @@ def load_outlets(path: Path | None = None, include_disabled: bool = False) -> li
             feed_fulltext=bool(o.get("feed_fulltext", False)), cookies=dict(o.get("cookies") or {}),
             headline=o.get("headline", "meta"), note=o.get("note") or {},
             budget=float(o["budget"]) if o.get("budget") else None, gaps=dict(o.get("gaps") or {}),
-            video=o.get("video"), former=list(o.get("former") or []),
+            video=o.get("video"), former=list(o.get("former") or []), machine=o.get("machine"),
         )
         if outlet.enabled or include_disabled:
             outlets.append(outlet)

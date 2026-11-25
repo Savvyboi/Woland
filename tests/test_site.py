@@ -62,6 +62,15 @@ def built_site(tmp_path_factory):
                     rec["te"] = te
                 recs.append(rec)
             store.write_day(d, outlet, recs)
+    # Tsargrad on 2 September: one item of its newsroom's, one it labels machine-written (left out of every count)
+    d2 = start + timedelta(days=1)
+    store.write_day(d2, "tsargrad", [
+        {"id": "tsargrad:1", "o": "tsargrad", "u": "https://tsargrad.tv/news/zamorozki_1", "p": f"{d2}T09:00:00+03:00",
+         "t": "На Дону после оттепели придут заморозки", "a": "Регионы Нейросеть", "w": 80, "h": "1" * 16,
+         "r": "2026-09-24T00:00:00Z", "via": "page", "te": "Frosts will come to the Don after the thaw"},
+        {"id": "tsargrad:2", "o": "tsargrad", "u": "https://tsargrad.tv/news/finlyandiya_2", "p": f"{d2}T10:00:00+03:00",
+         "t": "Финская граница снова закрыта", "a": "Иван Петров", "w": 300, "h": "2" * 16,
+         "r": "2026-09-24T00:00:00Z", "via": "page", "te": "The Finnish border is closed again"}])
     days = [(start + timedelta(days=i)).isoformat() for i in range(8)]
     store._save("runs.json", RUNS)
     store._save("coverage.json", {"ria": {d: {"n": 3, "status": "complete"} for d in days},
@@ -233,7 +242,8 @@ def test_hours_between_readings_of_a_feed_that_rolled_over_are_listed(archive):
 
 def test_every_page_is_assembled_from_the_partials(built_site):
     pages = sorted(p.name for p in SITE.glob("*.html"))
-    assert pages == ["analysis.html", "archive.html", "index.html", "method.html", "narratives.html", "outlets.html"]
+    assert pages == ["analysis.html", "archive.html", "brief.html", "index.html", "method.html", "narratives.html",
+                     "outlets.html"]
     for name in pages:
         html = (built_site / name).read_text(encoding="utf-8")
         assert "include:" not in html and 'class="masthead"' in html, name
@@ -256,13 +266,93 @@ def test_analysis_counts_completed_days_only(built_site):
     verbs = json.loads((folder / "verbs.json").read_text(encoding="utf-8"))
     assert verbs["verbs"]["обвинил"] == "judges" and verbs["kinds"][0] == "quotes"
     countries = json.loads((folder / "countries" / "all.json").read_text(encoding="utf-8"))
-    assert countries["countries"]["FI"]["n"] == 6 and countries["countries"]["FI"]["o"] == {"rt": 6}
+    assert countries["countries"]["FI"]["n"] == 7 and countries["countries"]["FI"]["o"] == {"rt": 6, "tsargrad": 1}
     assert countries["countries"]["RU"]["n"] >= 6 and countries["names"]["FI"] == "Finland"
     stories = json.loads((folder / "stories" / "all.json").read_text(encoding="utf-8"))
     assert stories["per_day"] == [0] * 6 and stories["min"] == 4     # two outlets: no story reaches four
     assert json.loads(gzip.decompress((folder / "stories" / "day" / "2026-09-03.json.gz").read_bytes())) == []
     tags = json.loads((folder / "tags" / "all.json").read_text(encoding="utf-8"))
     assert tags["outlets"] == {}                                 # the test records carry no tags or sections
+
+
+def test_machine_written_items_are_searchable_but_never_counted(built_site):
+    """Tsargrad labels machine-written items with the byline "Регионы Нейросеть" (`machine` in outlets.yaml):
+    they stay in the archive, marked, but out of every count, share, feed and analysis."""
+    meta = json.loads((built_site / "data" / "meta.json").read_text(encoding="utf-8"))
+    ts = next(o for o in meta["outlets"] if o["id"] == "tsargrad")
+    assert ts["n"] == 1 and ts["machine"] == 1 and ts["machine"] != meta["articles"]
+    assert meta["articles"] == 8 * 6 + 1
+    series = json.loads((built_site / "data" / "series.json").read_text(encoding="utf-8"))
+    assert series["totals"]["tsargrad"][:2] == [0, 1] and series["machine"] == {"tsargrad": [0, 1] + [0] * 6}
+    dg = json.loads((built_site / "data" / "days" / "2026-09-02.json").read_text(encoding="utf-8"))
+    assert dg["totals"]["tsargrad"] == 1 and dg["total"] == 7
+    feed = (built_site / "feeds" / "outlet" / "tsargrad.xml").read_text(encoding="utf-8")
+    assert "граница" in feed and "заморозки" not in feed
+    if NODE:
+        frost, border = search(built_site, {"q": "заморозки"}, {"q": "граница", "outlets": ["tsargrad"]})
+        assert frost["total"] == 1 and frost["hits"][0]["m"] == 1
+        assert border["total"] == 1 and not border["hits"][0]["m"]
+
+
+def atom(path):
+    import xml.etree.ElementTree as ET
+    ns = {"a": "http://www.w3.org/2005/Atom"}
+    root = ET.parse(path).getroot()
+    return root, root.findall("a:entry", ns), ns
+
+
+def test_feeds_for_framings_outlets_countries_and_saved_searches(built_site):
+    """Atom feeds of the newest articles of the last seven days (still being collected too), newest first."""
+    feeds_dir = built_site / "feeds"
+    root, entries, ns = atom(feeds_dir / "framing" / "kyiv-regime.xml")
+    assert root.find("a:title", ns).text.startswith("Woland — framing: ")
+    assert len(entries) == 14                                     # 2–8 September, the Russian and the English one
+    updated = [e.find("a:updated", ns).text for e in entries]
+    assert updated == sorted(updated, reverse=True) and updated[0].startswith("2026-09-08")
+    first = entries[0]
+    links = {lk.get("rel"): lk.get("href") for lk in first.findall("a:link", ns)}
+    assert links["alternate"].startswith("https://") and links["related"].startswith("https://web.archive.org/web/")
+    ria = atom(feeds_dir / "outlet" / "ria.xml")[1]
+    assert len(ria) == 7 * 4 <= buildmod.FEED_ENTRIES             # 2–8 September, four headlines a day
+    witkoff = next(e for e in ria if "Уиткофф" in e.find("a:title", ns).text)
+    assert "Witkoff arrived in Moscow" in witkoff.find("a:title", ns).text      # the glossary's correction
+    assert "Special envoy Witkoff will meet Putin." in witkoff.find("a:summary", ns).text
+    fi = atom(feeds_dir / "country" / "FI.xml")[1]
+    assert len(fi) == 7 + 1                                       # RT every day, Tsargrad's own item once
+    listing = json.loads((built_site / "data" / "feeds.json").read_text(encoding="utf-8"))
+    assert listing["days"][0] == "2026-09-02" and listing["days"][-1] == "2026-09-08"
+    assert listing["feeds"]["country"]["FI"] == 8 and listing["countries"]["FI"] == "Finland"
+    assert {s["id"] for s in listing["searches"]} >= {"nato", "arctic"}
+    assert (feeds_dir / "search" / "nato.xml").exists() and listing["feeds"]["search"]["nato"] == 0
+
+
+def test_saved_searches_match_every_word_form():
+    from woland.feeds import SavedSearch, load_searches
+    from woland.textproc import index_terms
+    nato = next(s for s in load_searches() if s.id == "nato")
+    stems = lambda text: {st for _, st in index_terms(text)}  # noqa: E731
+    assert nato.matches(stems("Генсек НАТО призвал союзников")) and nato.matches(stems("Североатлантического альянса"))
+    assert not nato.matches(stems("Альянс производителей зерна"))
+    s = SavedSearch(id="x", label={}, any=[["арктик"]])
+    assert s.matches(stems("в Арктике")) and not s.matches(stems("в Антарктике"))
+
+
+def test_weekly_brief_covers_completed_weeks(built_site):
+    """1–6 September is the first completed week (Sunday 6 September was gathered by a nightly run); 7–8
+    September are still being collected."""
+    folder = built_site / "data" / "brief"
+    index = json.loads((folder / "index.json").read_text(encoding="utf-8"))
+    assert index == [{"week": "2026-W36", "from": "2026-09-01", "to": "2026-09-06"}]
+    b = json.loads((folder / "2026-W36.json").read_text(encoding="utf-8"))
+    assert b["total"] == 6 * 6 + 1 and b["machine"] == 1 and b["days"] == 6 and b["prev_total"] is None
+    assert b["outlets"] == {"ria": 24, "rt": 12, "tsargrad": 1}
+    assert b["rising"] == [] and b["base_weeks"] == 0           # nothing to compare with yet
+    assert {r["id"] for r in b["top"]} >= {"kyiv-regime"}
+    assert b["countries"][0]["c"] == "FI" and b["countries"][0]["n"] == 7
+    assert b["speakers"]["ru"][0]["name"].startswith("Лавров")
+    assert b["gaps"]["tass"] == ["2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04", "2026-09-05", "2026-09-06"]
+    root, entries, ns = atom(built_site / "feeds" / "brief.xml")
+    assert len(entries) == 1 and "37 articles from 3 outlets" in entries[0].find("a:summary", ns).text
 
 
 # ── interface strings ─────────────────────────────────────────────────────────

@@ -243,7 +243,7 @@ export function showError(container, err) {
 export function fromIndex(a) {
   return { o: outletAt(a[0])?.id, ts: a[1], t: a[2], te: a[3], d: a[4], u: a[5], ks: a[6] || [],
            sn: a[7] || {}, h: a[8], r: a[9], a: a[10], f: a[11] || 0, w: a[12], ar: a[13] || "",
-           de: a[14] || "", sne: a[15] || {} };
+           de: a[14] || "", sne: a[15] || {}, m: a[16] || 0 };
 }
 /** Normalise a digest example. */
 export function fromExample(ex, dayIso, narrId) {
@@ -362,6 +362,7 @@ export function articleCard(doc, opts = {}) {
     sourceOf(doc) === "feed" ? el("span", { class: "badge feed" }, t("article.feed")) : null,
     doc.f ? el("span", { class: "badge feed", title: t("article.listed.title") }, t("article.listed")) : null,
     isVideo(doc) ? el("span", { class: "badge video", title: t("article.video.title") }, t("article.video")) : null,
+    doc.m ? el("span", { class: "badge machine", title: t("article.machine.title") }, t("article.machine")) : null,
   );
   const title = el("h3", {}, el("a", { href: doc.u, rel: "noopener noreferrer nofollow", target: "_blank", lang: o.lang },
     ...highlight(doc.t, opts.terms)));

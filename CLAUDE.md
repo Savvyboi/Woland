@@ -9,7 +9,8 @@ Pages publishes. Read `README.md` for how it works and **`TODO.md` for the open 
 - `woland/` — collector and site builder (`python -m woland collect | poll | backfill | translate | build | probe | check | mtcheck | reindex | sample`)
 - `config/outlets.yaml` — the outlets and how each is read (all options documented at the top);
   `config/lexicon.yaml` — framings and topics, with contexts and exclusions; `config/glossary.yaml` —
-  corrections to the machine translation, applied at build time
+  corrections to the machine translation, applied at build time; `config/feeds.yaml` — saved searches published
+  as Atom feeds
 - `docs/lexicon-audit.md` — how many of a random sample of each framing's matches fit its definition
 - `site/` — the website (plain HTML/CSS/JS modules, no build tool); UI strings in `site/assets/js/i18n.js`
 - `data/articles/YYYY/MM/DD/<outlet>.jsonl` — the archive; `data/state/` — coverage, runs, rejected URLs, and `urls/` (every URL stored, so none is stored twice)

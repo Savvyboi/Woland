@@ -245,6 +245,7 @@ a.tag:hover, button.tag:hover { border-color: var(--gilt-dim); color: var(--text
 .badge.eu { color: var(--crimson-text); }
 .badge.feed { color: var(--text-3); }
 .badge.video { color: var(--text-2); }
+.badge.machine { color: var(--text-2); border-style: dashed; }
 
 /* rising words */
 .words { list-style: none; margin: 0; padding: 0; }
@@ -581,3 +582,21 @@ ol.tag-list li { grid-template-columns: minmax(8rem, 15rem) 1fr 4rem 4.5rem; }
   body::before, .moon, .cat, .controls, .filters, .pager, .plate-tools { display: none !important; }
   body { background: #fff; color: #000; }
 }
+
+/* Chapter VI: the weekly brief */
+.brief-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem 1.5rem; margin-top: 1rem; }
+.brief-head .field { display: flex; gap: .5rem; align-items: baseline; font: .9rem/1.3 var(--sans); color: var(--text-3); }
+.brief-title { font: 500 2.1rem/1.15 var(--display); margin: 0; flex-basis: 100%; }
+.brief-head .lede { flex-basis: 100%; margin: 0; max-width: 46rem; }
+.brief-list { padding-left: 1.4rem; margin: 0 0 1rem; max-width: 52rem; }
+.brief-list li { margin: .45rem 0; line-height: 1.45; }
+.brief-list small, .feed-list small { color: var(--text-3); font-family: var(--sans); }
+.brief-list .ex { font-size: .95rem; color: var(--text-2); }
+.brief-list .ex .outlet { font: 700 .75rem/1 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.brief-list .tr { display: block; color: var(--text-2); font-size: .92rem; }
+.brief-list .word { font-weight: 700; }
+#brief h3 { font: 700 .8rem/1.2 var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); margin: 1.2rem 0 .4rem; }
+#follow details { margin: .5rem 0; }
+#follow summary { cursor: pointer; font-family: var(--sans); }
+.feed-list { columns: 2 16rem; padding-left: 1.2rem; margin: .5rem 0; }
+.feed-list li { break-inside: avoid; margin: .2rem 0; }
