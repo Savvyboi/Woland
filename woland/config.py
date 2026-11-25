@@ -54,6 +54,9 @@ class Outlet:
     # A byline (the record's `a`) that the outlet itself gives to machine-written items, as a regular
     # expression: such records stay in the archive, labelled, but are left out of every count and analysis.
     machine: str | None = None
+    # When the outlet refuses its pages (403 or a bot check), read the Internet Archive's copy of them instead,
+    # where the Archive has captured them (its `wayback` source finds which). Tsargrad from 17 November 2026.
+    archive_if_refused: bool = False
 
     def is_machine(self, rec: dict) -> bool:
         """Did the outlet label this record as written by a machine (its byline matches `machine`)?"""
@@ -128,6 +131,7 @@ def load_outlets(path: Path | None = None, include_disabled: bool = False) -> li
             headline=o.get("headline", "meta"), note=o.get("note") or {},
             budget=float(o["budget"]) if o.get("budget") else None, gaps=dict(o.get("gaps") or {}),
             video=o.get("video"), former=list(o.get("former") or []), machine=o.get("machine"),
+            archive_if_refused=bool(o.get("archive_if_refused", False)),
         )
         if outlet.enabled or include_disabled:
             outlets.append(outlet)

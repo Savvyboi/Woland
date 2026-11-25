@@ -18,10 +18,12 @@ Open work for future sessions, most urgent first. State of the archive when this
 - [ ] **Tsargrad refuses GitHub's servers after a few pages** (from 17 November 2026): its article pages answer
       403 after 4–280 pages a night ("refused after … pages (403)" in `runs.json`), and once (22 November) its
       sitemap did too. Stored a day: ~1,000 until 15 November, 140–250 on 16–20 November, 0–55 since. A check
-      of two pages (23 November) still succeeded, so on 25 November it was slowed down like MK (`rate: 3.0`,
-      `parallel: 1`, `budget: 60`). Watch the next runs: if the 403s go on at that pace, the site is refusing
-      automated readers and stays as it is (ground rules); its note should then say so, and 16 November
-      onwards can only come from the Internet Archive (does it capture tsargrad.tv?).
+      of two pages (23 November) still succeeded. On 25 November it was slowed down like MK (`rate: 3.0`,
+      `parallel: 1`, `budget: 60`), and, decided by the user (its news is public), pages it refuses are read
+      from the Internet Archive's copy nearest the listed time (`archive_if_refused`; after three refusals in
+      a row only the Archive is asked that night); its note says so. Not yet known: how much of tsargrad.tv the
+      Archive captures (its CDX index timed out on a prefix query for a day of /news/). Watch `ar` records
+      and the daily counts for 16 November onwards.
 - [ ] **Izvestia's sitemap index answers GitHub 403 every other night or so** (16, 18–20, 22 and 25 November
       2026); the nights it answers, the week is read back (21 November: 2,049 articles), so no day is lost yet.
       If it stops answering for a week, look for another listing.

@@ -583,3 +583,48 @@ def test_an_outlet_that_cannot_be_reached_at_all_is_reported_as_such(fake_site):
                                  retry=[stored(7, via="feed")])
     assert run.aborted == "no connection to t.ru" and run.stats["to_upgrade"] == 1
     assert "upgraded" not in run.stats and not run.records                   # nothing else was tried
+
+
+def test_an_outlet_that_refuses_its_pages_is_read_from_the_archive(monkeypatch):
+    """archive_if_refused (Tsargrad): a page answered with 403 is read from the Archive's copy nearest the time
+    the listing gives; after a few refusals in a row the outlet is not asked again in this run."""
+    import threading
+    from datetime import datetime, timezone
+    from woland import net
+    monkeypatch.setattr(net, "HEALTH", net._HostHealth(limit=3, pause=900))
+    monkeypatch.setattr(collect, "REFUSALS", collect._Refusals())
+    asked = []
+
+    class Fetcher:
+        requests = 0
+
+        def get(self, url, gap=None, **kw):
+            asked.append(url)
+            if url.startswith("https://t.ru/"):
+                return net.Response(403, url, b"Forbidden", {"content-type": "text/html"})
+            if url.endswith("/a/none"):
+                return net.Response(404, url, b"", {})
+            final = url.replace("/web/20260910070000id_/", "/web/20260910081500id_/")   # the nearest capture
+            return net.Response(200, final, ARTICLE.encode(), {"content-type": "text/html; charset=utf-8"})
+
+    o = outlet()
+    o.archive_if_refused = True
+    local = threading.local()
+    local.fetcher = Fetcher()
+    hint = datetime(2026, 9, 10, 7, 0, tzinfo=timezone.utc)
+    c = Candidate(url="https://t.ru/a/1", hint=hint)
+    info, fail, _, _ = collect._fetch_page(o, c, [], local)
+    assert asked == ["https://t.ru/a/1", "https://web.archive.org/web/20260910070000id_/https://t.ru/a/1"]
+    rec, _ = collect.build_record(o, c, info)
+    assert not fail and rec["ar"] == "20260910081500" and rec["t"] == "Заголовок статьи"
+    # not captured: waits for another run, without counting as a refusal that would stop the run
+    assert collect._fetch_page(o, Candidate(url="https://t.ru/a/none", hint=hint), [], local)[1] == "down"
+    collect._fetch_page(o, Candidate(url="https://t.ru/a/3", hint=hint), [], local)
+    asked.clear()
+    collect._fetch_page(o, Candidate(url="https://t.ru/a/4", hint=hint), [], local)   # three refusals: Archive only
+    assert asked == ["https://web.archive.org/web/20260910070000id_/https://t.ru/a/4"]
+    # an outlet without the option is never read from the Archive while it answers, even with 403
+    plain = outlet()
+    asked.clear()
+    assert collect._fetch_page(plain, Candidate(url="https://t.ru/a/5", hint=hint), [], local)[1] == "403"
+    assert asked == ["https://t.ru/a/5"]
