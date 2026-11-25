@@ -113,8 +113,10 @@ _WORDS = re.compile(r"[^\s«»\"“”,;:!?()]+")
 _TROUBLE = re.compile(r"[—–«»\"“”:()]")   # before a speech verb: the verb belongs to a quotation or a clause
 
 
-def _parses(word: str):
-    return _analyzer().parse(word)
+@lru_cache(maxsize=200_000)
+def _parses(word: str) -> tuple:
+    """pymorphy3's parses of a word (cached: the same words come back in headline after headline)."""
+    return tuple(_analyzer().parse(word))
 
 
 def _known(word: str, *tags: str) -> bool:

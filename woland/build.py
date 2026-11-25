@@ -13,7 +13,8 @@
 
 Months are cached in .cache/build/<YYYY-MM>/ and only rebuilt when their articles, the previous
 month, the lexicon, the translation glossary or this builder change: a daily build only redoes the
-current month.
+current month. Within it, each day's own results are cached in .cache/build/days/ for the current and the
+previous month, so only the days whose articles changed are worked out again, shared among JOBS processes.
 """
 from __future__ import annotations
 
@@ -22,10 +23,13 @@ import hashlib
 import json
 import logging
 import math
+import multiprocessing
 import os
+import pickle
 import re
 import shutil
 import time
+from concurrent.futures import ProcessPoolExecutor
 from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta
 from datetime import time as dtime
@@ -68,6 +72,12 @@ SEARCH_LEAD = 180  # characters of the lead kept in search documents (the archiv
 SEARCH_MONTHS = int(os.environ.get("WOLAND_SEARCH_MONTHS", "18"))
 CODES = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 CACHE = ROOT / ".cache" / "build"
+# Each day's own work (aggregates, stories, search documents) depends on nothing but that day's articles and
+# the code: it is cached per day too, so the nightly build, whose collection rewrites only the last week, redoes
+# those days alone instead of the whole month (13 minutes on 25 November 2026, most of it the month's days).
+DAY_CACHE_MONTHS = 2   # the current month and the one before; older months are cached whole
+# Days to work out are shared among this many processes (GitHub's runners have four processors).
+JOBS = int(os.environ.get("WOLAND_BUILD_JOBS", "0")) or min(4, os.cpu_count() or 1)
 
 
 def bucket(s: str) -> int:
@@ -173,6 +183,23 @@ def delta_encode(nums: list[int]) -> list[int]:
     return out
 
 
+class DayDocs:
+    """A day's search documents, collected for MonthIndex.add in their order."""
+
+    def __init__(self):
+        self.items: list[tuple[list, int, list]] = []
+
+    def add(self, doc: list, outlet_index: int, terms: list[tuple[str, str]]) -> None:
+        self.items.append((doc, outlet_index, terms))
+
+
+_WORKER: "Builder | None" = None   # the builder, as the forked worker processes inherit it
+
+
+def _work_day(d: date) -> tuple[date, dict]:
+    return d, _WORKER.compute_day(d)
+
+
 class MonthIndex:
     """Documents of one month plus the inverted index over them."""
 
@@ -233,6 +260,7 @@ class Builder:
         self.lex = Lexicon(self.narratives)
         self.lex_fp = self.lex.fingerprint()
         self.glossary = Glossary()
+        self._day_keys: dict[date, str] = {}
 
     # ── per-record work ───────────────────────────────────────────────────────
     def narratives_of(self, rec: dict) -> tuple[list[int], dict[int, str]]:
@@ -263,17 +291,85 @@ class Builder:
         return {**rec, **fixed} if fixed else rec
 
     # ── months ────────────────────────────────────────────────────────────────
-    def month_key(self, month: str, days: list[date], prev_key: str) -> str:
-        h = hashlib.sha1(f"{BUILD_VERSION}|{self.lex_fp}|{self.glossary.fingerprint()}|{prev_key}|"
-                         f"{[o.id for o in self.outlets]}".encode())
-        for src in ("build.py", "lexicon.py", "textproc.py", "glossary.py", "analysis.py"):  # code changes too
-            h.update((Path(__file__).parent / src).read_bytes())
-        h.update((CONFIG_DIR / "countries.yaml").read_bytes())
-        for d in days:
+    def code_key(self) -> str:
+        """What every day's and month's results depend on besides the articles: lexicon, glossary, outlets, code."""
+        if not hasattr(self, "_code_key"):
+            h = hashlib.sha1(f"{BUILD_VERSION}|{self.lex_fp}|{self.glossary.fingerprint()}|"
+                             f"{[o.id for o in self.outlets]}".encode())
+            for src in ("build.py", "lexicon.py", "textproc.py", "glossary.py", "analysis.py"):  # code changes too
+                h.update((Path(__file__).parent / src).read_bytes())
+            h.update((CONFIG_DIR / "countries.yaml").read_bytes())
+            self._code_key = h.hexdigest()
+        return self._code_key
+
+    def day_key(self, d: date) -> str:
+        if d not in self._day_keys:
+            h = hashlib.sha1(self.code_key().encode())
             for p in sorted(day_dir(d).glob("*.jsonl")):
                 h.update(p.name.encode())
                 h.update(p.read_bytes())
+            self._day_keys[d] = h.hexdigest()[:16]
+        return self._day_keys[d]
+
+    def month_key(self, month: str, days: list[date], prev_key: str) -> str:
+        h = hashlib.sha1(f"{self.code_key()}|{prev_key}".encode())
+        for d in days:
+            h.update(self.day_key(d).encode())
         return h.hexdigest()[:16]
+
+    def compute_day(self, d: date) -> dict:
+        """One day's aggregates, stories and search documents: what depends on that day's articles alone."""
+        recs = []
+        for oid in sorted(p.stem for p in day_dir(d).glob("*.jsonl")):
+            if oid in self.oidx:
+                recs.extend(self.corrected(r) for r in read_day(d, oid))
+        recs.sort(key=lambda r: (r["p"], r["o"], r["u"]))
+        docs = DayDocs()
+        summary = self.day_aggregates(recs, docs)
+        shown, stats = self.day_stories(recs)
+        summary["stories"] = stats
+        return {"summary": summary, "shown": shown, "docs": docs.items}
+
+    def day_results(self, days: list[date]) -> dict[date, dict]:
+        """compute_day for each day, from the day cache where the day has not changed, the rest in parallel."""
+        ddir = CACHE / "days"
+        out, todo = {}, []
+        for d in days:
+            path = ddir / f"{d.isoformat()}.pkl.gz"
+            if path.exists():
+                try:
+                    with gzip.open(path, "rb") as fh:
+                        cached = pickle.load(fh)
+                    if cached.get("key") == self.day_key(d):
+                        out[d] = cached["result"]
+                        continue
+                except (OSError, EOFError, pickle.UnpicklingError, AttributeError):
+                    pass
+            todo.append(d)
+        if todo:
+            t0 = time.monotonic()
+            jobs = min(JOBS, len(todo)) if "fork" in multiprocessing.get_all_start_methods() else 1
+            if jobs > 1:  # (forked, the workers share the loaded lexicon, dictionaries and settings)
+                global _WORKER
+                _WORKER = self
+                with ProcessPoolExecutor(max_workers=jobs, mp_context=multiprocessing.get_context("fork")) as pool:
+                    fresh = dict(pool.map(_work_day, todo))
+            else:
+                fresh = {d: self.compute_day(d) for d in todo}
+            log.info("%d of %d days worked out in %.1fs (%d processes)", len(todo), len(days),
+                     time.monotonic() - t0, jobs)
+            ddir.mkdir(parents=True, exist_ok=True)
+            for d, result in fresh.items():
+                with gzip.open(ddir / f"{d.isoformat()}.pkl.gz", "wb", compresslevel=1) as fh:
+                    pickle.dump({"key": self.day_key(d), "result": result}, fh, protocol=pickle.HIGHEST_PROTOCOL)
+            out.update(fresh)
+        return out
+
+    def prune_day_cache(self, months: list[str]) -> None:
+        keep = set(months[-DAY_CACHE_MONTHS:])
+        for path in (CACHE / "days").glob("*.pkl.gz"):
+            if path.name[:7] not in keep:
+                path.unlink()
 
     def build_month(self, month: str, days: list[date], history: dict, cdir: Path) -> dict:
         """Search index + digests for one month. `history` holds earlier days' aggregates."""
@@ -283,17 +379,14 @@ class Builder:
         sdir = cdir / "search" / month
         idx = MonthIndex()
         summary = {}
+        results = self.day_results(days)
         for d in days:
-            recs = []
-            for oid in sorted(p.stem for p in day_dir(d).glob("*.jsonl")):
-                if oid in self.oidx:
-                    recs.extend(self.corrected(r) for r in read_day(d, oid))
-            recs.sort(key=lambda r: (r["p"], r["o"], r["u"]))
+            res = results.pop(d)
             idx.day_starts.append([d.isoformat(), len(idx.docs)])
-            summary[d.isoformat()] = self.day_aggregates(recs, idx)
-            shown, stats = self.day_stories(recs)
-            summary[d.isoformat()]["stories"] = stats
-            dump_gz(cdir / "stories" / f"{d.isoformat()}.json.gz", shown)
+            for doc, oi, terms in res["docs"]:
+                idx.add(doc, oi, terms)
+            summary[d.isoformat()] = res["summary"]
+            dump_gz(cdir / "stories" / f"{d.isoformat()}.json.gz", res["shown"])
         idx.write(sdir)
         for d in days:  # digests need the rolling history, including this month's earlier days
             key = d.isoformat()
@@ -706,6 +799,7 @@ class Builder:
         self.write_examples(days)
         self.write_analysis(days)
         self.write_meta(days, month_list[-SEARCH_MONTHS:], cov)
+        self.prune_day_cache(month_list)
         log.info("site built in %.1fs → %s", time.monotonic() - t0, self.out)
 
     def copy_site(self):
@@ -719,6 +813,7 @@ class Builder:
             html = page.read_text(encoding="utf-8")
             for name, body in partials.items():
                 html = html.replace(f"<!-- include:{name} -->", body.strip())
+            html = html.replace("</head>", preload_links(page.name, html, src) + "</head>", 1)
             page.write_text(html, encoding="utf-8", newline="\n")
         (self.out / ".nojekyll").write_text("")
 
@@ -872,6 +967,39 @@ class Builder:
                       "problems": {k: p for k, v in r.get("outlets", {}).items() if (p := run_problems(v))}}
                      for r in runs],
         })
+
+
+IMPORT_RE = re.compile(r'^\s*(?:import|export)\b[^;]*?\bfrom\s*"(\./[^"]+)"', re.M | re.S)
+# Data every page reads before it can show anything (core.js loadMeta), and those that some pages read right
+# after it: fetching them while the scripts load saves a round trip or two on every first visit.
+PAGE_DATA = {"index.html": ["series.json"], "narratives.html": ["series.json"],
+             "outlets.html": ["series.json", "coverage.json"]}
+
+
+def module_graph(entry: str, js_dir: Path) -> list[str]:
+    """Every module `entry` imports, directly or through others (static imports only), in discovery order."""
+    seen, todo = [], [entry]
+    while todo:
+        name = todo.pop(0)
+        path = js_dir / name
+        if name in seen or not path.exists():
+            continue
+        seen.append(name)
+        todo += [m[2:] for m in IMPORT_RE.findall(path.read_text(encoding="utf-8"))]
+    return seen
+
+
+def preload_links(page: str, html: str, src: Path) -> str:
+    """<link> tags that let the browser fetch a page's whole module tree and its first data at once, instead
+    of discovering each module only after the one importing it has arrived (four round trips on Today)."""
+    m = re.search(r'<script type="module" src="assets/js/([^"]+)"', html)
+    if not m:
+        return ""
+    links = [f'<link rel="modulepreload" href="assets/js/{name}">'
+             for name in module_graph(m.group(1), src / "assets" / "js")[1:]]
+    for f in ["meta.json"] + PAGE_DATA.get(page, []):
+        links.append(f'<link rel="preload" href="data/{f}" as="fetch" crossorigin>')
+    return "".join(f"{link}\n" for link in links)
 
 
 def build(out_dir: str = "_site", base_url: str = "") -> None:

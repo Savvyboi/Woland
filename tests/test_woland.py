@@ -420,6 +420,28 @@ def test_build_smoke(tmp_path, monkeypatch):
     assert len(shard["p"][st]) == 10
     html = (out / "index.html").read_text(encoding="utf-8")
     assert "include:" not in html and 'class="masthead"' in html
+    # every module Today imports, directly or not, and its first data are fetched at once
+    head = html.split("</head>")[0]
+    for name in ("core.js", "i18n.js", "charts.js", "lexicon.js"):
+        assert f'<link rel="modulepreload" href="assets/js/{name}">' in head
+    assert '<link rel="preload" href="data/meta.json" as="fetch" crossorigin>' in head
+    assert '<link rel="preload" href="data/series.json" as="fetch" crossorigin>' in head
+    archive = (out / "archive.html").read_text(encoding="utf-8").split("</head>")[0]
+    assert 'href="assets/js/textkit.js"' in archive and "series.json" not in archive
+    # a rebuild after a month's articles changed works out again only the days that changed
+    first = (out / "data" / "days" / "2026-09-10.json").read_bytes()
+    (tmp_path / "cache" / "2026-09" / "key.txt").write_text("stale")
+    worked = []
+    real = buildmod.Builder.compute_day
+    monkeypatch.setattr(buildmod.Builder, "compute_day", lambda self, d: worked.append(d) or real(self, d))
+    monkeypatch.setattr(buildmod, "JOBS", 1)
+    buildmod.build(out_dir=str(out))
+    assert worked == [] and (out / "data" / "days" / "2026-09-10.json").read_bytes() == first
+    (tmp_path / "cache" / "days" / "2026-09-10.pkl.gz").write_bytes(b"not a pickle")
+    (tmp_path / "cache" / "2026-09" / "key.txt").write_text("stale")
+    buildmod.build(out_dir=str(out))
+    assert [d.isoformat() for d in worked] == ["2026-09-10"]
+    assert (out / "data" / "days" / "2026-09-10.json").read_bytes() == first
 
 
 # ── leads that say nothing are replaced by the article's opening paragraph ─────

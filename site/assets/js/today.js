@@ -272,18 +272,21 @@ function renderNav(days, day) {
 
 async function main() {
   try {
+    const seriesP = getJSON("series.json");   // fetched alongside meta.json, not after it
     await loadMeta();
     fillFooter();
     if (!META.last) { root.replaceChildren(el("p", { class: "empty" }, t("empty.nodata"))); return; }
-    const series = await getJSON("series.json");
+    // the latest day whose collection is finished (later ones are one click away), unless another is asked
+    // for: known from meta.json alone, so the day's digest is fetched alongside series.json too
+    const fallback = META.complete_through && META.complete_through >= META.first ? META.complete_through : META.last;
+    let day = new URLSearchParams(location.search).get("d") || fallback;
+    const digest = (d) => getJSON(`days/${d}.json`);
+    digest(day).catch(() => {});   // started now; a failure is reported (or the day replaced) below
+    const series = await seriesP;
     const days = series.days;
-    let day = new URLSearchParams(location.search).get("d");
-    if (!day || !days.includes(day)) {
-      // the latest day whose collection is finished; later ones are one click away
-      day = days.includes(META.complete_through) ? META.complete_through : days[days.length - 1];
-    }
+    if (!days.includes(day)) day = days.includes(fallback) ? fallback : days[days.length - 1];
     renderNav(days, day);
-    render(await getJSON(`days/${day}.json`), day, series);
+    render(await digest(day), day, series);
     document.title = `Woland — ${fmtDay(day)}`;
   } catch (e) {
     showError(root, e);
