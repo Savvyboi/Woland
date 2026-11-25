@@ -1,0 +1,29 @@
+# Saved searches that Woland publishes as Atom feeds (feeds/search/<id>.xml on the website), rebuilt with the site
+# after every nightly collection. A search matches an article whose headline, lead, or their English machine
+# translations hold every word of any one of its `any` phrases, in any grammatical form (the same word stems as
+# the Archive's search). Machine-written items (`machine` in outlets.yaml) are left out, as everywhere else.
+#
+# Every framing, topic, outlet and country has a feed of its own already; this list is for anything else.
+# Readers can ask for a search to be added by opening an issue on GitHub. `id` is part of the feed's address:
+# never change it once published.
+
+searches:
+  - id: nato
+    label: {en: NATO, fi: Nato, sv: Nato}
+    any: [НАТО, NATO, североатлантический альянс, North Atlantic Alliance]
+
+  - id: arctic
+    label: {en: The Arctic, fi: Arktis, sv: Arktis}
+    any: [Арктика, арктический, Arctic]
+
+  - id: baltic-sea
+    label: {en: The Baltic Sea, fi: Itämeri, sv: Östersjön}
+    any: [Балтика, балтийский, Baltic]
+
+  - id: sanctions
+    label: {en: Sanctions, fi: Pakotteet, sv: Sanktioner}
+    any: [санкция, санкционный, sanctions]
+
+  - id: mobilisation
+    label: {en: Mobilisation, fi: Liikekannallepano, sv: Mobilisering}
+    any: [мобилизация, мобилизованный, mobilisation, mobilised]   # (not "mobilization": its stem is that of "mobile")

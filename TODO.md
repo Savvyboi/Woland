@@ -154,6 +154,18 @@ translated as they are collected, and `woland translate` (the nightly step) fill
         country listed; after a year switch the "all" period to weekly counts.
       - The Finnish and Swedish strings and Method sections of the Analysis page need a native speaker's review.
 
+- [ ] **Week page, feeds and machine-written items (added 25 November 2026, the user's request).**
+      `write_brief` and `write_feeds` in `woland/build.py`, `woland/feeds.py`, `config/feeds.yaml`,
+      `site/brief.html`, `site/assets/js/brief.js`; `machine` in `outlets.yaml` (Tsargrad's "Регионы Нейросеть").
+      Still to do:
+      - The Finnish and Swedish strings (`brief.*`, `article.machine*`, `outlets.machine`, `outlets.feed`,
+        `narratives.feed`, `nav.brief`, `title.brief`, `jump.brief`), Tsargrad's new note and the Method page's
+        sections on machine-written items and on the brief and feeds need a native speaker's review.
+      - Other outlets may publish machine-written items without labelling them (template weather, exchange
+        rates, road accidents): only a labelled byline is recognised.
+      - Saved searches are a short list; add readers' requests to `config/feeds.yaml`.
+      - The feeds are rebuilt with the site after the nightly run only, not after the hourly feed readings.
+
 - [ ] **Load time** (measured 28 September from Finland on the live site; sizes compressed): Today ~104 KB and
       loaded in ~1.2 s, Narratives ~145 KB, Outlets ~70 KB. (Narratives read two or three whole day digests,
       ~57 KB each, for its dozen examples; since 10 October one file per framing, ~10 KB: ~60 KB in all. Today's

@@ -31,7 +31,7 @@ from datetime import date, datetime, timedelta
 from datetime import time as dtime
 from pathlib import Path
 
-from . import analysis
+from . import analysis, feeds
 from .config import CONFIG_DIR, ROOT, START_DATE, load_contexts, load_lexicon, load_outlets
 from .glossary import Glossary
 from .lexicon import Lexicon
@@ -41,7 +41,7 @@ from .util import MSK, iso_utc, normalize, parse_dt, today_msk, truncate
 
 log = logging.getLogger("woland.build")
 
-BUILD_VERSION = "7"
+BUILD_VERSION = "8"
 # A search downloads one index shard per month and one block per result it shows (20 at a time, mostly in
 # different blocks): with 256 shards and 25 documents a block, a search for "Finland" over September and
 # October 2026 needed ~160 KB of blocks instead of ~520 KB with 100, at four times as many files.
@@ -56,6 +56,11 @@ RISING_MIN = {"ru": 6, "en": 5}  # headlines a word needs on the day to be consi
 RISING_P = 1e-3
 RISING_SHOWN = 12                 # events listed per language
 EXAMPLES = 6
+FEED_DAYS = 7            # the feeds hold the newest articles of the last days collected (still being collected too)
+FEED_ENTRIES = 40        # entries per feed
+BRIEF_BASE_WEEKS = 4     # the weekly brief compares a week with the weeks before it
+BRIEF_MIN = 20           # articles a framing needs in a week to be listed as rising or falling
+BRIEF_SHOWN = 8          # items per list in the brief
 WINDOWS = {"7": 7, "30": 30, "all": None}   # the Analysis page's periods, in completed days
 VOICES_SHOWN = 60        # speakers listed per language and kind of speaker
 STORY_OUTLETS = 4        # a story counts when this many outlets publish it on the same day
@@ -228,13 +233,22 @@ class Builder:
         self.oidx = {o.id: i for i, o in enumerate(self.outlets)}
         self.olang = {o.id: o.lang for o in self.outlets}
         self.ofetch = {o.id: o.fetch for o in self.outlets}
+        self.omachine = {o.id: o for o in self.outlets if o.machine}
         self.narratives = load_lexicon()
         self.nidx = {n.id: i for i, n in enumerate(self.narratives)}
         self.lex = Lexicon(self.narratives)
         self.lex_fp = self.lex.fingerprint()
         self.glossary = Glossary()
+        self.searches = feeds.load_searches()
+        self.recent: set[date] = set()   # the days whose feed items the month builds keep (FEED_DAYS)
 
     # ── per-record work ───────────────────────────────────────────────────────
+    def is_machine(self, rec: dict) -> bool:
+        """An item the outlet itself labels machine-written (`machine` in outlets.yaml): kept in the archive,
+        marked, and left out of every count, share and analysis."""
+        o = self.omachine.get(rec["o"])
+        return bool(o and o.is_machine(rec))
+
     def narratives_of(self, rec: dict) -> tuple[list[int], dict[int, str]]:
         lang = self.olang.get(rec["o"], "ru")
         t, d = rec.get("t", ""), rec.get("d", "")
@@ -265,10 +279,12 @@ class Builder:
     # ── months ────────────────────────────────────────────────────────────────
     def month_key(self, month: str, days: list[date], prev_key: str) -> str:
         h = hashlib.sha1(f"{BUILD_VERSION}|{self.lex_fp}|{self.glossary.fingerprint()}|{prev_key}|"
-                         f"{[o.id for o in self.outlets]}".encode())
-        for src in ("build.py", "lexicon.py", "textproc.py", "glossary.py", "analysis.py"):  # code changes too
+                         f"{[(o.id, o.machine) for o in self.outlets]}".encode())
+        for src in ("build.py", "lexicon.py", "textproc.py", "glossary.py", "analysis.py", "feeds.py"):  # code too
             h.update((Path(__file__).parent / src).read_bytes())
-        h.update((CONFIG_DIR / "countries.yaml").read_bytes())
+        for cfg in ("countries.yaml", "feeds.yaml"):
+            if (CONFIG_DIR / cfg).exists():
+                h.update((CONFIG_DIR / cfg).read_bytes())
         for d in days:
             for p in sorted(day_dir(d).glob("*.jsonl")):
                 h.update(p.name.encode())
@@ -290,8 +306,11 @@ class Builder:
                     recs.extend(self.corrected(r) for r in read_day(d, oid))
             recs.sort(key=lambda r: (r["p"], r["o"], r["u"]))
             idx.day_starts.append([d.isoformat(), len(idx.docs)])
-            summary[d.isoformat()] = self.day_aggregates(recs, idx)
-            shown, stats = self.day_stories(recs)
+            items = [] if d in self.recent else None
+            summary[d.isoformat()] = self.day_aggregates(recs, idx, items)
+            if items is not None:
+                dump_gz(cdir / "feed" / f"{d.isoformat()}.json.gz", items)
+            shown, stats = self.day_stories([r for r in recs if not self.is_machine(r)])
             summary[d.isoformat()]["stories"] = stats
             dump_gz(cdir / "stories" / f"{d.isoformat()}.json.gz", shown)
         idx.write(sdir)
@@ -309,9 +328,12 @@ class Builder:
                  time.monotonic() - t0)
         return slim
 
-    def day_aggregates(self, recs: list[dict], idx: "MonthIndex") -> dict:
+    def day_aggregates(self, recs: list[dict], idx: "MonthIndex", feed: list | None = None) -> dict:
+        """The day's counts for digests, series and analyses; every record goes into the search index, and
+        into `feed` (when given) as a feed item."""
         totals = Counter()
         listed = Counter()
+        machine = Counter()
         framed = 0
         nar = defaultdict(Counter)
         df = {"ru": Counter(), "en": Counter()}
@@ -327,6 +349,11 @@ class Builder:
         for r in recs:
             o = r["o"]
             lang = self.olang.get(o, "ru")
+            if self.is_machine(r):  # searchable, marked, and counted apart from everything else
+                machine[o] += 1
+                ks, snips = self.narratives_of(r)
+                self.index_doc(idx, r, ks, snips, machine=True)
+                continue
             totals[o] += 1
             v = analysis.voice(r["t"], lang)
             if v:
@@ -335,7 +362,8 @@ class Builder:
                                             {"y": {}, "f": {}, "o": {}, "v": {}, "ex": self.example(r, None)})
                 for field, val in (("y", kind), ("f", name), ("o", o), ("v", verb)):
                     e[field][val] = e[field].get(val, 0) + 1
-            for code in gaz.find(f'{r["t"]} {r.get("d", "")}', lang):
+            codes = gaz.find(f'{r["t"]} {r.get("d", "")}', lang)
+            for code in codes:
                 countries[code][o] += 1
             for tag in r.get("g") or []:
                 tags[o][tag] += 1
@@ -347,20 +375,10 @@ class Builder:
                 nar[self.narratives[k].id][o] += 1
             if any(self.narratives[k].family == "framing" for k in ks):
                 framed += 1
-            ts = int(parse_dt(r["p"]).timestamp())
-            lead = r.get("d", "")
             kbe = r.get("kbe") or {}
-            doc = [self.oidx[o], ts, r["t"], r.get("te", ""), truncate(lead, SEARCH_LEAD), r["u"], ks,
-                   {str(k): v for k, v in snips.items()}, r.get("h", ""), (r.get("r") or "")[:10], r.get("a", ""),
-                   self.headline_only(r), r.get("w", 0),
-                   # then, where there are any: the Internet Archive's copy that was read, the lead's
-                   # translation, the snippets' translations
-                   r.get("ar", ""), truncate(r.get("de", ""), SEARCH_LEAD),
-                   {str(k): kbe[self.narratives[k].id] for k in snips if self.narratives[k].id in kbe}]
-            while len(doc) > 13 and not doc[-1]:
-                doc.pop()
-            text = " ".join(x for x in (r["t"], lead, r.get("te", ""), r.get("de", "")) if x)
-            idx.add(doc, self.oidx[o], index_terms(text))
+            stems = self.index_doc(idx, r, ks, snips)
+            if feed is not None:
+                feed.append(self.feed_item(r, ks, codes, stems))
             # rising words: in how many of the day's headlines each word (lemma) occurs, and which
             n = heads[lang]
             heads[lang] += 1
@@ -391,12 +409,42 @@ class Builder:
         forms = {lang: {k: display_form(c, k) for k, c in fc.items() if df[lang][k] >= RISING_MIN[lang]}
                  for lang, fc in form_counts.items()}
         return {"totals": dict(totals), "listed": {o: v for o, v in listed.items() if v}, "framed": framed,
+                "machine": dict(machine),
                 "nar": {k: dict(v) for k, v in nar.items()},
                 "df": {lang: dict(c) for lang, c in df.items()}, "forms": forms,
                 "examples": chosen, "stem_ex": stem_ex, "voices": voices,
                 "countries": {k: dict(v) for k, v in countries.items()},
                 "tags": {o: dict(c) for o, c in tags.items()}, "sections": {o: dict(c) for o, c in sections.items()},
                 "posts": {lang: {k: v for k, v in p.items() if len(v) >= RISING_MIN[lang]} for lang, p in posts.items()}}
+
+    def index_doc(self, idx: "MonthIndex", r: dict, ks: list[int], snips: dict[int, str], machine: bool = False):
+        """Add one record to the month's search index."""
+        o = r["o"]
+        ts = int(parse_dt(r["p"]).timestamp())
+        lead = r.get("d", "")
+        kbe = r.get("kbe") or {}
+        doc = [self.oidx[o], ts, r["t"], r.get("te", ""), truncate(lead, SEARCH_LEAD), r["u"], ks,
+               {str(k): v for k, v in snips.items()}, r.get("h", ""), (r.get("r") or "")[:10], r.get("a", ""),
+               self.headline_only(r), r.get("w", 0),
+               # then, where there are any: the Internet Archive's copy that was read, the lead's
+               # translation, the snippets' translations, and 1 for an item the outlet labels machine-written
+               r.get("ar", ""), truncate(r.get("de", ""), SEARCH_LEAD),
+               {str(k): kbe[self.narratives[k].id] for k in snips if self.narratives[k].id in kbe},
+               int(machine)]
+        while len(doc) > 13 and not doc[-1]:
+            doc.pop()
+        text = " ".join(x for x in (r["t"], lead, r.get("te", ""), r.get("de", "")) if x)
+        terms = index_terms(text)
+        idx.add(doc, self.oidx[o], terms)
+        return {st for _, st in terms}
+
+    def feed_item(self, r: dict, ks: list[int], codes, stems: set[str]) -> dict:
+        """What the feeds need of one article: its text, and which framings, countries and saved searches it is in."""
+        item = {k: r[k] for k in ("id", "o", "p", "t", "u", "te", "d", "de", "ar") if r.get(k)}
+        item["k"] = [self.narratives[k].id for k in ks]
+        item["c"] = sorted(codes)
+        item["q"] = [s.id for s in self.searches if s.matches(stems)]
+        return item
 
     def headline_only(self, r: dict) -> int:
         """1 for an outlet whose pages Woland reads, when this article's page has not been read (yet)."""
@@ -673,6 +721,7 @@ class Builder:
     def run(self):
         t0 = time.monotonic()
         days = [d for d in available_days() if d >= START_DATE]
+        self.recent = set(days[-FEED_DAYS:])
         data = self.out / "data"
         self.copy_site()
         months: dict[str, list[date]] = defaultdict(list)
@@ -705,8 +754,216 @@ class Builder:
         self.write_series(days, cov)
         self.write_examples(days)
         self.write_analysis(days)
+        self.write_brief(days)
+        self.write_feeds(days)
         self.write_meta(days, month_list[-SEARCH_MONTHS:], cov)
         log.info("site built in %.1fs → %s", time.monotonic() - t0, self.out)
+
+    # ── the weekly brief ──────────────────────────────────────────────────────
+    def weeks(self, days: list[date]) -> list[list[date]]:
+        """The completed Monday-to-Sunday weeks, oldest first (the first one may start after its Monday)."""
+        through = self.complete_through(days)
+        by: dict[tuple, list[date]] = defaultdict(list)
+        for d in days:
+            by[tuple(d.isocalendar())[:2]].append(d)
+        out = []
+        for (y, w), ds in sorted(by.items()):
+            sunday = date.fromisocalendar(y, w, 7)
+            if through and sunday.isoformat() <= through:
+                out.append(ds)
+        return out
+
+    def write_brief(self, days: list[date]):
+        """data/brief/<YYYY-Www>.json for every completed week, data/brief/index.json listing them, and
+        feeds/brief.xml: what rose, the week's events and biggest stories, who spoke, which countries, and what
+        was not collected. Built from the same day summaries, digests and stories as the other pages."""
+        weeks = self.weeks(days)
+        out = self.out / "data" / "brief"
+        index, entries = [], []
+        for i, wdays in enumerate(weeks):
+            base_days = [d for w in weeks[max(0, i - BRIEF_BASE_WEEKS):i] for d in w]
+            prev_days = weeks[i - 1] if i else []
+            b = self.brief(wdays, prev_days, base_days, days)
+            dump(out / f"{b['week']}.json", b)
+            index.append({"week": b["week"], "from": b["from"], "to": b["to"]})
+            entries.append(b)
+        index.reverse()
+        dump(out / "index.json", index)
+        updated = iso_utc()
+        feed_entries = [feeds.text_entry(f"urn:woland:brief:{b['week']}",
+                                         f"The week in the Russian state press, {b['from']} – {b['to']}",
+                                         f"{b['to']}T23:59:59+03:00", self.href(f"brief.html?w={b['week']}"),
+                                         self.brief_text(b)) for b in reversed(entries[-12:])]
+        feeds.write_feed(self.out / "feeds" / "brief.xml", "urn:woland:feed:brief", "Woland — the week in the Russian state press",
+                         "Every Monday: the framings that rose, the week's events and biggest stories, who spoke, which "
+                         "countries were named, and what was not collected.", self.href("feeds/brief.xml"),
+                         self.href("brief.html"), updated, feed_entries)
+
+    def brief(self, wdays: list[date], prev_days: list[date], base_days: list[date], days: list[date]) -> dict:
+        y, w, _ = wdays[0].isocalendar()
+        sums = [self._summary_for(d) for d in wdays]
+        psums = [self._summary_for(d) for d in prev_days]
+        bsums = [self._summary_for(d) for d in base_days]
+        total = lambda ss: sum(sum(s.get("totals", {}).values()) for s in ss)  # noqa: E731
+        count = lambda ss, nid: sum(sum(s.get("nar", {}).get(nid, {}).values()) for s in ss)  # noqa: E731
+        n_week, n_base = total(sums), total(bsums)
+        rows = []
+        for n in self.narratives:
+            c = count(sums, n.id)
+            share = c / n_week if n_week else 0
+            base = count(bsums, n.id) / n_base if n_base else None
+            rows.append({"id": n.id, "family": n.family, "n": c, "share": round(share, 5),
+                         "base": None if base is None else round(base, 5),
+                         "x": round(share / base, 2) if base else None})
+        movers = [r for r in rows if r["x"] is not None and r["n"] >= BRIEF_MIN]
+        rising = sorted((r for r in movers if r["x"] >= 1.2), key=lambda r: -r["x"])[:BRIEF_SHOWN]
+        falling = sorted((r for r in movers if r["x"] <= 1 / 1.2), key=lambda r: r["x"])[:BRIEF_SHOWN // 2]
+        top = sorted((r for r in rows if r["family"] == "framing"), key=lambda r: -r["n"])[:BRIEF_SHOWN]
+        # the week's events: the days' rising words, the largest first
+        events = []
+        for d in wdays:
+            p = self.out / "data" / "days" / f"{d.isoformat()}.json"
+            if p.exists():
+                dg = json.loads(p.read_text(encoding="utf-8"))
+                for lang, items in (dg.get("rising") or {}).items():
+                    for it in items:
+                        ex = it.get("ex") or {}
+                        events.append({"w": it["w"], "q": it["q"], "n": it["n"], "x": it["x"], "lang": lang,
+                                       "d": d.isoformat(), "ex": {k: ex[k] for k in ("o", "t", "te", "u") if ex.get(k)}})
+        events.sort(key=lambda e: (-e["n"], e["d"]))
+        # the stories the most outlets ran, on any day of the week
+        stories = []
+        for d in wdays:
+            p = self.out / "data" / "analysis" / "stories" / "day" / f"{d.isoformat()}.json.gz"
+            if p.exists():
+                with gzip.open(p, "rt", encoding="utf-8") as fh:
+                    for st in json.load(fh)[:10]:
+                        first = st["m"][0]
+                        stories.append({"n": st["n"], "d": d.isoformat(), "o": [m["o"] for m in st["m"]],
+                                        "first": {k: first[k] for k in ("o", "p", "t", "te", "u") if first.get(k)}})
+        stories.sort(key=lambda st: (-st["n"], st["d"], st["first"].get("p", "")))
+        voices = self.voices_of(sums)
+        pvoices = self.voices_of(psums) if psums else {"voices": {}}
+        prev_n = {(lang, v["k"]): v["n"] for lang, vs in pvoices["voices"].items() for v in vs}
+        speakers = {lang: [{"name": v["name"], "y": v["y"], "n": v["n"], "prev": prev_n.get((lang, v["k"])) if psums else None,
+                            "v": next(iter(v["v"]), None), "k": v["k"]}
+                           for v in vs[:BRIEF_SHOWN]] for lang, vs in voices["voices"].items()}
+        ctry = self.countries_of(sums, psums)
+        names = ctry["names"]
+        countries = sorted(({"c": c, "name": names.get(c, c), "n": v["n"], "prev": v["prev"]}
+                            for c, v in ctry["countries"].items() if c != "RU"), key=lambda r: -r["n"])
+        rose = sorted((r for r in countries if r["prev"] and r["n"] >= BRIEF_MIN and r["n"] >= 1.5 * r["prev"]),
+                      key=lambda r: -r["n"] / r["prev"])
+        idx = {d: i for i, d in enumerate(days)}
+        gaps = {}
+        for o, codes in getattr(self, "_cov_codes", {}).items():
+            missing = [d.isoformat() for d in wdays if d in idx and idx[d] < len(codes) and codes[idx[d]] == "m"]
+            if missing and next(o2.enabled for o2 in self.outlets if o2.id == o):
+                gaps[o] = missing
+        return {
+            "week": f"{y}-W{w:02d}", "from": wdays[0].isoformat(), "to": wdays[-1].isoformat(), "days": len(wdays),
+            "total": n_week, "prev_total": total(psums) if psums else None, "prev_days": len(prev_days),
+            "base_weeks": len({tuple(d.isocalendar())[:2] for d in base_days}),
+            "machine": sum(sum(s.get("machine", {}).values()) for s in sums),
+            "outlets": {o: sum(s.get("totals", {}).get(o, 0) for s in sums) for o in self.oidx
+                        if any(s.get("totals", {}).get(o) for s in sums)},
+            "framed": sum(s.get("framed", 0) for s in sums),
+            "rising": rising, "falling": falling, "top": top,
+            "events": events[:BRIEF_SHOWN + 4], "stories": stories[:BRIEF_SHOWN], "speakers": speakers,
+            "countries": countries[:BRIEF_SHOWN], "countries_rose": rose[:BRIEF_SHOWN // 2], "gaps": gaps,
+        }
+
+    def brief_text(self, b: dict) -> str:
+        """The weekly brief as plain text, for the feed."""
+        label = {n.id: n.label.get("en", n.id) for n in self.narratives}
+        oname = {o.id: o.name for o in self.outlets}
+        lines = [f"{b['total']:,} articles from {len(b['outlets'])} outlets"
+                 + (f" ({b['total'] / b['prev_total'] * 100 - 100:+.0f}% on the week before)." if b.get("prev_total") else ".")]
+        if b["rising"]:
+            lines.append("Rose against the previous weeks: " + "; ".join(
+                f"{label[r['id']]} ×{r['x']:.1f} ({r['n']:,} articles)" for r in b["rising"]) + ".")
+        if b["events"]:
+            lines.append("Events: " + "; ".join(
+                f"{e['w']} ({e['d'][5:]}, {e['n']} headlines){' — ' + e['ex']['te'] if e['ex'].get('te') else ''}"
+                for e in b["events"][:6]) + ".")
+        if b["stories"]:
+            lines.append("Stories the most outlets ran: " + "; ".join(
+                f"{s['first'].get('te') or s['first'].get('t')} ({s['n']} outlets, {oname.get(s['first']['o'], s['first']['o'])} first)"
+                for s in b["stories"][:5]) + ".")
+        sp = (b["speakers"].get("ru") or [])[:5]
+        if sp:
+            lines.append("Quoted most: " + ", ".join(f"{v['name']} ({v['n']})" for v in sp) + ".")
+        if b["countries"]:
+            lines.append("Countries named most: " + ", ".join(f"{c['name']} ({c['n']:,})" for c in b["countries"][:6]) + ".")
+        if b["gaps"]:
+            lines.append("Not collected: " + "; ".join(f"{oname.get(o, o)} ({len(ds)} days)" for o, ds in b["gaps"].items()) + ".")
+        if b.get("machine"):
+            lines.append(f"Left out: {b['machine']:,} machine-written items.")
+        lines.append("Pattern matches, not a reading of every article: see the Method page.")
+        return "\n\n".join(lines)
+
+    # ── feeds ─────────────────────────────────────────────────────────────────
+    def feed_items(self, d: date) -> list[dict]:
+        """A day's feed items: written by its month's build (FEED_DAYS), or worked out here when that month
+        came from the cache and was built before the day counted as recent."""
+        p = CACHE / f"{d:%Y-%m}" / "feed" / f"{d.isoformat()}.json.gz"
+        if p.exists():
+            with gzip.open(p, "rt", encoding="utf-8") as fh:
+                return json.load(fh)
+        recs = []
+        for oid in sorted(q.stem for q in day_dir(d).glob("*.jsonl")):
+            if oid in self.oidx:
+                recs.extend(self.corrected(r) for r in read_day(d, oid))
+        recs.sort(key=lambda r: (r["p"], r["o"], r["u"]))
+        items: list[dict] = []
+        self.day_aggregates(recs, MonthIndex(), items)
+        return items
+
+    def href(self, path: str) -> str:
+        return f"{self.base_url}/{path}" if self.base_url else path
+
+    def write_feeds(self, days: list[date]):
+        """Atom feeds (woland/feeds.py) of the newest articles of every framing and topic, outlet, country and
+        saved search over the last FEED_DAYS days; and data/feeds.json, the list the website shows."""
+        recent = days[-FEED_DAYS:]
+        items = [it for d in recent for it in self.feed_items(d)]
+        items.sort(key=lambda it: it["p"], reverse=True)
+        buckets: dict[tuple[str, str], list[dict]] = defaultdict(list)
+        counts: dict[tuple[str, str], int] = Counter()
+        for it in items:
+            keys = [("outlet", it["o"])] + [("framing", k) for k in it.get("k", [])] + \
+                   [("country", c) for c in it.get("c", [])] + [("search", q) for q in it.get("q", [])]
+            for key in keys:
+                counts[key] += 1
+                if len(buckets[key]) < FEED_ENTRIES:
+                    buckets[key].append(it)
+        names = {o.id: o.name for o in self.outlets}
+        nlabel = {n.id: n.label.get("en", n.id) for n in self.narratives}
+        cname = analysis.gazetteer().names
+        slabel = {s.id: s.label.get("en", s.id) for s in self.searches}
+        sfirst = {s.id: s.any[0][0] for s in self.searches}
+        updated = iso_utc()
+        span = f"{recent[0].isoformat()} – {recent[-1].isoformat()}" if recent else ""
+        listing: dict[str, dict] = {"outlet": {}, "framing": {}, "country": {}, "search": {}}
+        targets = (
+            [("outlet", o.id, f"outlet: {o.name}", f"outlets.html#{o.id}") for o in self.outlets if o.enabled] +
+            [("framing", n.id, f"{n.family}: {nlabel[n.id]}", f"narratives.html#{n.id}") for n in self.narratives] +
+            [("country", c, f"country: {cname.get(c, c)}", f"archive.html?q={cname.get(c, c)}")
+             for (kind, c) in sorted(counts) if kind == "country"] +
+            [("search", s.id, f"saved search: {slabel[s.id]}", f"archive.html?q={sfirst[s.id]}") for s in self.searches])
+        for kind, key, title, page in targets:
+            path = f"feeds/{kind}/{key}.xml"
+            entries = [feeds.article_entry(it, names.get(it["o"], it["o"]), [nlabel[k] for k in it.get("k", []) if k in nlabel])
+                       for it in buckets.get((kind, key), [])]
+            feeds.write_feed(self.out / path, f"urn:woland:feed:{kind}:{key}", f"Woland — {title}",
+                             f"The newest of the Russian state press's headlines, with English machine translations, "
+                             f"{span} (Moscow days); at most {FEED_ENTRIES}.", self.href(path), self.href(page),
+                             updated, entries)
+            listing[kind][key] = counts.get((kind, key), 0)
+        dump(self.out / "data" / "feeds.json", {
+            "days": [d.isoformat() for d in recent], "entries": FEED_ENTRIES, "feeds": listing,
+            "searches": [{"id": s.id, "label": s.label} for s in self.searches],
+            "countries": {c: cname.get(c, c) for c in listing["country"]}})
 
     def copy_site(self):
         """Copy site/ to the output, expanding <!-- include:name --> from site/partials/."""
@@ -737,23 +994,30 @@ class Builder:
     def write_series(self, days: list[date], cov: dict):
         ids = [o.id for o in self.outlets]
         totals = {o: [0] * len(days) for o in ids}
+        machine = {o: [0] * len(days) for o in ids}
         nar = {n.id: {o: [0] * len(days) for o in ids} for n in self.narratives}
         for i, d in enumerate(days):
             summary = self._summary_for(d)
             for o, v in summary.get("totals", {}).items():
                 if o in totals:
                     totals[o][i] = v
+            for o, v in summary.get("machine", {}).items():
+                if o in machine:
+                    machine[o][i] = v
             for nid, by in summary.get("nar", {}).items():
                 if nid in nar:
                     for o, v in by.items():
                         if o in nar[nid]:
                             nar[nid][o][i] = v
+        # (a day of machine-written items only is collected, not a gap)
+        self._cov_codes = self.coverage_codes(days, {o: [a + b for a, b in zip(totals[o], machine[o])] for o in ids}, cov)   # (the weekly brief lists the gaps)
         # drop all-zero rows to keep the file small
         dump(self.out / "data" / "series.json", {
             "days": [d.isoformat() for d in days],
             "totals": {o: v for o, v in totals.items() if any(v)},
+            "machine": {o: v for o, v in machine.items() if any(v)},   # machine-written items, not in totals
             "nar": {nid: {o: v for o, v in by.items() if any(v)} for nid, by in nar.items()},
-            "cov": self.coverage_codes(days, totals, cov),
+            "cov": self._cov_codes,
             "gaps": self.feed_gaps(days),
         })
 
@@ -826,7 +1090,7 @@ class Builder:
         return {**self._summary_cache[month].get(d.isoformat(), {}), "_day": d.isoformat()}
 
     def write_meta(self, days: list[date], months: list[str], cov: dict):
-        per_outlet = defaultdict(lambda: {"n": 0, "days": 0, "first": None, "last": None, "listed": 0})
+        per_outlet = defaultdict(lambda: {"n": 0, "days": 0, "first": None, "last": None, "listed": 0, "machine": 0})
         for d in days:
             summary = self._summary_for(d)
             for o, v in summary.get("totals", {}).items():
@@ -837,10 +1101,12 @@ class Builder:
                 s["last"] = d.isoformat()
             for o, v in summary.get("listed", {}).items():
                 per_outlet[o]["listed"] += v
+            for o, v in summary.get("machine", {}).items():
+                per_outlet[o]["machine"] += v
         outlets = []
         for o in self.outlets:
             info = o.public()
-            info.update(per_outlet.get(o.id, {"n": 0, "days": 0, "first": None, "last": None, "listed": 0}))
+            info.update(per_outlet.get(o.id, {"n": 0, "days": 0, "first": None, "last": None, "listed": 0, "machine": 0}))
             outlets.append(info)
         compact_cov = {}
         for oid, by_day in cov.items():
