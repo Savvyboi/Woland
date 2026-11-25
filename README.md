@@ -108,7 +108,7 @@ From then on everything is automatic:
   grammatical form; the outlets' own tags as stored. Computed at build time for the Analysis page.
 * **The site** (`site/`, `woland/build.py`) — plain HTML, CSS and JavaScript modules; no framework, no build
   tool. Search runs in the browser against a static inverted index sharded by month and by word, so only a
-  few small gzip files are downloaded per query. Unchanged months are cached between builds.
+  few small gzip files are downloaded per query. Unchanged months are cached between builds, and within the last two months unchanged days, so the nightly build works out only the week it collected again.
 
 ## Running it on your own computer
 

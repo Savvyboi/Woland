@@ -19,6 +19,9 @@ CONTEXT_WINDOW = 50  # characters either side of a full-text match in which a `w
 
 def norm_same_length(s: str) -> str:
     """normalize() applied character by character, so offsets stay valid in the original text."""
+    n = normalize(s)
+    if len(n) == len(s):  # nearly always: no character changed length (the slow way below is ~4x slower)
+        return n
     out = []
     for ch in s:
         n = normalize(ch)
@@ -47,6 +50,12 @@ def pattern_regex(pattern: str) -> str:
     return r"(?<!\w)" + out + tail
 
 
+def _literal(pattern: str) -> str:
+    """The longest stretch of text every match of the pattern contains (its longest word, without *)."""
+    words = [w[:-1] if w.endswith("*") else w for w in normalize(pattern).split() if w != GAP]
+    return max(words, key=len, default="")
+
+
 def _alternation(patterns: list[str]) -> re.Pattern | None:
     return re.compile("|".join(f"(?:{pattern_regex(p)})" for p in patterns)) if patterns else None
 
@@ -58,9 +67,15 @@ class _Group:
         self.rx = _alternation(match)
         self.ctx = _alternation(list(ctx))
         self.exclude = _alternation(list(exclude))
+        # A text that contains none of these strings cannot match: checking them is many times faster than
+        # running the regular expression, and most texts match no group of most narratives.
+        lits = [_literal(p) for p in match]
+        self.lits = None if not all(lits) else sorted(set(lits))
 
     def first(self, t: str, extra: str, window: int | None) -> tuple[int, int] | None:
         """The first match in t (normalised) that satisfies the group's conditions."""
+        if self.lits is not None and not any(lit in t for lit in self.lits):
+            return None
         spans_not = [m.span() for m in self.exclude.finditer(t)] if self.exclude else ()
         for m in self.rx.finditer(t):
             a, b = m.span()

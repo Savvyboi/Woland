@@ -304,10 +304,11 @@ function route() {
 
 async function start() {
   try {
+    const seriesP = getJSON("series.json");   // alongside meta.json, not after it
     await loadMeta();
     fillFooter();
     if (!META.last) { main.replaceChildren(el("p", { class: "empty" }, t("empty.nodata"))); return; }
-    series = await getJSON("series.json");
+    series = await seriesP;
     window.addEventListener("hashchange", () => { route(); main.scrollIntoView({ block: "start" }); });
     route();
   } catch (e) {

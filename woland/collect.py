@@ -8,7 +8,7 @@ import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from . import net
 from .config import START_DATE, Outlet, load_lexicon, load_outlets
@@ -111,26 +111,71 @@ ARCHIVE_COPY = "https://web.archive.org/web/{ts}id_/{url}"
 ARCHIVE_GAP = 4.0  # seconds at least between two requests for the Archive's copies
 
 
+class _Refusals:
+    """Outlets that refuse their pages (403, a bot check) several times in a row: for the rest of the run, an
+    outlet with `archive_if_refused` is not asked again, and its pages are read from the Archive's copies."""
+    LIMIT = 3
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._streak: dict[str, int] = {}
+
+    def refused(self, host: str) -> bool:
+        with self._lock:
+            return self._streak.get(host, 0) >= self.LIMIT
+
+    def note(self, host: str, refused: bool):
+        with self._lock:
+            if refused:
+                self._streak[host] = self._streak.get(host, 0) + 1
+            elif self._streak.get(host, 0) < self.LIMIT:
+                self._streak.pop(host, None)
+
+
+REFUSALS = _Refusals()
+
+
+_CAPTURED = re.compile(r"/web/(\d{14})id_/")
+
+
+def _from_archive(o: Outlet, c: Candidate, local: threading.local):
+    """The page as the Internet Archive captured it. Without a capture time from the Archive's index, it is
+    asked for the copy nearest the time the listing gives (it redirects to the closest capture it has)."""
+    ts = c.capture or (c.hint or datetime.now(timezone.utc)).astimezone(timezone.utc).strftime("%Y%m%d%H%M%S")
+    r = local.fetcher.get(ARCHIVE_COPY.format(ts=ts, url=c.url), gap=max(o.rate, ARCHIVE_GAP))
+    if r.status == 404 and not c.capture:  # not captured (yet): as for a site that does not answer, no streak
+        return None, "down", 404, "no copy in the Internet Archive"
+    if not r.ok:  # the copy, not the article, is missing or unreachable: try again another time
+        return None, "archive", None, r.error or f"archive: {r.status}"
+    info = extract(r.text, c.url, o.headline)
+    if info:
+        m = _CAPTURED.search(r.url or "")
+        info["capture"] = m.group(1) if m else ts
+    return (info, None, r.status, None) if info else (None, "unparsable", r.status, None)
+
+
 def _fetch_page(o: Outlet, c: Candidate, fetchers: list, local: threading.local):
     """Fetch and read one article page: from the outlet, or — when the outlet does not answer at all
-    (MK and Sputnik from GitHub's servers) and the Internet Archive has captured the page — from the
+    (MK and Sputnik from GitHub's servers), or refuses its pages and says the Archive may stand in
+    (`archive_if_refused`: Tsargrad), and the Internet Archive has captured the page — from the
     Archive's copy. Returns (info or None, failure reason or None, HTTP status, error)."""
     if not hasattr(local, "fetcher"):
         local.fetcher = o.fetcher()
         fetchers.append(local.fetcher)
-    if net.HEALTH.down(o.host):
-        if not c.capture:  # nothing to fall back on: another run will try the outlet again
+    if net.HEALTH.down(o.host) or (o.archive_if_refused and REFUSALS.refused(o.host)):
+        if not c.capture and not o.archive_if_refused:  # nothing to fall back on: a later run tries again
             return None, "down", None, f"{o.host} does not answer"
-        r = local.fetcher.get(ARCHIVE_COPY.format(ts=c.capture, url=c.url), gap=max(o.rate, ARCHIVE_GAP))
-        if not r.ok:  # the copy, not the article, is missing or unreachable: try again another time
-            return None, "archive", None, r.error or f"archive: {r.status}"
-        info = extract(r.text, c.url, o.headline)
-        if info:
-            info["capture"] = c.capture
-        return (info, None, r.status, None) if info else (None, "unparsable", r.status, None)
+        return _from_archive(o, c, local)
     r = local.fetcher.get(c.url)  # (it slows down by itself when the site asks it to)
     if not r.ok or r.challenged():
+        refused = r.status in (401, 403) or (r.ok and r.challenged())
+        if o.archive_if_refused:
+            REFUSALS.note(o.host, refused)
+            if refused:
+                return _from_archive(o, c, local)
         return None, ("bot-check" if r.ok else (str(r.status) if r.status else "network")), r.status, r.error
+    if o.archive_if_refused:
+        REFUSALS.note(o.host, False)
     info = extract(r.text, c.url, o.headline)
     return (info, None, r.status, None) if info else (None, "unparsable", r.status, None)
 

@@ -15,12 +15,28 @@ Open work for future sessions, most urgent first. State of the archive when this
 
 ## 1. Collection on GitHub (watch the next runs)
 
-- [ ] **RT English moved to rt-english.com on 13 October 2026** (www.rt.com answers 301 to it since), and
-      nothing was stored for 13–17 October: every URL of its sitemap failed the `article` pattern, which no run
-      reported. Fixed on 18 October: `home`, sitemap and pattern take the new address, `former` keeps the
-      articles stored under www.rt.com from being stored again, and a source that lists 20 or more URLs none
-      of which looks like an article is now reported as an error. The next nightly run reads back a week
-      (from 11 October); 13–17 October will need no backfill if it fills them — check.
+- [ ] **Tsargrad refuses GitHub's servers after a few pages** (from 17 November 2026): its article pages answer
+      403 after 4–280 pages a night ("refused after … pages (403)" in `runs.json`), and once (22 November) its
+      sitemap did too. Stored a day: ~1,000 until 15 November, 140–250 on 16–20 November, 0–55 since. A check
+      of two pages (23 November) still succeeded. On 25 November it was slowed down like MK (`rate: 3.0`,
+      `parallel: 1`, `budget: 60`), and, decided by the user (its news is public), pages it refuses are read
+      from the Internet Archive's copy nearest the listed time (`archive_if_refused`; after three refusals in
+      a row only the Archive is asked that night); its note says so. Not yet known: how much of tsargrad.tv the
+      Archive captures (its CDX index timed out on a prefix query for a day of /news/). Watch `ar` records
+      and the daily counts for 16 November onwards.
+- [ ] **Izvestia's sitemap index answers GitHub 403 every other night or so** (16, 18–20, 22 and 25 November
+      2026); the nights it answers, the week is read back (21 November: 2,049 articles), so no day is lost yet.
+      If it stops answering for a week, look for another listing.
+- [ ] The weekly outlet check fails every week because Sputnik never answers (and MK or Gazeta.ru time out on
+      some days): the failure says nothing new. Consider not counting outlets whose failure is already known.
+
+Done on 18 October – 25 November:
+- **RT English** from its new address (rt-english.com): 13–17 October were filled by the next nightly runs
+  (20–41 articles a day, as before).
+- **Argumenty i Fakty's times** were checked on 25 November against its own feed: the stored times match its
+  feed to the second (`pubDate`, Moscow time), so its articles that look 1–3 hours early in "Who goes first"
+  are early by AiF's own clock, not by a time-zone error in Woland. (Its night output is unusually large:
+  5–6 a.m. Moscow time is one of its busiest hours.)
 - [ ] **TASS's feed for news aggregators refuses GitHub more often than not** (since 8 October). It failed
       unreported on 7–8 October (readings found ~170 items in TASS's feeds instead of ~800, because a source
       only reported an error when *all* its feeds failed; fixed on 9 October, `SourcePartial` in `discover.py`).

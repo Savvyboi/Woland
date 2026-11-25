@@ -52,6 +52,9 @@
 #   machine     a regular expression for the byline the outlet itself gives to machine-written items (Tsargrad's
 #               "Регионы Нейросеть"): such records stay in the archive, marked, but are left out of every count,
 #               share and analysis
+#   archive_if_refused  true = when the outlet answers its article pages with 403 or a bot check, read the
+#               Internet Archive's copy nearest the listed time instead (the record then carries `ar`); after
+#               three refusals in a row the outlet itself is not asked again during that run
 #   enabled     false = skipped (kept for documentation)
 
 defaults:
@@ -504,10 +507,19 @@ outlets:
       fi: Ortodoksis-nationalistinen media, jonka perusti pakotteiden alainen liikemies Konstantin Malofejev.
       sv: Ortodox-nationalistisk kanal grundad av den sanktionerade affärsmannen Konstantin Malofejev.
     note:
-      en: 'Since 9 September 2026 most of its items are short regional news under the byline «Регионы Нейросеть» ("Regions · Neural network"), the outlet''s own label for machine-written text: 417 of 775 on 9 September, 61% of everything to 24 November, against 20–130 a day before. Woland keeps them in the archive, marked "machine-written", but leaves them out of every count, share and analysis, so Tsargrad''s figures are its newsroom''s own output. They explain why it seemed to publish twice as much from 9 September.'
-      fi: 'Syyskuun 9. päivästä 2026 lähtien suurin osa sen jutuista on lyhyitä alueuutisia nimellä «Регионы Нейросеть» ("Alueet · Neuroverkko"), joka on julkaisijan oma merkintä koneen kirjoittamalle tekstille: 9.9. niitä oli 417 juttua 775:stä ja 24.11. mennessä 61 % kaikesta, kun aiemmin niitä oli 20–130 päivässä. Woland säilyttää ne arkistossa merkinnällä "koneen kirjoittama", mutta jättää ne pois kaikista määristä, osuuksista ja analyyseistä, joten Tsargradin luvut kuvaavat sen toimituksen omaa työtä. Ne selittävät, miksi se näytti julkaisevan 9.9. alkaen kaksi kertaa enemmän.'
-      sv: 'Sedan den 9 september 2026 är de flesta av dess inslag korta regionala nyheter under signaturen «Регионы Нейросеть» ("Regioner · Neuralt nätverk"), kanalens egen märkning av maskinskriven text: 417 av 775 den 9 september, 61 % av allt fram till den 24 november, mot 20–130 om dagen dessförinnan. Woland behåller dem i arkivet, märkta "maskinskriven", men utelämnar dem ur alla antal, andelar och analyser, så att Tsargrads siffror visar redaktionens eget arbete. De förklarar varför kanalen tycktes publicera dubbelt så mycket från den 9 september.'
+      en: 'Since 9 September 2026 most of its items are short regional news under the byline «Регионы Нейросеть» ("Regions · Neural network"), the outlet''s own label for machine-written text: 417 of 775 on 9 September, 61% of everything to 24 November, against 20–130 a day before. Woland keeps them in the archive, marked "machine-written", but leaves them out of every count, share and analysis, so Tsargrad''s figures are its newsroom''s own output. They explain why it seemed to publish twice as much from 9 September. From 17 November 2026 it refuses most page requests from GitHub''s servers, where Woland''s collection runs: those pages are read from the copies the Internet Archive has made, where it has any (each such article''s details say so), so some days from then on are incomplete.'
+      fi: 'Syyskuun 9. päivästä 2026 lähtien suurin osa sen jutuista on lyhyitä alueuutisia nimellä «Регионы Нейросеть» ("Alueet · Neuroverkko"), joka on julkaisijan oma merkintä koneen kirjoittamalle tekstille: 9.9. niitä oli 417 juttua 775:stä ja 24.11. mennessä 61 % kaikesta, kun aiemmin niitä oli 20–130 päivässä. Woland säilyttää ne arkistossa merkinnällä "koneen kirjoittama", mutta jättää ne pois kaikista määristä, osuuksista ja analyyseistä, joten Tsargradin luvut kuvaavat sen toimituksen omaa työtä. Ne selittävät, miksi se näytti julkaisevan 9.9. alkaen kaksi kertaa enemmän. Marraskuun 17. päivästä 2026 lähtien se torjuu useimmat sivupyynnöt GitHubin palvelimilta, joilla Wolandin keruu toimii: nämä sivut luetaan Internet Archiven tekemistä kopioista, jos niitä on (kunkin tällaisen jutun tiedoissa kerrotaan siitä), joten osa päivistä on siitä lähtien vajaita.'
+      sv: 'Sedan den 9 september 2026 är de flesta av dess inslag korta regionala nyheter under signaturen «Регионы Нейросеть» ("Regioner · Neuralt nätverk"), kanalens egen märkning av maskinskriven text: 417 av 775 den 9 september, 61 % av allt fram till den 24 november, mot 20–130 om dagen dessförinnan. Woland behåller dem i arkivet, märkta "maskinskriven", men utelämnar dem ur alla antal, andelar och analyser, så att Tsargrads siffror visar redaktionens eget arbete. De förklarar varför kanalen tycktes publicera dubbelt så mycket från den 9 september. Sedan den 17 november 2026 avvisar den de flesta sidförfrågningar från GitHubs servrar, där Wolands insamling körs: de sidorna läses från de kopior som Internet Archive har gjort, där sådana finns (varje sådan artikels uppgifter säger det), så vissa dagar därefter är ofullständiga.'
     machine: '^Регионы Нейросеть$'
+    # From 17 November 2026 its pages answer GitHub's servers 403 after a few dozen to a few hundred pages a
+    # night (2–4 pages a second at the default pause), and its sitemap answered 403 once (22 November): ~1,000
+    # articles a day became 5–200. It is read slowly, as MK, with a cap on the time it takes, newest pages
+    # first; pages it refuses are read from the Internet Archive's copies, where it has any (decided 25
+    # November: its news is public).
+    archive_if_refused: true
+    rate: 3.0
+    parallel: 1
+    budget: 60
     article: '^https://tsargrad\.tv/(news|articles|materials|investigations)/(?!rubric/)[^?#]+$'
     sources:
       - {type: sitemap, per: month, url: 'https://tsargrad.tv/xml/sitemap-{y}-{m}.xml.gz'}
