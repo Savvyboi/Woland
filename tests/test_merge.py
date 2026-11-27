@@ -180,3 +180,12 @@ def test_a_rebase_merges_two_runs_that_wrote_the_same_files(tmp_path):
     assert json.loads(cov.read_text(encoding="utf-8"))["tass"]["2026-09-29"]["n"] == 2
     assert sorted(index.read_text(encoding="utf-8").split()) == sorted(["ka", "kb", "kc"] + ["2026-09-29"] * 3)
     assert not git("status", "--porcelain")
+
+
+def test_headline_rewrites_seen_by_either_side_are_kept():
+    base = {"id": "t:1", "u": "https://t.ru/a/1", "p": "2026-09-10T10:00:00+03:00", "t": "A", "via": "page", "r": "2026-09-10T08:00:00Z"}
+    a = {**base, "ls": {"rss": ""}, "rv": [{"at": "2026-09-10T12:00:00Z", "via": "rss", "t": "B"}]}
+    b = {**base, "ls": {"sitemap": "A!"}, "rv": [{"at": "2026-09-10T11:00:00Z", "via": "sitemap", "t": "C"}]}
+    line = lambda r: json.dumps(r, ensure_ascii=False, separators=(",", ":")) + "\n"
+    (out,) = [json.loads(x) for x in merge_records(line(base), line(a), line(b)).splitlines()]
+    assert [e["t"] for e in out["rv"]] == ["C", "B"] and out["ls"] == {"rss": "", "sitemap": "A!"}

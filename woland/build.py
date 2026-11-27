@@ -848,10 +848,18 @@ class Builder:
         self.write_examples(days)
         self.write_analysis(days)
         self.write_brief(days)
+        self.write_rewrites(days)
         self.write_feeds(days)
         self.write_meta(days, month_list[-SEARCH_MONTHS:], cov)
         self.prune_day_cache(month_list)
         log.info("site built in %.1fs → %s", time.monotonic() - t0, self.out)
+
+    def write_rewrites(self, days: list[date]):
+        """data/analysis/rewrites.json: headlines rewritten after publication, over the last weeks (rewrites.py)."""
+        from . import rewrites
+        dump(self.out / "data" / "analysis" / "rewrites.json",
+             rewrites.gather(days[-rewrites.DAYS:], [o.id for o in self.outlets], self.is_machine, self.glossary.fix,
+                             self.complete_through(days), frozenset(self.omachine)))
 
     # ── the weekly brief ──────────────────────────────────────────────────────
     def weeks(self, days: list[date]) -> list[list[date]]:

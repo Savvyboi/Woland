@@ -56,6 +56,13 @@ def _record(o, a: dict, b: dict) -> dict:
     for k in _FILL:
         if second.get(k) and not out.get(k) and lends(k, out, second):
             out[k] = second[k]
+    # headline rewrites either side saw, and listing baselines either side set (store.revise_day)
+    rv = {(e["at"], e.get("via"), e["t"]): e for e in (a.get("rv") or []) + (b.get("rv") or [])}
+    if rv:
+        out["rv"] = sorted(rv.values(), key=lambda e: e["at"])
+    ls = {**(second.get("ls") or {}), **(first.get("ls") or {})}
+    if ls:
+        out["ls"] = ls
     return out
 
 

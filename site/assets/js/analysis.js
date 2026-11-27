@@ -3,7 +3,7 @@
 // (write_analysis) over completed days only.
 import {
   $, el, t, META, loadMeta, getJSON, getGz, initChrome, fillFooter, fmtInt, fmtPct, fmtDay, outlet,
-  groupVar, articleCard, fromExample, archiveSearch, showError, debounce,
+  groupVar, articleCard, fromExample, archiveSearch, showError, debounce, fmtStamp, copyUrl,
 } from "./core.js";
 import { sparkline, barList, columnChart, withTable } from "./charts.js";
 import { lang, LOCALES } from "./i18n.js";
@@ -11,7 +11,7 @@ import { lang, LOCALES } from "./i18n.js";
 initChrome("analysis");
 const main = $("#analysis");
 const tabsNav = $("#tabs");
-const TABS = ["voices", "stories", "countries", "tags"];
+const TABS = ["voices", "stories", "countries", "tags", "rewrites"];
 const params = new URLSearchParams(location.search);
 const state = {
   w: ["7", "30", "all"].includes(params.get("r")) ? params.get("r") : "30",
@@ -386,8 +386,66 @@ async function renderTags() {
   main.replaceChildren(...kids);
 }
 
+// ── Rewritten headlines ─────────────────────────────────────────────────────
+const tsOf = (p) => Math.floor(new Date(`${p}:00+03:00`).getTime() / 1000);   // "YYYY-MM-DDTHH:MM", Moscow time
+
+/** A headline before and after, word by word: what went struck through, what came underlined. */
+function diffLine(diff, l) {
+  return el("p", { class: "diff", lang: l }, diff.map(([op, text]) => (op === "=" ? text
+    : el(op === "-" ? "del" : "ins", {}, el("span", { class: "sr-only" }, t(op === "-" ? "rewrites.removed" : "rewrites.added")), text))));
+}
+
+function rewriteItem(x) {
+  const o = outlet(x.o);
+  const doc = { u: x.u, ts: tsOf(x.p), ar: x.ar || "" };
+  const mt = (label, en) => (en && o.lang !== "en" ? el("p", { class: "tr", lang: "en" },
+    el("abbr", { class: "mt", title: t("article.mt.title") }, t("article.mt")), el("span", { class: "rw-label" }, `${label}: `), en) : null);
+  return el("li", { class: "article rewrite" },
+    el("div", { class: "meta" },
+      el("span", { class: "outlet" }, el("span", { class: "swatch", style: { background: groupVar(o.group) }, "aria-hidden": "true" }), o.name),
+      el("time", { datetime: new Date(doc.ts * 1000).toISOString() }, fmtStamp(doc.ts)),
+      el("span", {}, t("rewrites.at", { time: fmtStamp(Math.floor(Date.parse(x.at) / 1000)), via: t(`rewrites.via.${x.via}`) })),
+      x.n > 1 ? el("span", { class: "badge feed" }, t("rewrites.times", { n: fmtInt(x.n) })) : null,
+      x.m ? el("span", { class: "badge machine", title: t("article.machine.title") }, t("article.machine")) : null),
+    diffLine(x.diff, o.lang),
+    mt(t("rewrites.before"), x.te0), mt(t("rewrites.after"), x.te1),
+    el("div", { class: "links" },
+      el("a", { href: x.u, rel: "noopener noreferrer nofollow", target: "_blank" }, `${t("article.original")} ↗`),
+      el("a", { href: copyUrl(doc), rel: "noopener noreferrer", target: "_blank" }, `${t("article.archive")} ↗`)));
+}
+
+async function renderRewrites() {
+  let data;
+  try { data = await getJSON("analysis/rewrites.json"); } catch (_) { data = { items: [], outlets: {}, days: [], total: 0 }; }
+  const kids = [el("p", { class: "lede-small" }, t("rewrites.lede"))];
+  const [from, to] = data.days || [];
+  if (from) kids.push(el("p", { class: "syntax window-note" }, t("rewrites.window", { from: fmtDay(from), to: fmtDay(to),
+    n: fmtInt(data.total), through: data.through ? fmtDay(data.through) : "–" })));
+  // Plate I — the rewrites, newest first
+  const list = el("ul", { class: "articles rewrites" });
+  kids.push(plate("I", t("rewrites.list"), t("rewrites.list.sub"), list));
+  // Plate II — by outlet: how many of its articles were rewritten
+  const c2 = el("div");
+  const rows = Object.entries(data.outlets || {}).filter(([, v]) => v.articles >= 50)
+    .map(([o, v]) => ({ o, ...v, share: v.rewritten / v.articles })).sort((a, b) => b.share - a.share);
+  const p2 = plate("II", t("rewrites.byoutlet"), t("rewrites.byoutlet.sub"), c2);
+  kids.push(el("div", { class: "section" }, p2));
+  kids.push(el("p", { class: "syntax" }, t("rewrites.method"), " ", el("a", { href: "method.html#analysis" }, `${t("nav.method")} →`)));
+  main.replaceChildren(...kids);
+  const items = data.items || [];
+  list.replaceChildren(...(items.length ? items.map(rewriteItem) : [el("li", { class: "empty" }, t("rewrites.none"))]));
+  if (rows.length) {
+    barList(c2, rows.map((x) => ({ label: outlet(x.o).name, value: x.share, color: groupVar(outlet(x.o).group),
+      title: `${fmtInt(x.rewritten)} / ${fmtInt(x.articles)}` })), pctOf);
+    withTable(p2, c2, () => simpleTable([t("col.outlet"), t("rewrites.col.rewritten"), t("col.all"), t("col.share")],
+      rows.map((x) => [outlet(x.o).name, fmtInt(x.rewritten), fmtInt(x.articles), pctOf(x.share)])));
+  } else {
+    c2.replaceChildren(el("p", { class: "empty" }, "—"));
+  }
+}
+
 // ── routing ─────────────────────────────────────────────────────────────────
-const RENDER = { voices: renderVoices, stories: renderStories, countries: renderCountries, tags: renderTags };
+const RENDER = { voices: renderVoices, stories: renderStories, countries: renderCountries, tags: renderTags, rewrites: renderRewrites };
 function route() {
   renderTabs();
   const k = tab();
