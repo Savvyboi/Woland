@@ -1,0 +1,25 @@
+{
+  "upload_type": "dataset",
+  "title": "Woland: a chronicle of the Russian state press",
+  "description": "<p>A daily record of what the Russian state and pro-Kremlin press published since 1 September 2026: every headline, its lead (at most 240 characters), the time and outlet, English machine translations, and the propaganda framings it matched in a documented lexicon, with short snippets as evidence. 23 outlets: the state core (TASS, RIA Novosti, RT, Rossiyskaya Gazeta, Izvestia, Vesti, Zvezda), the official line, the mass press, the foreign-facing English services and a hardline fringe.</p><p>Each version is the repository as it stood at a quarterly data release (tag data-YYYY-Q#): the whole archive to that date as JSON Lines (one article per line, filed by Moscow day, under data/articles/), the code that collected it, and the lexicon, glossary and audit it was tagged with. The GitHub release of the same tag also carries that quarter alone as a reproducible archive, its monthly Parquet snapshots, and SHA-256 checksums. Framings are counts of word-pattern matches, not a reading of the articles. Woland does not republish articles; headlines and excerpts remain the property of their publishers.</p>",
+  "creators": [
+    {"name": "Savvyboi"}
+  ],
+  "access_right": "open",
+  "license": "cc-by-4.0",
+  "keywords": [
+    "OSINT",
+    "Russian state media",
+    "disinformation",
+    "propaganda",
+    "dataset",
+    "FIMI",
+    "media monitoring",
+    "Russia"
+  ],
+  "related_identifiers": [
+    {"identifier": "https://github.com/Savvyboi/Woland", "relation": "isSupplementTo", "scheme": "url"},
+    {"identifier": "https://savvyboi.github.io/Woland/", "relation": "isDocumentedBy", "scheme": "url"}
+  ],
+  "notes": "Code: MIT. Woland's own data (structure, translations, tagging): CC BY 4.0. Headlines and excerpts remain the property of their publishers and are quoted for research and reporting. Several of the outlets fall under the EU broadcasting ban (Council Regulation (EU) 833/2014, art. 2f)."
+}

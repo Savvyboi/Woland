@@ -255,6 +255,25 @@ workflow runs it after every build, warns above 700 MB and stops above 920 MB, b
 
 What is still open — data gaps, planned fixes, reviews that need a person — is listed in [`TODO.md`](TODO.md).
 
+## Citing Woland datasets
+
+Cite an article by its page, with the citation the site gives under *Cite*. Cite a body of data by a **quarterly
+data release**: on the 2nd of January, April, July and October, `.github/workflows/quarterly-release.yml`
+publishes the quarter just over as a GitHub Release tagged `data-YYYY-Q#`, once every one of its days is
+collected in full. The release carries the quarter's day files with the lexicon, glossary and audit they were
+tagged with (`woland-articles-YYYY-Q#.tar.gz`, reproducible byte for byte), its monthly Parquet snapshots, and
+`SHA256SUMS`. A release is never replaced. `python tools/quarterly_release.py 2026-Q4 --site _site` builds the
+same files locally; running the workflow by hand defaults to a dry run that only keeps them as an artifact.
+
+For a DOI, the maintainer switches on Zenodo's GitHub integration once (zenodo.org → Account → GitHub → enable
+Savvyboi/Woland). Zenodo then archives every published release, as the repository stood at its tag, with the
+metadata in `.zenodo.json`, and gives the release a DOI (and the series a concept DOI that always points to
+the latest). Then replace this line with the badge Zenodo offers:
+
+<!-- [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXXX) -->
+
+> Woland: a chronicle of the Russian state press, data release 2026-Q4. https://github.com/Savvyboi/Woland/releases/tag/data-2026-Q4 (or its DOI).
+
 ## Legal and ethical notes
 
 Several of these outlets fall under the EU broadcasting ban (Council Regulation (EU) 833/2014, art. 2f).
