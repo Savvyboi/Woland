@@ -6,6 +6,7 @@ export const LOCALES = { en: "en-GB", fi: "fi-FI", sv: "sv-SE" };
 
 const S = {
   en: {
+    "permalink.copy": "Copy link", "permalink.copied": "Link copied: it opens this view with the same filters.", "permalink.manual": "Copy this link to share the view: {url}",
     "brief.follow.ask.link": "Ask for it on GitHub",
     "nav.brief": "Week",
     "title.brief": "The week in the Russian state press",
@@ -359,6 +360,7 @@ const S = {
   },
 
   fi: {
+    "permalink.copy": "Kopioi linkki", "permalink.copied": "Linkki kopioitu: se avaa tämän näkymän samoilla suodattimilla.", "permalink.manual": "Kopioi tämä linkki jakaaksesi näkymän: {url}",
     "brief.follow.ask.link": "Pyydä sitä GitHubissa",
     "nav.brief": "Viikko",
     "title.brief": "Viikko Venäjän valtiollisessa lehdistössä",
@@ -712,6 +714,7 @@ const S = {
   },
 
   sv: {
+    "permalink.copy": "Kopiera länk", "permalink.copied": "Länken kopierad: den öppnar den här vyn med samma filter.", "permalink.manual": "Kopiera den här länken för att dela vyn: {url}",
     "brief.follow.ask.link": "Be om det på GitHub",
     "nav.brief": "Veckan",
     "title.brief": "Veckan i den ryska statliga pressen",

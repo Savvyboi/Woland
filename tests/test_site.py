@@ -396,3 +396,24 @@ def test_javascript_modules_parse(module, tmp_path):
     copy = tmp_path / module.replace(".js", ".mjs")
     copy.write_text((SITE / "assets" / "js" / module).read_text(encoding="utf-8"), encoding="utf-8")
     subprocess.run([NODE, "--check", str(copy)], check=True, capture_output=True)
+
+
+@needs_node
+def test_a_link_to_a_view_opens_it_with_only_the_filters_that_make_sense():
+    """site/assets/js/urlstate.js: an address is read back with unknown or malformed values left out."""
+    url = (SITE / "assets" / "js" / "urlstate.js").as_uri()
+    meta = {"start": "2026-09-01", "last": "2026-11-27", "outlets": [{"id": "ria"}, {"id": "tass"}],
+            "narratives": [{"id": "kyiv-regime"}]}
+    cases = ["?q=%D0%9A%D0%B8%D0%B5%D0%B2&from=2026-10-01&to=2026-10-15&o=ria&l=ru&k=kyiv-regime&order=old",
+             "?from=2026-10-15&to=2026-10-01",                                   # swapped: put right
+             "?from=2026-02-30&to=yesterday&o=bbc&l=de&k=nope&order=random",     # all invalid: defaults
+             "?from=2025-12-31&to=2027-01-01", ""]                               # outside the archive
+    script = (f"const m = await import('{url}');\nconst meta = {json.dumps(meta)};\n"
+              f"console.log(JSON.stringify({json.dumps(cases)}.map((c) => m.archiveState(c, meta))));")
+    out = json.loads(subprocess.run([NODE, "--input-type=module", "-e", script], capture_output=True, text=True,
+                                    encoding="utf-8", check=True).stdout)
+    empty = {"q": "", "from": "", "to": "", "o": "", "l": "", "k": "", "order": "new"}
+    assert out[0] == {"q": "Киев", "from": "2026-10-01", "to": "2026-10-15", "o": "ria", "l": "ru", "k": "kyiv-regime",
+                      "order": "old"}
+    assert out[1] == {**empty, "from": "2026-10-01", "to": "2026-10-15"}
+    assert out[2] == empty and out[3] == empty and out[4] == empty

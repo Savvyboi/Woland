@@ -4,23 +4,19 @@ import {
   groupVar, articleCard, fromExample, archiveSearch, showError, GROUPS, isOpenDay,
 } from "./core.js";
 import { lineChart, heatmap, barList, withTable, tableOf } from "./charts.js";
+import { oneOf, permalinkButton, setParam } from "./urlstate.js";
 
 initChrome("narratives");
 const side = $("#side");
 const main = $("#narrative");
 let series = null;
 const params = new URLSearchParams(location.search);
-let range = params.get("r") || "30";
+let range = oneOf(params.get("r"), ["7", "30", "90", "all"], "30");
 let includeOpen = params.get("open") === "1";   // days still being collected: left out unless asked for
 let panel = params.get("p") === "same" ? "same" : "all";
 
 const sum = (arr) => arr.reduce((a, b) => a + b, 0);
 
-function setParam(k, v) {
-  const u = new URL(location.href);
-  if (v === null) u.searchParams.delete(k); else u.searchParams.set(k, v);
-  history.replaceState(null, "", u);
-}
 
 /** The days in view: the chosen period, ending with the last completed day unless open days are included. */
 function windowDays() {
@@ -119,7 +115,8 @@ function controls(w, dropped) {
     seg(t("panel.label"), [["all", t("panel.all")], ["same", t("panel.same")]], panel,
       (p) => { panel = p; setParam("p", p === "same" ? "same" : null); route(); }),
     openDays.length ? el("label", { class: "field check" }, openBox,
-      t("narratives.includeopen", { days: openDays.map((d) => fmtDay(d)).join(", ") })) : null);
+      t("narratives.includeopen", { days: openDays.map((d) => fmtDay(d)).join(", ") })) : null,
+    permalinkButton(el, t));
   const notes = [t("narratives.through", { from: fmtDay(w.days[0]), to: fmtDay(w.days[w.days.length - 1]) })];
   if (openDays.length && !includeOpen) notes.push(t("narratives.openleftout", { days: openDays.map((d) => fmtDay(d)).join(", ") }));
   if (w.openFrom !== null) notes.push(t("narratives.openshown"));

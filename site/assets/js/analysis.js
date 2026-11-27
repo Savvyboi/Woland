@@ -6,6 +6,7 @@ import {
   groupVar, articleCard, fromExample, archiveSearch, showError, debounce,
 } from "./core.js";
 import { sparkline, barList, columnChart, withTable } from "./charts.js";
+import { oneOf, permalinkButton, setParam } from "./urlstate.js";
 import { lang, LOCALES } from "./i18n.js";
 
 initChrome("analysis");
@@ -16,7 +17,7 @@ const params = new URLSearchParams(location.search);
 const state = {
   w: ["7", "30", "all"].includes(params.get("r")) ? params.get("r") : "30",
   vlang: params.get("vl") === "en" ? "en" : "ru",
-  kind: params.get("vk") || "all",
+  kind: oneOf(params.get("vk"), ["all", "person", "inst", "role", "media"], "all"),
   clang: ["ru", "en"].includes(params.get("cl")) ? params.get("cl") : "all",
   outlet: params.get("o") || null,
   day: params.get("d") || null,
@@ -25,11 +26,6 @@ const KIND_COLOR = { quotes: "var(--s1)", says: "var(--muted-series)", judges: "
   reveals: "var(--g-hardline)", advises: "var(--g-official)" };
 const sum = (a) => a.reduce((x, y) => x + y, 0);
 
-function setParam(k, v) {
-  const u = new URL(location.href);
-  if (v === null || v === undefined) u.searchParams.delete(k); else u.searchParams.set(k, v);
-  history.replaceState(null, "", u);
-}
 const tab = () => (TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "voices");
 
 function plate(no, title, sub, ...body) {
@@ -62,7 +58,7 @@ function periodControl() {
 function renderTabs() {
   const cur = tab();
   tabsNav.replaceChildren(...TABS.map((k) => el("a", { href: `#${k}`, "aria-current": k === cur ? "page" : null },
-    t(`analysis.tab.${k}`))));
+    t(`analysis.tab.${k}`))), permalinkButton(el, t));
 }
 
 const searchLink = (data, extra) => archiveSearch({ ...extra, from: data.days[0], to: data.days[data.days.length - 1] });
@@ -80,8 +76,8 @@ function change(n, prev) {
 async function renderVoices() {
   const [data, verbs] = await Promise.all([getJSON(`analysis/voices/${state.w}.json`), getJSON("analysis/verbs.json")]);
   const kindOf = (v) => (v === ":" ? "quotes" : verbs.verbs[v] || "says");
-  const rows = (data.voices[state.vlang] || []).filter((r) => state.kind === "all" || r.y === state.kind);
   const kinds = data.kinds[state.vlang] || {};
+  const rows = (data.voices[state.vlang] || []).filter((r) => state.kind === "all" || r.y === state.kind);
   const outletsOfLang = Object.keys(data.totals).filter((o) => outlet(o).lang === state.vlang);
   const heads = sum(outletsOfLang.map((o) => data.totals[o] || 0));
   const named = sum(Object.values(kinds));
