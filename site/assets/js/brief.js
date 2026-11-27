@@ -5,6 +5,7 @@ import {
   outlet, narrative, archiveSearch, showError,
 } from "./core.js";
 import { lang, LOCALES } from "./i18n.js";
+import { barList } from "./charts.js";
 
 initChrome("brief");
 const root = $("#brief");
@@ -82,6 +83,47 @@ function countries(b) {
     b.countries_rose.length ? [el("h3", {}, t("brief.countries.rose")), el("ul", { class: "brief-list" }, b.countries_rose.map(row))] : null);
 }
 
+/** At home and abroad: the outlets writing for Russian readers against those writing for readers abroad
+ * (woland/divergence.py), over the outlets collected on every day of the week. */
+function abroad(b, trend) {
+  const a = b.abroad;
+  if (!a) return null;
+  const fmtD = (v) => (v === null || v === undefined ? "—" : v.toLocaleString(LOCALES[lang] || "en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+  const cohort = (side) => t("brief.abroad.cohort", { outlets: a.outlets[side].map((o) => outlet(o).name).join(", ") || "—", n: fmtInt(a.n[side]) });
+  const label = (g) => (g.kind === "country" ? regionName(g.id, g.id) : tl(narrative(g.id)?.label) || g.id);
+  const href = (g, side) => (g.kind === "country"
+    ? archiveSearch({ q: regionName(g.id, g.id), from: b.from, to: b.to })
+    // every domestic outlet writes in Russian and every foreign-facing one in English (outlets.yaml)
+    : archiveSearch({ k: g.id, l: side === "domestic" ? "ru" : "en", from: b.from, to: b.to }));
+  const list = (side) => {
+    const items = a.gaps[side] || [];
+    return el("div", {}, el("h3", {}, t(`brief.abroad.${side}`)),
+      items.length ? el("ol", { class: "brief-list" }, items.map((g) => el("li", {},
+        el("a", { href: href(g, side) }, label(g)), " ", el("small", {}, `${t(`brief.abroad.kind.${g.kind}`)} · `,
+          t("brief.abroad.shares", { home: fmtPct(g.ds, 1), away: fmtPct(g.fs, 1) })))))
+        : el("p", { class: "empty" }, t("brief.abroad.nogaps")));
+  };
+  const weeks = (trend?.weeks || []).slice(-12);
+  const box = el("div", { class: "abroad-trend" });
+  const kids = [
+    el("p", {}, a.jsd === null ? t("brief.abroad.score.none") : t("brief.abroad.score", { d: fmtD(a.jsd) })),
+    el("ul", { class: "brief-list plain" }, el("li", {}, el("strong", {}, `${t("brief.abroad.home")}: `), cohort("domestic")),
+      el("li", {}, el("strong", {}, `${t("brief.abroad.away")}: `), cohort("foreign")),
+      a.left_out.length ? el("li", { class: "syntax" }, t("brief.abroad.leftout", { outlets: a.left_out.map((o) => outlet(o).name).join(", ") })) : null),
+    el("div", { class: "grid-2" }, list("domestic"), list("foreign")),
+  ];
+  if (weeks.length > 1) kids.push(el("h3", {}, t("brief.abroad.trend")), box);
+  kids.push(el("p", { class: "syntax" }, t("brief.abroad.caveat"), " ", el("a", { href: "method.html#abroad" }, `${t("nav.method")} →`)));
+  const sec = section("abroad", t("brief.abroad"), t("brief.abroad.hint"), ...kids);
+  if (weeks.length > 1) {
+    // a week without a score (a cohort with no framing match) is left out of the bars rather than drawn as 0
+    barList(box, [...weeks].reverse().filter((w) => w.jsd !== null).map((w) => ({ label: `${w.week.replace("-W", " · ")}`,
+      value: w.jsd, dim: w.week !== b.week, title: t("brief.abroad.cohorts", { home: fmtInt(w.outlets.domestic), away: fmtInt(w.outlets.foreign) }),
+      href: `?w=${w.week}` })), fmtD);
+  }
+  return sec;
+}
+
 function collected(b) {
   const gaps = Object.entries(b.gaps || {});
   return section("collected", t("brief.collected"), null,
@@ -111,6 +153,7 @@ function follow(feeds) {
       group(t("narratives.topics"), fam("topic")),
       group(t("brief.follow.outlets"), Object.entries(f.outlet || {}).map(([id, n]) => [`feeds/outlet/${id}.xml`, outlet(id).name, n]).sort(byLabel)),
       group(t("brief.follow.countries"), Object.entries(f.country || {}).map(([c, n]) => [`feeds/country/${c}.xml`, regionName(c, feeds.countries[c]), n]).sort(byLabel)),
+      group(t("brief.follow.regions"), Object.entries(f.region || {}).map(([id, n]) => [`feeds/region/${id}.xml`, t(`region.${id}`), n])),
       group(t("brief.follow.searches"), (feeds.searches || []).map((s) => [`feeds/search/${s.id}.xml`, tl(s.label), (f.search || {})[s.id]])),
     ] : null,
     el("p", { class: "syntax" }, t("brief.follow.ask"), " ", META.repo ? el("a", { href: `${META.repo}/issues` }, `${t("brief.follow.ask.link")} →`) : null));
@@ -124,7 +167,7 @@ function regionName(code, fallback) {
   } catch (_) { return fallback; }
 }
 
-function render(index, b, feeds) {
+function render(index, b, feeds, trend) {
   const pick = el("select", { id: "week", "aria-label": t("brief.week") },
     index.map((w) => el("option", { value: w.week, selected: w.week === b.week }, `${w.week.replace("-W", " · ")} — ${fmtDayShort(w.from)} – ${fmtDayShort(w.to)}`)));
   pick.addEventListener("change", () => {
@@ -139,21 +182,22 @@ function render(index, b, feeds) {
   root.replaceChildren(
     el("div", { class: "brief-head" }, el("label", { class: "field" }, t("brief.week"), pick),
       el("h2", { class: "brief-title" }, weekSpan(b)), el("p", { class: "lede" }, ...lede)),
-    framings(b), events(b), stories(b), speakers(b), countries(b), collected(b), follow(feeds));
+    framings(b), events(b), stories(b), speakers(b), countries(b), abroad(b, trend), collected(b), follow(feeds));
 }
 
 async function start() {
   try {
     await loadMeta();
     fillFooter();
-    const [index, feeds] = await Promise.all([getJSON("brief/index.json").catch(() => []), getJSON("feeds.json").catch(() => null)]);
+    const [index, feeds, trend] = await Promise.all([getJSON("brief/index.json").catch(() => []), getJSON("feeds.json").catch(() => null),
+      getJSON("divergence.json").catch(() => null)]);
     if (!index.length) {
       root.replaceChildren(el("p", { class: "empty" }, t("brief.none")), follow(feeds));
       return;
     }
     const want = new URLSearchParams(location.search).get("w");
     const week = index.find((w) => w.week === want) || index[0];
-    render(index, await getJSON(`brief/${week.week}.json`), feeds);
+    render(index, await getJSON(`brief/${week.week}.json`), feeds, trend);
   } catch (e) {
     showError(root, e);
   }

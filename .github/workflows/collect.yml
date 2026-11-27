@@ -63,6 +63,11 @@ jobs:
       - name: Translate missing headlines, leads and snippets
         run: python -m woland translate --days 45 --budget 30
 
+      # Up to 100 of each outlet's last-week pages asked for again, to notice articles taken down (woland/vanish.py).
+      - name: Re-check last week's pages
+        continue-on-error: true
+        run: python -m woland recheck --budget 20
+
       - name: Commit new articles
         run: bash .github/commit-data.sh "Collect $(date -u +%Y-%m-%d)"
 
@@ -79,3 +84,25 @@ jobs:
       contents: read
       pages: write
       id-token: write
+
+  # A dead man's switch, if one is set up: a service such as healthchecks.io that is told when each night's run
+  # ends, and warns when one fails or does not come at all (GitHub drops scheduled runs when it is busy).
+  # Set the repository secret HEALTHCHECKS_PING_URL to the check's ping URL; without it nothing is sent.
+  healthcheck:
+    needs: [collect, deploy]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Tell the health check how the run ended
+        env:
+          PING_URL: ${{ secrets.HEALTHCHECKS_PING_URL }}
+          OUTCOME: ${{ (needs.collect.result == 'success' && needs.deploy.result == 'success') && 'success' || 'fail' }}
+        run: |
+          if [ -z "$PING_URL" ]; then
+            echo "No HEALTHCHECKS_PING_URL secret: nothing to tell."
+            exit 0
+          fi
+          url="$PING_URL"
+          if [ "$OUTCOME" != success ]; then url="${PING_URL%/}/fail"; fi
+          curl -fsS -m 10 --retry 3 -o /dev/null "$url" || echo "::warning::The health check did not answer."

@@ -27,6 +27,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import time
 from datetime import date, timedelta
 from pathlib import Path
@@ -75,9 +76,93 @@ TRANSLATED = {"te": "t", "de": "d", "kbe": "kb"}
 
 
 def lends(field: str, to: dict, frm: dict) -> bool:
-    """May `frm` give `to` its `field`, which `to` lacks?"""
+    """May `frm` give `to` its `field`, which `to` lacks? The name of the translation model (mt) goes only
+    to a record whose translations are all the same as frm's (so that it names the model that made them)."""
+    if field == "mt":
+        return all(to.get(k) == frm.get(k) for k in TRANSLATED if to.get(k))
     src = TRANSLATED.get(field)
     return src is None or to.get(src) == frm.get(src)
+
+
+# ── Headline rewrites ─────────────────────────────────────────────────────────
+# The listings Woland reads (feeds, sitemaps, section pages) show an article's headline again for hours or
+# days after it appeared, at no extra request. A headline a listing shows differently from what the same
+# listing showed before is a rewrite. Each record keeps, per listing ("ls": {"rss" | "sitemap" | "html":
+# headline}), the headline that listing first showed, "" where it is the record's own headline; a listing
+# that shows a headline differently the first time it is compared becomes its baseline instead (feeds and
+# pages often word or punctuate the same headline differently). Rewrites go to "rv": [{"at", "via", "t",
+# "te"}], oldest first; the record's own headline, and its translation, stay as first stored.
+LISTINGS = ("rss", "sitemap", "html")
+_NONWORD = re.compile(r"[\W_]+")
+
+
+def title_key(s: str) -> str:
+    """A headline as compared for rewrites: case, ё/е, punctuation, quotation marks and spacing set aside."""
+    from .util import normalize
+    return _NONWORD.sub(" ", normalize(s or "")).strip()
+
+
+def listing_baseline(rec: dict, via: str, title: str) -> dict:
+    """The "ls" a new record gets from the listing it was found in."""
+    if via not in LISTINGS or not title_key(title):
+        return {}
+    return {via: "" if title_key(title) == title_key(rec["t"]) else title}
+
+
+def carried_revisions(old: dict, new: dict) -> dict:
+    """What a headline-only record passes to the record read from its page: its rewrites, and its listings'
+    baselines, with "" (the old headline) written out where the page words the headline differently."""
+    out = {}
+    if old.get("rv"):
+        out["rv"] = old["rv"]
+    ls = dict(new.get("ls") or {})
+    for via, t in (old.get("ls") or {}).items():
+        if via not in ls:
+            t = t or old["t"]
+            ls[via] = "" if title_key(t) == title_key(new["t"]) else t
+    if ls:
+        out["ls"] = ls
+    return out
+
+
+def last_seen(rec: dict, via: str) -> str | None:
+    """The headline `via` showed last: its latest rewrite, else its baseline; None if it has not shown one."""
+    for e in reversed(rec.get("rv") or []):
+        if e.get("via") == via:
+            return e["t"]
+    ls = rec.get("ls") or {}
+    if via in ls:
+        return ls[via] or rec["t"]
+    return None
+
+
+def revise_day(day: date, outlet: str, sightings: list[dict], translate=None) -> list[dict]:
+    """Compare what the listings show now ({"u", "via", "t", "at"}) with the stored records filed under `day`,
+    and record rewrites and new baselines. `translate(texts)` gives the rewrites' English (or None). Returns
+    the rewrites added."""
+    records = read_day(day, outlet)
+    by_url = {r["u"]: r for r in records}
+    added, changed = [], False
+    for s in sightings:
+        rec = by_url.get(s["u"])
+        if rec is None or s.get("via") not in LISTINGS or not title_key(s.get("t")):
+            continue
+        before = last_seen(rec, s["via"])
+        if before is None:  # this listing's first say: its baseline
+            rec.setdefault("ls", {})[s["via"]] = "" if title_key(s["t"]) == title_key(rec["t"]) else s["t"]
+            changed = True
+        elif title_key(s["t"]) != title_key(before):
+            entry = {"at": s["at"], "via": s["via"], "t": s["t"]}
+            rec.setdefault("rv", []).append(entry)
+            added.append(entry)
+            changed = True
+    if added and translate:
+        for e, en in zip(added, translate([e["t"] for e in added]) or []):
+            if en:
+                e["te"] = en
+    if changed:
+        write_day(day, outlet, records)
+    return added
 
 
 def merge_day(day: date, outlet: str, new: list[dict]) -> int:
@@ -93,6 +178,9 @@ def merge_day(day: date, outlet: str, new: list[dict]) -> int:
             added.append(r["u"])
         elif old.get("via") == "feed" and r.get("via") == "page":
             kept = {k: old[k] for k in ("te", "de") if old.get(k) and not r.get(k) and lends(k, r, old)}
+            if kept and old.get("mt") and lends("mt", {**r, **kept}, old):
+                kept["mt"] = old["mt"]
+            kept.update(carried_revisions(old, r))
             existing[r["u"]] = {**r, **kept} if kept else r
         else:
             for k, v in r.items():
@@ -121,7 +209,7 @@ def fill_day(day: date, outlet: str, new: list[dict]) -> int:
             old["w"], old["h"] = r["w"], r["h"]
             if r.get("kb") and not old.get("kb"):
                 old["kb"] = r["kb"]
-        for k in ("d", "s", "g", "a", "de", "kbe"):
+        for k in ("d", "s", "g", "a", "de", "kbe", "mt"):
             if r.get(k) and not old.get(k) and lends(k, old, r):
                 old[k] = r[k]
         changed += old != before
@@ -294,6 +382,15 @@ def load_coverage() -> dict:
 def save_coverage(cov: dict, only=None) -> None:
     """`only`: {outlet: the days this run looked at} (or a list of outlets whose whole entry it owns)."""
     _save("coverage.json", _merged("coverage.json", cov, only))
+
+
+def load_gone() -> dict:
+    """Pages found missing once, to be asked for again (vanish.py): {outlet: {url: {"at", "s", "d"}}}."""
+    return _load("gone.json", {})
+
+
+def save_gone(pending: dict) -> None:
+    _save("gone.json", {o: urls for o, urls in sorted(pending.items()) if urls})
 
 
 def load_seen() -> dict:

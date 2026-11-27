@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from urllib.parse import urljoin
 
@@ -26,6 +26,7 @@ class Candidate:
     author: str = ""
     via: str = ""
     capture: str = ""  # when the Internet Archive captured the page (YYYYMMDDhhmmss), if it did
+    feeds: list = field(default_factory=list)  # the feeds that announced it (rss sources)
 
 
 _PLACEHOLDER = re.compile(r"\{(y|m|mm|d|dd|ymd|msk_start|msk_end|n)\}")
@@ -240,7 +241,7 @@ def source_rss(fetcher, src, start, end):
     urls = src["url"] if isinstance(src["url"], list) else [src["url"]]
     out, failures = [], []
 
-    def read(u, paged=False):
+    def read(u, paged=False, feed=""):
         r = fetcher.get(u, retry_403=2)
         if not r.ok:
             return None, f"{u}: {r.status or r.error}"
@@ -252,7 +253,8 @@ def source_rss(fetcher, src, start, end):
             it["hint"] = hint
             if _in_window(hint, start, end):
                 out.append(Candidate(url=it["link"], hint=hint, title=it["title"], lead=it["description"],
-                                     section=it["category"], body=it["full"], author=it["author"], via="rss"))
+                                     section=it["category"], body=it["full"], author=it["author"], via="rss",
+                                     feeds=[feed or u]))
         return items, None
 
     for u in urls:
@@ -262,7 +264,7 @@ def source_rss(fetcher, src, start, end):
                 failures.append(err)
             continue
         for n in range(int(src.get("first", 1)), int(src.get("pages", 10)) + 1):
-            items, err = read(fill(u, None, n), paged=True)
+            items, err = read(fill(u, None, n), paged=True, feed=u)
             if err and n == int(src.get("first", 1)):
                 failures.append(err)
             if not items or _older_than_range([it["hint"] for it in items], start):
@@ -499,6 +501,7 @@ def discover(fetcher: Fetcher, outlet, start: date, end: date, *, feeds_only: bo
                         setattr(prev, f, getattr(c, f))
                 if prev.hint is None:
                     prev.hint = c.hint
+                prev.feeds += [f for f in c.feeds if f not in prev.feeds]
                 if c.via == "rss":
                     prev.via = "rss" if prev.via != "sitemap" else prev.via
     return list(merged.values()), errors

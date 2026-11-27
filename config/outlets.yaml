@@ -5,6 +5,8 @@
 #   name/name_ru display names
 #   lang        language of the content: ru | en
 #   group       state | mass | foreign | hardline | official
+#   audience    domestic | foreign: whom the outlet writes for (Russian readers, or readers abroad), for the
+#               weekly comparison of the two (Week page, "At home and abroad")
 #   home        homepage
 #   eu_blocked  true if the site is blocked in the EU under the sanctions broadcasting ban
 #               (observed via ISP-level DNS blocking in Finland, 24 Sept 2026)
@@ -70,6 +72,7 @@ outlets:
     name_ru: РИА Новости
     lang: ru
     group: state
+    audience: domestic
     home: https://ria.ru
     eu_blocked: true
     about:
@@ -85,6 +88,7 @@ outlets:
     name_ru: ТАСС
     lang: ru
     group: state
+    audience: domestic
     home: https://tass.ru
     eu_blocked: false
     about:
@@ -129,6 +133,7 @@ outlets:
     name_ru: RT на русском
     lang: ru
     group: state
+    audience: domestic
     home: https://russian.rt.com
     eu_blocked: true
     about:
@@ -144,6 +149,7 @@ outlets:
     name_ru: Российская газета
     lang: ru
     group: state
+    audience: domestic
     home: https://rg.ru
     eu_blocked: true
     about:
@@ -171,6 +177,7 @@ outlets:
     name_ru: Известия
     lang: ru
     group: state
+    audience: domestic
     home: https://iz.ru
     eu_blocked: true
     about:
@@ -191,6 +198,7 @@ outlets:
     name_ru: Вести
     lang: ru
     group: state
+    audience: domestic
     home: https://www.vesti.ru
     eu_blocked: true
     about:
@@ -208,6 +216,7 @@ outlets:
     name_ru: Звезда
     lang: ru
     group: state
+    audience: domestic
     home: https://tvzvezda.ru
     eu_blocked: true
     about:
@@ -232,6 +241,7 @@ outlets:
     name_ru: Кремль
     lang: ru
     group: official
+    audience: domestic
     home: http://kremlin.ru
     eu_blocked: false
     about:
@@ -257,6 +267,7 @@ outlets:
     name_ru: Кремль (англ.)
     lang: en
     group: official
+    audience: foreign
     home: http://en.kremlin.ru
     eu_blocked: false
     about:
@@ -278,6 +289,7 @@ outlets:
     name_ru: Парламентская газета
     lang: ru
     group: official
+    audience: domestic
     home: https://www.pnp.ru
     eu_blocked: false
     about:
@@ -294,6 +306,7 @@ outlets:
     name_ru: Комсомольская правда
     lang: ru
     group: mass
+    audience: domestic
     home: https://www.kp.ru
     eu_blocked: false
     about:
@@ -317,6 +330,7 @@ outlets:
     name_ru: Аргументы и факты
     lang: ru
     group: mass
+    audience: domestic
     home: https://aif.ru
     eu_blocked: false
     about:
@@ -339,6 +353,7 @@ outlets:
     name_ru: Московский комсомолец
     lang: ru
     group: mass
+    audience: domestic
     home: https://www.mk.ru
     eu_blocked: false
     about:
@@ -374,6 +389,7 @@ outlets:
     name_ru: Лента.ру
     lang: ru
     group: mass
+    audience: domestic
     home: https://lenta.ru
     eu_blocked: true
     about:
@@ -390,6 +406,7 @@ outlets:
     name_ru: Газета.ру
     lang: ru
     group: mass
+    audience: domestic
     home: https://www.gazeta.ru
     eu_blocked: false
     about:
@@ -423,6 +440,7 @@ outlets:
     name_ru: Life.ru
     lang: ru
     group: mass
+    audience: domestic
     home: https://life.ru
     eu_blocked: false
     about:
@@ -439,6 +457,7 @@ outlets:
     name_ru: RT (англ.)
     lang: en
     group: foreign
+    audience: foreign
     home: https://rt-english.com
     # www.rt.com has sent every request to rt-english.com since 13 October 2026 (a 302, so perhaps not for
     # good); the articles stored before then keep their www.rt.com addresses.
@@ -457,6 +476,7 @@ outlets:
     name_ru: ТАСС (англ.)
     lang: en
     group: foreign
+    audience: foreign
     home: https://tass.com
     eu_blocked: false
     about:
@@ -475,6 +495,7 @@ outlets:
     name_ru: Sputnik (англ.)
     lang: en
     group: foreign
+    audience: foreign
     home: https://sputnikglobe.com
     eu_blocked: true
     about:
@@ -500,6 +521,7 @@ outlets:
     name_ru: Царьград
     lang: ru
     group: hardline
+    audience: domestic
     home: https://tsargrad.tv
     eu_blocked: true
     about:
@@ -529,6 +551,7 @@ outlets:
     name_ru: Украина.ру
     lang: ru
     group: hardline
+    audience: domestic
     home: https://ukraina.ru
     eu_blocked: true
     about:
@@ -544,6 +567,7 @@ outlets:
     name_ru: ИноСМИ
     lang: ru
     group: hardline
+    audience: domestic
     home: https://inosmi.ru
     eu_blocked: true
     about:
@@ -559,6 +583,7 @@ outlets:
     name_ru: Регнум
     lang: ru
     group: hardline
+    audience: domestic
     home: https://regnum.ru
     eu_blocked: false
     # Its article pages answer 403 to automated readers, from Finland and from GitHub's servers alike, and
