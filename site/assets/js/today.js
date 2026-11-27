@@ -1,6 +1,6 @@
 // Chapter I: the day's chronicle.
 import {
-  $, el, t, tl, META, loadMeta, getJSON, initChrome, fillFooter, fmtInt, fmtPct, fmtDay, fmtDayShort, fmtRatio, delta,
+  $, el, t, tl, META, loadMeta, getJSON, getGz, initChrome, fillFooter, fmtInt, fmtPct, fmtDay, fmtDayShort, fmtRatio, delta,
   outlet, narrative, groupVar, articleCard, fromExample, archiveSearch, showError, addDays, isOpenDay,
 } from "./core.js";
 import { lang } from "./i18n.js";
@@ -163,6 +163,40 @@ function risingList(items, day, holder) {
   holder.replaceChildren(...kids);
 }
 
+// ── Today at a glance ───────────────────────────────────────────────────────
+const minutesOf = (hhmm) => { const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; };
+const span = (m) => (m < 60 ? t("stories.min", { n: m }) : t("stories.hours", { h: Math.floor(m / 60), m: String(m % 60).padStart(2, "0") }));
+
+/** Three things first: the framing that rose most, the story the most outlets carried, and how complete
+ *  the day's collection is. Outlets not collected are named as such, never counted as publishing nothing. */
+function glance(day, open, compare, rising, cov) {
+  const item = (label, value, note, href) => el("a", { class: "glance-item", href },
+    el("span", { class: "label" }, label), el("span", { class: "value" }, value), note ? el("span", { class: "note" }, note) : null);
+  const top = rising[0];
+  const rose = top
+    ? item(t("glance.rising"), tl(narrative(top.r.id).label),
+      `${top.d.text} · ${t("today.lede.item", { n: fmtInt(top.r.n), share: fmtPct(top.r.share), base: fmtPct(top.r.base) })}`,
+      `narratives.html#${top.r.id}`)
+    : item(t("glance.rising"), t(open || !compare ? "glance.rising.later" : "glance.rising.none"), null, "narratives.html");
+  const enabled = META.outlets.filter((x) => x.enabled).length;
+  const collected = enabled - cov.missing.length;
+  const health = item(t("glance.health"), t("glance.health.value", { x: fmtInt(collected), y: fmtInt(enabled) }),
+    cov.missing.length ? t("glance.health.missing", { list: cov.missing.join(", ") }) : t("glance.health.all"), "outlets.html");
+  const story = item(t("glance.story"), "…", null, `analysis.html?r=7&d=${day}#stories`);
+  getGz(`analysis/stories/day/${day}.json.gz`).then((list) => {
+    const st = (list || [])[0];
+    if (!st) { story.querySelector(".value").textContent = "–"; return; }
+    const first = st.m[0];
+    const spread = minutesOf(st.m[st.m.length - 1].p) - minutesOf(first.p);
+    const value = story.querySelector(".value");
+    value.textContent = first.te || first.t;
+    value.lang = first.te ? "en" : outlet(first.o).lang;
+    story.append(el("span", { class: "note" }, t("glance.story.note", { n: fmtInt(st.n), spread: span(Math.max(0, spread)), o: outlet(first.o).name })));
+  }).catch(() => { story.querySelector(".value").textContent = "–"; });
+  return el("section", { class: "glance", "aria-labelledby": "glance-h" },
+    el("h2", { id: "glance-h", class: "sr-only" }, t("glance.title")), rose, story, health);
+}
+
 // ── Coverage of the day ─────────────────────────────────────────────────────
 function coverageOfDay(dg, day, series) {
   const i = series.days.indexOf(day);
@@ -191,6 +225,8 @@ function render(dg, day, series) {
   const topics = dg.narratives.filter((r) => narrative(r.id)?.family === "topic");
   const rising = framings.filter((r) => notable(r, dg.total)).map((r) => ({ r, d: delta(r.share, r.base) }))
     .sort((a, b) => b.d.v - a.d.v).slice(0, 3);
+  const cov = coverageOfDay(dg, day, series);
+  kids.push(glance(day, open, compare, rising, cov));
   const lede = el("p", { class: "lede dropcap" },
     t("today.lede", { day: ledeDay(day), total: fmtInt(dg.total), outlets: fmtInt(outletsPublishing),
       framed: fmtPct(dg.total ? dg.framed / dg.total : 0, 0) }), " ",
@@ -205,7 +241,6 @@ function render(dg, day, series) {
   } else lede.append(t("today.lede.steady", { n: baseDays }));
   kids.push(lede);
 
-  const cov = coverageOfDay(dg, day, series);
   const covNotes = [];
   if (cov.missing.length) covNotes.push(t("today.cov.missing", { list: cov.missing.join(", ") }));
   if (cov.listed.length) covNotes.push(t("today.cov.listed", { list: cov.listed.map((x) => `${x.o} ${fmtInt(x.v)}`).join(", ") }));

@@ -62,6 +62,12 @@ From then on everything is automatic:
 | `test.yml` — Tests | on every push | the test-suite (see *Tests* below) |
 | `check.yml` — Check outlets | Mondays, by hand, and when the check changes | can every outlet still be read from GitHub's servers? A table in the run summary, kept per outlet in `data/state/check.json` (for feed-only outlets also: do their pages, `robots.txt` and sitemap still refuse?); the run fails if an outlet is broken |
 
+Optionally, a dead man's switch: create a check at a monitoring service such as
+[healthchecks.io](https://healthchecks.io) (free) with a daily period, and store its ping URL as the repository
+secret `HEALTHCHECKS_PING_URL` (**Settings → Secrets and variables → Actions**). The nightly run then pings it
+when it ends (`…/fail` if collection or publishing failed), and the service warns you when a night fails or no
+run comes at all. Without the secret nothing is sent.
+
 > GitHub suspends scheduled workflows in repositories with no activity for 60 days. Woland commits data every
 > day, which counts as activity, but if collection ever stops, re-enable the workflows from the Actions tab.
 
@@ -109,6 +115,10 @@ From then on everything is automatic:
 * **The site** (`site/`, `woland/build.py`) — plain HTML, CSS and JavaScript modules; no framework, no build
   tool. Search runs in the browser against a static inverted index sharded by month and by word, so only a
   few small gzip files are downloaded per query. Unchanged months are cached between builds, and within the last two months unchanged days, so the nightly build works out only the week it collected again.
+  The Today page is written with the latest complete day's summary already in it (`woland/prerender.py`), and
+  every page carries a title, description and preview picture (`site/assets/img/og-card.png`, made by
+  `tools/og_card.py`), so that link previews, search engines and web archives see more than "Consulting the
+  archive".
 
 ## Running it on your own computer
 
@@ -200,7 +210,9 @@ own situation.
 
 `data/state/coverage.json` records, for every outlet and day, how many articles were stored, how many the
 outlet's own listings announced, how many are still headline only (`h`), and whether the day is complete.
-`data/state/runs.json` keeps the latest run summaries, `data/state/check.json` the latest outlet check. `data/state/urls/<outlet>.txt` lists every URL stored (a
+`data/state/runs.json` keeps the latest run summaries (`rolled_over` lists a polled outlet's feeds none of whose
+articles had been stored before: the feed may have moved past articles published since the last reading, and
+the run shows a warning), `data/state/check.json` the latest outlet check. `data/state/urls/<outlet>.txt` lists every URL stored (a
 key and its day), so that an article is stored once even if its site re-dates it months later. An article is always filed under the Moscow day it was published, even when it turned up
 while another day was being collected. The repository grows by roughly 2–3 MB of compressed history a day; after a year or two,
 consider moving older years to a release archive: `python tools/export_quarter.py 2026-Q4` packs a quarter's day
@@ -273,6 +285,12 @@ the latest). Then replace this line with the badge Zenodo offers:
 <!-- [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXXX) -->
 
 > Woland: a chronicle of the Russian state press, data release 2026-Q4. https://github.com/Savvyboi/Woland/releases/tag/data-2026-Q4 (or its DOI).
+
+## Reporting a miscount or a mistranslation
+
+Two issue forms take the reports that improve Woland most: **Framing counted wrongly** (an article counted
+under a framing it does not fit, or missed) and **Translation correction** (a name or term the machine
+translation gets wrong, for `config/glossary.yaml`). Open them from the repository's *Issues → New issue*.
 
 ## Legal and ethical notes
 

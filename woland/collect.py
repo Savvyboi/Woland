@@ -38,6 +38,7 @@ class OutletRun:
     published_by_day: dict = field(default_factory=dict)
     rejected: dict = field(default_factory=dict)
     aborted: str = ""
+    rolled_over: list = field(default_factory=list)  # feeds that held nothing already stored (see rolled_over)
     seconds: float = 0.0
     requests: int = 0
 
@@ -180,6 +181,27 @@ def _fetch_page(o: Outlet, c: Candidate, fetchers: list, local: threading.local)
     return (info, None, r.status, None) if info else (None, "unparsable", r.status, None)
 
 
+# A feed with at least this many articles of the range, none of them stored before, may have rolled over.
+ROLLOVER_MIN = 5
+
+
+def rolled_over(cands: list, known, start: date, end: date) -> list[str]:
+    """Feeds of a polled outlet none of whose articles of the range were stored before: the feed may have
+    moved on past articles published since it was last read, which are then lost (the build's `gaps` show
+    the hours lost afterwards; this says so at the time). Only meaningful when the outlet has stored articles."""
+    if not known:
+        return []
+    tally: dict[str, list[int]] = {}
+    for c in cands:
+        if not (c.hint and start <= msk_day(c.hint) <= end):
+            continue
+        for feed in c.feeds:
+            n = tally.setdefault(feed, [0, 0])
+            n[0] += 1
+            n[1] += c.url in known
+    return sorted(f for f, (n, old) in tally.items() if n >= ROLLOVER_MIN and not old)
+
+
 def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict, rejected_before: dict, *,
                    feeds_only: bool = False, backfill: bool = False, limit: int | None = None,
                    budget: Budget | None = None, sink=None, flush_every: int = 300,
@@ -239,6 +261,8 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict,
             run.stats["skipped"] += 1
         else:
             todo.append(c)
+    if o.poll:
+        run.rolled_over = rolled_over(cands, known, start, end)
     if o.fetch and not feeds_only:
         for r in retry:  # headline-only records no listing announced this time
             if r["u"] not in urls and r["u"] in known and r["u"] not in rejected_before:
@@ -541,6 +565,11 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
             }
             if filled[o.id]:
                 summary["outlets"][o.id]["filled"] = filled[o.id]
+            if run.rolled_over:
+                summary["outlets"][o.id]["rolled_over"] = run.rolled_over
+                # (a line starting ::warning:: is shown as a warning on the run's page on GitHub)
+                print(f"::warning::{o.id}: nothing in {', '.join(run.rolled_over)} was stored before: "
+                      "the feed may have rolled over since it was last read, losing articles", flush=True)
             log.info("%-10s done: %d new, %d requests, %.0fs%s%s", o.id, new, run.requests,
                      run.seconds, f", errors: {run.errors}" if run.errors else "",
                      f", aborted: {run.aborted}" if run.aborted else "")
