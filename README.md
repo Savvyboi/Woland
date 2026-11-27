@@ -257,6 +257,12 @@ consider moving older years to a release archive.
 
 What is still open — data gaps, planned fixes, reviews that need a person — is listed in [`TODO.md`](TODO.md).
 
+## Reporting a miscount or a mistranslation
+
+Two issue forms take the reports that improve Woland most: **Framing counted wrongly** (an article counted
+under a framing it does not fit, or missed) and **Translation correction** (a name or term the machine
+translation gets wrong, for `config/glossary.yaml`). Open them from the repository's *Issues → New issue*.
+
 ## Legal and ethical notes
 
 Several of these outlets fall under the EU broadcasting ban (Council Regulation (EU) 833/2014, art. 2f).
