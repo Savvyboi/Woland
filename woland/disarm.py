@@ -88,7 +88,7 @@ def navigator_layer(t: dict, disarm: dict, first: date, last: date, page: str = 
         if not e["n"]:
             continue
         info = disarm["techniques"][tid]
-        score = round(100 * e["n"] / total, 2) if total else 0
+        score = round(100 * e["n"] / total, 3) if total else 0
         top = max(top, score)
         frames = ", ".join(f"{f['id']} ({f['confidence']}, {f['n']})" for f in e["framings"])
         rows.append({
