@@ -1,6 +1,7 @@
 // Shared plumbing: data loading, formatting, page chrome, article cards, citations.
 import { t, tl, lang, setLang, applyI18n, LANGS, LOCALES } from "./i18n.js";
 import { compileLexicon, spans } from "./lexicon.js";
+import { toast } from "./urlstate.js";
 
 export { t, tl };
 export const $ = (sel, root = document) => root.querySelector(sel);
@@ -491,6 +492,7 @@ export function articleCard(doc, opts = {}) {
     el("a", { href: copyUrl(doc), rel: "noopener noreferrer", target: "_blank" }, `${t("article.archive")} ↗`),
     o.lang !== lang ? el("a", { href: translateUrl(doc.u), rel: "noopener noreferrer nofollow", target: "_blank" }, `${t("article.translate")} ↗`) : null,
     el("button", { class: "linkish", type: "button", onclick: () => openCite(doc) }, t("article.cite")),
+    el("button", { class: "linkish", type: "button", onclick: () => copyQuote(doc) }, t("article.quote")),
   );
   kids.push(links);
   // drawn when first opened: an archive page holds many cards
@@ -503,6 +505,36 @@ export function articleCard(doc, opts = {}) {
 }
 
 // ── Citations ───────────────────────────────────────────────────────────────
+/** An article as a block to paste into notes or a message: the headline, its machine translation (marked as
+ *  such), the outlet and time in Moscow and UTC, and the links to the original and the archived copy. */
+export function quoteText(doc) {
+  const o = outlet(doc.o);
+  const utc = new Date(doc.ts * 1000).toISOString().slice(0, 16).replace("T", " ");
+  const msk = mskStamp(doc.ts).slice(0, 16).replace("T", " ");
+  return [
+    `«${doc.t}»`,
+    doc.te && o.lang !== "en" ? `“${doc.te}” (${t("quote.mt")})` : null,
+    `— ${o.name}, ${msk} MSK (${utc} UTC)`,
+    `${t("article.original")}: ${doc.u}`,
+    `${t("article.archive")}: ${copyUrl(doc)}`,
+  ].filter(Boolean).join("\n");
+}
+
+async function copyQuote(doc) {
+  const text = quoteText(doc);
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(el, t("quote.copied"));
+  } catch (_) {
+    openCite(doc);  // no clipboard here: the citation dialog shows the same facts, to copy by hand
+  }
+}
+
+/** "Source: Woland (…) · made <day>", under an exported chart. */
+export function sourceStamp() {
+  return t("export.stamp", { url: siteUrl().replace(/^https?:\/\//, ""), date: new Date().toISOString().slice(0, 10) });
+}
+
 function siteUrl() {
   return (META?.base_url || location.origin + location.pathname.replace(/[^/]*$/, "")).replace(/\/$/, "");
 }
@@ -623,8 +655,13 @@ export function downloadCSV(filename, header, rows) {
     const s = v === null || v === undefined ? "" : String(v);
     return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  const text = "﻿" + [header, ...rows].map((r) => r.map(q).join(",")).join("\n");
-  const url = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
+  const text = "\ufeff" + [header, ...rows].map((r) => r.map(q).join(",")).join("\n");
+  downloadBlob(filename, new Blob([text], { type: "text/csv;charset=utf-8" }));
+}
+
+/** Hand the reader a file to save. */
+export function downloadBlob(filename, blob) {
+  const url = URL.createObjectURL(blob);
   const a = el("a", { href: url, download: filename });
   document.body.append(a);
   a.click();
