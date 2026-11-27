@@ -4,6 +4,7 @@ import {
   groupVar, articleCard, textModeToggle, fromExample, archiveSearch, showError, GROUPS, isOpenDay, downloadBlob, sourceStamp,
 } from "./core.js";
 import { lineChart, heatmap, barList, withTable, tableOf, withExport } from "./charts.js";
+import { feedLink } from "./feeds.js";
 import { oneOf, permalinkButton, setParam } from "./urlstate.js";
 
 initChrome("narratives");
@@ -194,7 +195,7 @@ async function renderNarrative(id) {
   }
   kids.push(el("p", { class: "syntax" }, t("narratives.total", { n: fmtInt(sum(all.hits)), all: fmtInt(sum(all.totals)) }), " · ",
     el("a", { href: archiveSearch({ k: id, from: days[0], to: days[days.length - 1] }) }, `${t("nav.archive")} →`), " · ",
-    el("a", { href: `feeds/framing/${id}.xml`, type: "application/atom+xml", title: t("brief.follow.about", { n: 40, days: 7 }) }, t("narratives.feed"))));
+    feedLink(n.family === "topic" ? "topic" : "framing", id, t("narratives.feed"), { title: t("feeds.title") })));
   kids.push(...controls(w, dropped, id));
 
   // Plate I — share over time, with what it is a share of

@@ -24,7 +24,10 @@ The website has seven chapters (and an interface in English, Finnish and Swedish
 
 **Feeds.** Every framing and topic, outlet, country named, the Nordic and Baltic countries together (`feeds/region/nordic-baltic.xml`) and saved search (`config/feeds.yaml`) has an Atom feed
 (`feeds/<kind>/<id>.xml` on the site) of its newest 40 articles of the last seven days, with English machine
-translations and a link to the Internet Archive's copy; the weekly brief has one too (`feeds/brief.xml`).
+translations and a link to the Internet Archive's copy; the weekly brief has one too (`feeds/brief.xml`). Every feed
+link opens a feed builder (`site/assets/js/feeds.js`) that shows and copies a feed's address and offers OPML lists
+(`feeds/opml/<group>.opml`: every feed, all framings, topics, outlets, each outlet group, countries, the Nordic
+and Baltic countries, saved searches) to subscribe to a whole group at once; `data/feeds.json` catalogues them.
 
 **Machine-written items.** Items an outlet itself labels machine-written (Tsargrad's byline "Регионы Нейросеть",
 61% of its items since 9 September 2026; `machine` in `config/outlets.yaml`) stay in the archive, marked, but are

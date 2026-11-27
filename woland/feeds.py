@@ -101,3 +101,15 @@ def write_feed(path: Path, feed_id: str, title: str, subtitle: str, self_href: s
         + "".join(entries) + "</feed>\n"
     )
     path.write_text(xml, encoding="utf-8")
+
+
+def write_opml(path: Path, title: str, created: str, outlines: list[tuple[str, str, str]]) -> None:
+    """An OPML 2.0 subscription list, which feed readers import to follow every feed in it at once:
+    outlines are (title, feed URL, page URL)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    body = "".join(f"<outline type=\"rss\" version=\"ATOM\" text={quoteattr(t)} title={quoteattr(t)} "
+                   f"xmlUrl={quoteattr(x)} htmlUrl={quoteattr(h)}/>" for t, x, h in outlines)
+    xml = ("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<opml version=\"2.0\">"
+           f"<head><title>{escape(title)}</title><dateCreated>{escape(created)}</dateCreated></head>"
+           f"<body><outline text={quoteattr(title)} title={quoteattr(title)}>{body}</outline></body></opml>\n")
+    path.write_text(xml, encoding="utf-8")

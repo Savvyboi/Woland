@@ -8,6 +8,7 @@ import {
 import { sparkline, barList, columnChart, withTable } from "./charts.js";
 import { oneOf, permalinkButton, setParam } from "./urlstate.js";
 import { lang, LOCALES } from "./i18n.js";
+import { feedButton } from "./feeds.js";
 
 initChrome("analysis");
 const main = $("#analysis");
@@ -278,7 +279,8 @@ async function renderCountries() {
       seg(t("voices.lang"), [["all", t("series.all")], ["ru", t("lang.ru")], ["en", t("lang.en")]], state.clang,
         (v) => { state.clang = v; setParam("cl", v === "all" ? null : v); route(); }),
       seg(t("countries.rows"), [["top", t("countries.rows.top")], ["nordic-baltic", t("region.nordic-baltic")]], state.cr,
-        (v) => { state.cr = v; setParam("cr", v === "top" ? null : v); route(); })),
+        (v) => { state.cr = v; setParam("cr", v === "top" ? null : v); route(); }),
+      feedButton(() => ({ kind: "country", id: rows[0]?.code }))),
     periodNote(data),
   ];
   const region = state.cr === "nordic-baltic" ? (data.regions?.["nordic-baltic"] || []) : null;

@@ -405,6 +405,28 @@ def test_disarm_exports(built_site):
     assert techs <= {c["technique"] for c in by["report"]["x_woland_counts"]}
 
 
+def test_feed_builder_lists_only_feeds_that_exist(built_site):
+    """data/feeds.json, which the feed builder shows, names only Atom files the build wrote, and its OPML lists
+    parse and point at them."""
+    import xml.etree.ElementTree as ET
+    cat = json.loads((built_site / "data" / "feeds.json").read_text(encoding="utf-8"))
+    paths = [f"feeds/{kind}/{key}.xml" for kind, by in cat["feeds"].items() for key in by]
+    assert paths and all((built_site / p).stat().st_size > 0 for p in paths)
+    for p in paths:
+        assert ET.parse(built_site / p).getroot().tag == "{http://www.w3.org/2005/Atom}feed"
+    bundles = {b["id"]: b for b in cat["bundles"]}
+    assert {"all", "framings", "topics", "outlets", "countries", "searches", "outlets-foreign"} <= set(bundles)
+    assert bundles["all"]["n"] == len(paths) and bundles["outlets-foreign"]["group"] == "foreign"
+    assert "nordic-baltic" in bundles                                            # Finland is named in the fixture
+    for b in bundles.values():
+        root = ET.parse(built_site / b["path"]).getroot()
+        assert root.tag == "opml" and root.get("version") == "2.0" and root.find("head/dateCreated").text
+        urls = [o.get("xmlUrl") for o in root.iter("outline") if o.get("xmlUrl")]
+        assert len(urls) == b["n"] and set(urls) <= set(paths), b["id"]
+    nb = ET.parse(built_site / bundles["nordic-baltic"]["path"]).getroot()
+    assert [o.get("xmlUrl") for o in nb.iter("outline") if o.get("xmlUrl")] == ["feeds/country/FI.xml"]
+
+
 # ── interface strings ─────────────────────────────────────────────────────────
 @pytest.fixture(scope="module")
 def strings():
