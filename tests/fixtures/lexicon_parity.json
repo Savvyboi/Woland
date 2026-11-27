@@ -1,0 +1,440 @@
+{
+ "about": "Texts that woland/lexicon.py and site/assets/js/lexicon.js must match identically (tests/test_lexicon_parity.py). `has`/`lacks`: framings both must (not) find, so that both runtimes breaking the same way is caught too. Escapes such as \\u00ad are the invisible characters under test.",
+ "cases": [
+  {
+   "lang": "ru",
+   "text": "Киевский режим готовит провокацию в Донбассе"
+  },
+  {
+   "lang": "ru",
+   "text": "В Дагестане боевик получил 15 лет за подготовку теракта"
+  },
+  {
+   "lang": "ru",
+   "text": "СК завел дело о теракте после атак ВСУ на Нижнекамск"
+  },
+  {
+   "lang": "ru",
+   "text": "Захарова прокомментировала теракты против членов избиркомов",
+   "extra": "Удары украинских дронов"
+  },
+  {
+   "lang": "ru",
+   "text": "472 квартиры повреждены при атаке БПЛА на Новороссийск"
+  },
+  {
+   "lang": "ru",
+   "text": "Жители Донбасса и Новороссии впервые после воссоединения с Россией выбирают депутатов"
+  },
+  {
+   "lang": "ru",
+   "text": "Памфилова прокомментировала вброс бюллетеней на участке в Коми"
+  },
+  {
+   "lang": "ru",
+   "text": "Путин: вбросы о мобилизации – задуманная информационная операция"
+  },
+  {
+   "lang": "ru",
+   "text": "ФСБ рассекретила документы о злодеяниях немецких фашистов под Сталинградом"
+  },
+  {
+   "lang": "ru",
+   "text": "Россия должна разгромить нацистскую Украину, чтобы избежать столкновения с Западом"
+  },
+  {
+   "lang": "ru",
+   "text": "Победа над фашизмом в Европе: ветераны вспоминают"
+  },
+  {
+   "lang": "ru",
+   "text": "Депутат Аксаков предупредил о фейковом аккаунте от его имени"
+  },
+  {
+   "lang": "ru",
+   "text": "Памфилова: фейки о недопуске наблюдателей не подтвердились"
+  },
+  {
+   "lang": "ru",
+   "text": "Нелегитимный президент Украины Владимир Зеленский отстранил генпрокурора"
+  },
+  {
+   "lang": "ru",
+   "text": "Росавиация назвала нелегитимным заявление Украины о воздушном пространстве"
+  },
+  {
+   "lang": "ru",
+   "text": "Ёлки-палки: НАЦИСТЫ\u00a0на Украине и неонацисты в Европе"
+  },
+  {
+   "lang": "ru",
+   "text": "Лавров: устранение первопричин конфликта необходимо"
+  },
+  {
+   "lang": "ru",
+   "text": "Однако первопричина проблем с иммунитетом — в питании"
+  },
+  {
+   "lang": "ru",
+   "text": "Хохлы, хохлушка и Георгий Хохлов"
+  },
+  {
+   "lang": "ru",
+   "text": "Washington Examiner: США нечего противопоставить ракете «Буревестник»"
+  },
+  {
+   "lang": "ru",
+   "text": "Жильцы кооператива «Буревестник» просят защитить их дачи"
+  },
+  {
+   "lang": "ru",
+   "text": "Спецоперация продолжается, заявил участник СВО"
+  },
+  {
+   "lang": "ru",
+   "text": "Он вернулся к своим после смены политического курса"
+  },
+  {
+   "lang": "ru",
+   "text": "Сменивший пол активист и смена пола в Европе"
+  },
+  {
+   "lang": "ru",
+   "text": "Текст статьи. Слово Слово Слово Слово Слово Слово Слово Слово Слово Слово Слово Слово Слово Слово Слово Слово Слово Слово Слово Слово Слово Слово Слово Слово Слово Слово Слово Слово Слово Слово теракт на рынке, слово слово слово слово слово слово слово слово слово слово слово слово слово слово слово слово слово слово слово слово слово слово слово слово слово слово слово слово слово слово атака ВСУ"
+  },
+  {
+   "lang": "ru",
+   "text": "Рэпер Моргенштерн (внесен Минюстом РФ в реестр иноагентов) высказался о возвращении"
+  },
+  {
+   "lang": "ru",
+   "text": "Ходорковский внесён Минюстом России в список лиц, выполняющих функции иноагента"
+  },
+  {
+   "lang": "ru",
+   "text": "«Дождь» (признан иноагентом и нежелательной организацией в РФ) и Deutsche Welle"
+  },
+  {
+   "lang": "ru",
+   "text": "Минюст признал иноагентом политолога и внёс в перечень нежелательных организаций НКО"
+  },
+  {
+   "lang": "ru",
+   "text": "Авария на 19-м км автодороги Р-280 «Новороссия» и история Новороссии"
+  },
+  {
+   "lang": "ru",
+   "text": "Никиты массово отказываются от исконно русского отчества; Одесса — исконно русский город"
+  },
+  {
+   "lang": "ru",
+   "text": "Пенсионерка поверила создателям фейковой интернет-биржи; ВСУ снимают фейковые видео"
+  },
+  {
+   "lang": "en",
+   "text": "Sarmat, Poseidon and Burevestnik missiles; the Boeing P·8 Poseidon anti·submarine aircraft"
+  },
+  {
+   "lang": "en",
+   "text": "Kiev regime staged a provocation, Moscow says"
+  },
+  {
+   "lang": "en",
+   "text": "Ukrainian troops staged 53 shelling attacks"
+  },
+  {
+   "lang": "en",
+   "text": "Report proves the Bucha massacre was staged by Kiev"
+  },
+  {
+   "lang": "en",
+   "text": "Germany forgets it lost WWII, still acting like Nazis"
+  },
+  {
+   "lang": "en",
+   "text": "Europe's support for the Nazi regime in Kiev is a disgrace"
+  },
+  {
+   "lang": "en",
+   "text": "Revolut hands data over after fake government requests"
+  },
+  {
+   "lang": "en",
+   "text": "Terrorist attack in Pakistan kills 12"
+  },
+  {
+   "lang": "en",
+   "text": "Kiev's terrorist attack on Bryansk condemned"
+  },
+  {
+   "lang": "ru",
+   "text": "Киевскому режиму не помогут поставки",
+   "has": [
+    "kyiv-regime"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "Режим Зеленского и режимы Европы",
+   "has": [
+    "kyiv-regime"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "Режимный объект в Киевской области",
+   "lacks": [
+    "kyiv-regime"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "Провокационность вопроса удивила зрителей",
+   "lacks": [
+    "provocation"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "Провокационное заявление Киева",
+   "has": [
+    "provocation"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "Провокационное видео поп-певицы",
+   "lacks": [
+    "provocation"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "Теракт в Брянской области",
+   "extra": "Атака украинских беспилотников",
+   "has": [
+    "terrorism"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "Теракт в Брянской области",
+   "lacks": [
+    "terrorism"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "Беспилотник ВСУ: очень длинная вставка без нужных слов очень длинная вставка без нужных слов очень длинная вставка без нужных слов теракт",
+   "has": [
+    "terrorism"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "Вброс бюллетеней на участке и вброс шайбы в овертайме",
+   "lacks": [
+    "western-fakes"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "Вброс бюллетеней на участке, а затем вброс о мобилизации",
+   "has": [
+    "western-fakes"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "Центр противодействия дезинформации назвал это дезинформацией",
+   "has": [
+    "western-fakes"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "Центр противодействия дезинформации на Украине",
+   "lacks": [
+    "western-fakes"
+   ]
+  },
+  {
+   "lang": "en",
+   "text": "Russian disinformation, says Kremlin disinformation unit",
+   "lacks": [
+    "western-fakes"
+   ]
+  },
+  {
+   "lang": "en",
+   "text": "Fake accounts and fake news",
+   "has": [
+    "western-fakes"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "Воссоединённые с Россией Донбасс и Новороссия"
+  },
+  {
+   "lang": "ru",
+   "text": "НЕОНАЦИСТСКИЙ РЕЖИМ ЁЛКИ",
+   "has": [
+    "kyiv-regime"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "Киев\u00adский ре\u00adжим готовит про\u00adвокацию",
+   "has": [
+    "kyiv-regime",
+    "provocation"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "\u200bКиевский\u200b режим\u200b и \ufeffпровокация",
+   "has": [
+    "kyiv-regime",
+    "provocation"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "Киевский\u2060режим",
+   "lacks": [
+    "kyiv-regime"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "Прово\u0301кация на грани\u200bце",
+   "has": [
+    "provocation"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "Слово\u00ad"
+  },
+  {
+   "lang": "ru",
+   "text": "Киевский\u00a0режим и киевский\u2009режим",
+   "has": [
+    "kyiv-regime"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "Киевский\u3000режим",
+   "has": [
+    "kyiv-regime"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "Киевский\u001cрежим",
+   "has": [
+    "kyiv-regime"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "Киевский\ufeff\u00a0режим",
+   "has": [
+    "kyiv-regime"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "«Киевский режим» — это «провокация»",
+   "has": [
+    "kyiv-regime",
+    "provocation"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "Минюст признал «Медузу» нежелательной организацией и «иноагентом»"
+  },
+  {
+   "lang": "ru",
+   "text": "Режим‑Зеленского и киевский‐режим"
+  },
+  {
+   "lang": "ru",
+   "text": "Провокация—провокацию–провокации",
+   "has": [
+    "provocation"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "СВОбодные выходные и СВО2026",
+   "lacks": [
+    "svo"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "Спецоперация_2026 и укры_"
+  },
+  {
+   "lang": "ru",
+   "text": "🇷🇺🔥 Киевский режим 🇺🇦 готовит провокацию 𝐒𝐕𝐎",
+   "has": [
+    "kyiv-regime",
+    "provocation"
+   ]
+  },
+  {
+   "lang": "ru",
+   "text": "İSTANBUL: киевский режим",
+   "has": [
+    "kyiv-regime"
+   ]
+  },
+  {
+   "lang": "en",
+   "text": "ΟΔΥΣΣΕΥΣ and the Kiev regime",
+   "has": [
+    "kyiv-regime"
+   ]
+  },
+  {
+   "lang": "en",
+   "text": "The Kyiv-regime's provocations and anti-provocation measures",
+   "has": [
+    "provocation"
+   ]
+  },
+  {
+   "lang": "en",
+   "text": "Akiev regime and Kievan regimes",
+   "has": [
+    "kyiv-regime"
+   ]
+  },
+  {
+   "lang": "en",
+   "text": "Akiev regime",
+   "lacks": [
+    "kyiv-regime"
+   ]
+  },
+  {
+   "lang": "en",
+   "text": "False fl\u00adag operation in Kharkov",
+   "has": [
+    "provocation"
+   ]
+  },
+  {
+   "lang": "en",
+   "text": "Kiev\u00a0regime\u2028staged footage",
+   "has": [
+    "kyiv-regime"
+   ]
+  }
+ ]
+}
