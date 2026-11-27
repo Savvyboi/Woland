@@ -41,7 +41,8 @@ neither Sputnik nor MK answered on 27 September 2026 (MK does from Finland): see
 - **Keep English, Finnish and Swedish in step**: every UI string exists in all three (`tests/test_site.py`
   checks), and the Method page has a section per language. Finnish and Swedish need a native speaker's review.
 - **Framing counts are pattern matches**, and the site says so. `woland/lexicon.py` and
-  `site/assets/js/lexicon.js` must match the same words (`tests/test_woland.py` compares them). After changing a
+  `site/assets/js/lexicon.js` must match the same words (`tests/test_lexicon_parity.py` compares them on
+  `tests/fixtures/lexicon_parity.json`; add a case there for any new matching rule). After changing a
   framing's patterns, read a fresh random sample of its matches and update its `checked` entry
   (`docs/lexicon-audit.md` says how).
 - **Days still being collected** (after `complete_through` in `meta.json`) stay out of comparisons and averages
