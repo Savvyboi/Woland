@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: How framings are counted and checked
+    url: https://github.com/Savvyboi/Woland/blob/main/docs/lexicon-audit.md
+    about: The audit of each framing's matches, and how framings are defined (read this before reporting a miscount).
+  - name: The Woland site
+    url: https://savvyboi.github.io/Woland/
+    about: The chronicle itself; its Method page says what is collected, how, and what is missing.

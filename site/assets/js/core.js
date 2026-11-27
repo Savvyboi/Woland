@@ -1,6 +1,7 @@
 // Shared plumbing: data loading, formatting, page chrome, article cards, citations.
 import { t, tl, lang, setLang, applyI18n, LANGS, LOCALES } from "./i18n.js";
 import { compileLexicon, spans } from "./lexicon.js";
+import { toast } from "./urlstate.js";
 
 export { t, tl };
 export const $ = (sel, root = document) => root.querySelector(sel);
@@ -166,7 +167,38 @@ export function archiveSearch(params) {
 // ── Chrome: navigation, language, theme, footer ─────────────────────────────
 export function theme() { return document.documentElement.dataset.theme === "day" ? "day" : "night"; }
 
+/** How articles show a translated text: "both" (the original with its translation under it), "original" or
+ *  "en" (the translation in place of the original). Kept in this browser. */
+const TEXT_MODES = ["both", "original", "en"];
+export function textMode() {
+  try {
+    const m = localStorage.getItem("woland.text");
+    return TEXT_MODES.includes(m) ? m : "both";
+  } catch (_) { return "both"; }
+}
+function applyTextMode(m) {
+  if (m === "both") delete document.documentElement.dataset.text;
+  else document.documentElement.dataset.text = m;
+}
+let toggles = 0;
+/** Original | English | Both, for the article lists below it; every toggle on the page follows the others. */
+export function textModeToggle() {
+  const name = `textmode-${++toggles}`;
+  const box = el("fieldset", { class: "textmode" }, el("legend", {}, t("textmode.label")),
+    TEXT_MODES.map((m) => el("label", {},
+      el("input", { type: "radio", name, value: m, checked: m === (document.documentElement.dataset.text || "both") }),
+      t(`textmode.${m}`))));
+  box.addEventListener("change", (e) => {
+    const m = e.target.value;
+    try { localStorage.setItem("woland.text", m); } catch (_) { /* this page only */ }
+    applyTextMode(m);
+    for (const r of document.querySelectorAll(".textmode input")) r.checked = r.value === m;
+  });
+  return box;
+}
+
 export function initChrome(page) {
+  applyTextMode(textMode());
   const nav = $(".toc");
   if (nav) for (const a of $$("a", nav)) if (a.dataset.page === page) a.setAttribute("aria-current", "page");
   const sel = $("#lang");
@@ -246,7 +278,7 @@ export function showError(container, err) {
 export function fromIndex(a) {
   return { o: outletAt(a[0])?.id, ts: a[1], t: a[2], te: a[3], d: a[4], u: a[5], ks: a[6] || [],
            sn: a[7] || {}, h: a[8], r: a[9], a: a[10], f: a[11] || 0, w: a[12], ar: a[13] || "",
-           de: a[14] || "", sne: a[15] || {}, m: a[16] || 0 };
+           de: a[14] || "", sne: a[15] || {}, m: a[16] || 0, g: a[17] || {} };
 }
 /** Normalise a digest example. */
 export function fromExample(ex, dayIso, narrId) {
@@ -254,7 +286,8 @@ export function fromExample(ex, dayIso, narrId) {
   const k = narrId ? narrative(narrId)?.idx : undefined;
   return { o: ex.o, ts, t: ex.t, te: ex.te, u: ex.u, id: ex.id, ks: k !== undefined ? [k] : [],
            sn: ex.s && k !== undefined ? { [k]: ex.s } : {}, sne: ex.se && k !== undefined ? { [k]: ex.se } : {},
-           f: ex.f || 0, h: ex.h, r: ex.r, w: ex.w, ar: ex.ar || "" };
+           f: ex.f || 0, h: ex.h, r: ex.r, w: ex.w, ar: ex.ar || "",
+           g: { te: ex.g?.te, s: ex.g?.se && k !== undefined ? { [k]: ex.g.se } : undefined } };
 }
 
 /** How Woland obtained a record: page (read in full), notext (page read, but it had no text), archive (the
@@ -292,6 +325,30 @@ function highlight(text, terms) {
     }
   }
   if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+
+let tipN = 0;
+/** A word with a note that shows on hover, on keyboard focus and on a tap (which focuses it). */
+export function tipped(cls, word, note) {
+  const id = `tip-${++tipN}`;
+  return el("span", { class: `tipped ${cls}`, tabindex: "0", "aria-describedby": id },
+    word, el("span", { class: "tip", role: "tooltip", id }, note));
+}
+
+/** A machine translation with the words config/glossary.yaml corrected (spans [start, end, the model's words],
+ *  woland/build.py: utf16_spans) underlined, and the search terms marked in the rest. */
+function glossed(text, spans, terms) {
+  if (!spans?.length) return highlight(text, terms);
+  const out = [];
+  let last = 0;
+  for (const [a, b, raw] of spans) {
+    if (a < last || b > text.length) continue;
+    out.push(...highlight(text.slice(last, a), terms),
+      tipped("gl", text.slice(a, b), t("article.glossary", { raw })));
+    last = b;
+  }
+  out.push(...highlight(text.slice(last), terms));
   return out;
 }
 
@@ -337,6 +394,42 @@ function whyCounted(doc, o) {
   return rows;
 }
 
+/** A GitHub issue form (.github/ISSUE_TEMPLATE) opened with its fields filled in. */
+export function issueUrl(repo, template, fields) {
+  const q = new URLSearchParams({ template });
+  for (const [k, v] of Object.entries(fields)) if (v) q.set(k, v);
+  return `${repo.replace(/\/$/, "")}/issues/new?${q}`;
+}
+
+/** Links to report a wrongly counted framing or suggest a translation correction, the forms filled in. */
+function reportLinks(doc, o) {
+  if (!META?.repo) return null;
+  const names = (doc.ks || []).map((k) => narrativeAt(k)).filter((n) => n && n.family === "framing");
+  const when = mskStamp(doc.ts).slice(0, 16).replace("T", " ");
+  const forms = (id) => {
+    const rec = id ? `\n${t("report.record")}: ${id}` : "";
+    return [
+      ["lexicon-false-positive.yml", t("report.framing"), {
+        title: `[lexicon] ${names.map((n) => n.id).join(", ") || o.name}`, url: doc.u, outlet: o.name,
+        framing: names.map((n) => n.id).join(", "),
+        excerpt: [doc.t, doc.te && o.lang !== "en" ? `(MT) ${doc.te}` : ""].filter(Boolean).join("\n") + rec }],
+      doc.te && o.lang !== "en" ? ["glossary-override.yml", t("report.translation"), {
+        title: "[glossary] ", russian: doc.t, machine: doc.te, url: doc.u,
+        context: `${o.name}, ${when} MSK${rec}` }] : null,
+    ].filter(Boolean);
+  };
+  const links = forms(null).map(([tpl, label, f]) =>
+    el("a", { href: issueUrl(META.repo, tpl, f), rel: "noopener noreferrer", target: "_blank", dataset: { tpl } }, `${label} ↗`));
+  recordId(doc).then((id) => {  // the record's id, once worked out
+    if (!id) return;
+    for (const [tpl, , f] of forms(id)) {
+      const a = links.find((x) => x.dataset.tpl === tpl);
+      if (a) a.href = issueUrl(META.repo, tpl, f);
+    }
+  });
+  return el("p", { class: "report" }, links.flatMap((a, i) => (i ? [" · ", a] : [a])));
+}
+
 function provenance(doc) {
   const o = outlet(doc.o);
   const src = sourceOf(doc);
@@ -351,6 +444,7 @@ function provenance(doc) {
       row(t("prov.fingerprint"), doc.h ? el("code", {}, doc.h) : null, el("span", { class: "note" }, ` ${fpNote}`)),
       why.length ? row(t("prov.why"), el("ul", { class: "why" }, why)) : null),
     why.length ? el("p", { class: "syntax" }, t("prov.lexical"), " ", el("a", { href: "method.html#matching" }, `${t("nav.method")} →`)) : null,
+    reportLinks(doc, o),
   ].filter(Boolean);
 }
 
@@ -362,8 +456,8 @@ export function articleCard(doc, opts = {}) {
     el("time", { datetime: new Date(doc.ts * 1000).toISOString() }, fmtStamp(doc.ts)),
     doc.a ? el("span", {}, doc.a) : null,
     blocked ? el("span", { class: "badge eu", title: t("article.eu") }, "EU ⊘") : null,
-    sourceOf(doc) === "feed" ? el("span", { class: "badge feed" }, t("article.feed")) : null,
-    doc.f ? el("span", { class: "badge feed", title: t("article.listed.title") }, t("article.listed")) : null,
+    sourceOf(doc) === "feed" ? tipped("badge feed", t("article.feed"), t("article.feed.title")) : null,
+    doc.f ? tipped("badge feed", t("article.listed"), t("article.listed.title")) : null,
     isVideo(doc) ? el("span", { class: "badge video", title: t("article.video.title") }, t("article.video")) : null,
     doc.m ? el("span", { class: "badge machine", title: t("article.machine.title") }, t("article.machine")) : null,
   );
@@ -371,17 +465,23 @@ export function articleCard(doc, opts = {}) {
     ...highlight(doc.t, opts.terms)));
   const kids = [meta, title];
   // English machine translations of a Russian article's headline, lead and snippets, each under its original
-  const mt = (cls, en) => (en && o.lang !== "en" ? el("p", { class: cls, lang: "en" },
-    el("abbr", { class: "mt", title: t("article.mt.title") }, t("article.mt")), ...highlight(en, opts.terms)) : null);
-  kids.push(mt("tr", doc.te));
-  if (doc.d && !opts.noLead) kids.push(el("p", { class: "lead", lang: o.lang }, ...highlight(doc.d, opts.terms)), mt("tr lead-tr", doc.de));
+  const g = doc.g || {};
+  const hasTr = (en) => (en && o.lang !== "en" ? " has-tr" : "");
+  const mt = (cls, en, spans) => (hasTr(en) ? el("p", { class: cls, lang: "en" },
+    el("abbr", { class: "mt", title: t("article.mt.title") }, t("article.mt")), ...glossed(en, spans, opts.terms)) : null);
+  title.className = hasTr(doc.te).trim();
+  kids.push(mt("tr tr-head", doc.te, g.te));
+  if (doc.d && !opts.noLead) {
+    kids.push(el("p", { class: `lead${hasTr(doc.de)}`, lang: o.lang }, ...highlight(doc.d, opts.terms)), mt("tr lead-tr", doc.de, g.de));
+  }
   for (const [k, s] of Object.entries(doc.sn || {})) {
     const n = narrativeAt(Number(k));
     if (!n || (opts.only !== undefined && Number(k) !== opts.only)) continue;
+    const en = (doc.sne || {})[k];
     kids.push(el("div", { class: "snip" },
-      el("p", { lang: o.lang }, el("span", { class: "sr-only" }, `${t("article.body")}: `), s,
+      el("p", { lang: o.lang, class: hasTr(en).trim() }, el("span", { class: "sr-only" }, `${t("article.body")}: `), s,
         el("span", { class: "n", lang }, ` — ${tl(n.label)}`)),
-      mt("tr", (doc.sne || {})[k])));
+      mt("tr", en, (g.s || {})[k])));
   }
   if (doc.ks?.length && !opts.noTags) {
     const tags = doc.ks.map((k) => narrativeAt(k)).filter(Boolean)
@@ -395,6 +495,7 @@ export function articleCard(doc, opts = {}) {
     el("a", { href: copyUrl(doc), rel: "noopener noreferrer", target: "_blank" }, `${t("article.archive")} ↗`),
     o.lang !== lang ? el("a", { href: translateUrl(doc.u), rel: "noopener noreferrer nofollow", target: "_blank" }, `${t("article.translate")} ↗`) : null,
     el("button", { class: "linkish", type: "button", onclick: () => openCite(doc) }, t("article.cite")),
+    el("button", { class: "linkish", type: "button", onclick: () => copyQuote(doc) }, t("article.quote")),
   );
   kids.push(links);
   // drawn when first opened: an archive page holds many cards
@@ -407,6 +508,36 @@ export function articleCard(doc, opts = {}) {
 }
 
 // ── Citations ───────────────────────────────────────────────────────────────
+/** An article as a block to paste into notes or a message: the headline, its machine translation (marked as
+ *  such), the outlet and time in Moscow and UTC, and the links to the original and the archived copy. */
+export function quoteText(doc) {
+  const o = outlet(doc.o);
+  const utc = new Date(doc.ts * 1000).toISOString().slice(0, 16).replace("T", " ");
+  const msk = mskStamp(doc.ts).slice(0, 16).replace("T", " ");
+  return [
+    `«${doc.t}»`,
+    doc.te && o.lang !== "en" ? `“${doc.te}” (${t("quote.mt")})` : null,
+    `— ${o.name}, ${msk} MSK (${utc} UTC)`,
+    `${t("article.original")}: ${doc.u}`,
+    `${t("article.archive")}: ${copyUrl(doc)}`,
+  ].filter(Boolean).join("\n");
+}
+
+async function copyQuote(doc) {
+  const text = quoteText(doc);
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(el, t("quote.copied"));
+  } catch (_) {
+    openCite(doc);  // no clipboard here: the citation dialog shows the same facts, to copy by hand
+  }
+}
+
+/** "Source: Woland (…) · made <day>", under an exported chart. */
+export function sourceStamp() {
+  return t("export.stamp", { url: siteUrl().replace(/^https?:\/\//, ""), date: new Date().toISOString().slice(0, 10) });
+}
+
 function siteUrl() {
   return (META?.base_url || location.origin + location.pathname.replace(/[^/]*$/, "")).replace(/\/$/, "");
 }
@@ -527,8 +658,13 @@ export function downloadCSV(filename, header, rows) {
     const s = v === null || v === undefined ? "" : String(v);
     return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  const text = "﻿" + [header, ...rows].map((r) => r.map(q).join(",")).join("\n");
-  const url = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
+  const text = "\ufeff" + [header, ...rows].map((r) => r.map(q).join(",")).join("\n");
+  downloadBlob(filename, new Blob([text], { type: "text/csv;charset=utf-8" }));
+}
+
+/** Hand the reader a file to save. */
+export function downloadBlob(filename, blob) {
+  const url = URL.createObjectURL(blob);
   const a = el("a", { href: url, download: filename });
   document.body.append(a);
   a.click();

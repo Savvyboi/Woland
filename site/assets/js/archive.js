@@ -1,12 +1,14 @@
 // Chapter III: the searchable archive.
 import {
   $, el, t, tl, META, loadMeta, initChrome, fillFooter, fmtInt, fmtPct, fmtDay, outlet, narrative,
-  groupVar, articleCard, showError, addDays, downloadCSV, GROUPS, isOpenDay, recordOf, recordId, countryName,
+  groupVar, articleCard, textModeToggle, downloadBlob, sourceStamp, showError, addDays, downloadCSV, GROUPS, isOpenDay, recordOf, recordId, countryName,
 } from "./core.js";
 import { search, loadDocs } from "./search.js";
-import { columnChart, barList, withTable, tableOf } from "./charts.js";
+import { columnChart, barList, withTable, tableOf, withExport } from "./charts.js";
+import { archiveState, permalinkButton } from "./urlstate.js";
 
 initChrome("archive");
+$("#results").before(textModeToggle());
 const form = $("#search-form");
 const status = $("#status");
 const area = $("#results-area");
@@ -29,11 +31,8 @@ function fillSelects() {
   for (const id of ["from", "to"]) { $(`#${id}`).min = META.start; $(`#${id}`).max = META.last; }
 }
 
-function readParams() {
-  const p = new URLSearchParams(location.search);
-  return { q: p.get("q") || "", from: p.get("from") || "", to: p.get("to") || "", o: p.get("o") || "",
-    l: p.get("l") || "", k: p.get("k") || "", c: /^[A-Za-z]{2}$/.test(p.get("c") || "") ? p.get("c").toUpperCase() : "", order: p.get("order") || "new" };
-}
+/** The search in the address; anything unknown or malformed is left out (urlstate.js). */
+const readParams = () => archiveState(location.search, META);
 function writeForm(s) {
   $("#q").value = s.q; $("#from").value = s.from; $("#to").value = s.to; $("#outlet").value = s.o;
   $("#lang-f").value = s.l; $("#narr").value = s.k; $("#country").value = s.c || ""; $("#order").value = s.order;
@@ -113,12 +112,14 @@ function renderCharts(res, s) {
   $("#pl1").textContent = `${t("plate")} I`;
   $("#pl2").textContent = `${t("plate")} II`;
   plate.querySelectorAll(".table-wrap").forEach((n) => n.remove());
-  [...plate.querySelectorAll(".plate-tools .linkish")].forEach((n) => n.remove());
+  [...plate.querySelectorAll(".plate-tools .linkish, .plate-tools .export")].forEach((n) => n.remove());
   withTable(plate, box, () => tableOf(days, [
     { label: t("archive.count"), values: counts, fmt: fmtInt },
     { label: t("col.all"), values: totals, fmt: fmtInt },
     { label: t("archive.share"), values: shares, fmt: (v) => fmtPct(v, 1) },
   ], fmtInt, (i) => (isOpenDay(days[i]) ? t("day.open.short") : "")));
+  withExport(plate, box, "archive-timeline", downloadBlob, sourceStamp, () => [scopeLabel(s),
+    t(norm === "count" ? "archive.count" : "archive.share"), `${fmtDay(days[0])} – ${fmtDay(days[days.length - 1])}`].filter(Boolean).join(" · "));
   const by = [...res.byOutlet.entries()].sort((a, b) => b[1] - a[1]).map(([i, v]) => {
     const o = META.outlets[i];
     return { label: o.name, value: v, color: groupVar(o.group), title: t(`group.${o.group}`),
@@ -158,6 +159,12 @@ async function exportCSV() {
   btn.disabled = false;
   exportLabel();
 }
+/** The search in a few words, for the title of an exported chart. */
+function scopeLabel(s) {
+  return [s.q ? `“${s.q}”` : "", s.k ? tl(narrative(s.k)?.label) : "", s.o ? outlet(s.o)?.name : "",
+    s.l ? t(`lang.${s.l}`) : ""].filter(Boolean).join(" · ");
+}
+
 function exportLabel() {
   const n = Math.min(current.total, EXPORT_MAX);
   $("#export").textContent = `${t("archive.export")}${current.total > EXPORT_MAX ? ` (${t("archive.export.note", { n: fmtInt(n) })})` : ""}`;
@@ -214,6 +221,7 @@ async function start() {
     form.addEventListener("submit", (e) => { e.preventDefault(); go(readForm()); });
     for (const id of ["from", "to", "outlet", "lang-f", "narr", "order"]) $(`#${id}`).addEventListener("change", () => go(readForm()));
     $("#clear").addEventListener("click", () => { writeForm(EMPTY); go({ ...EMPTY }); });
+    $("#clear").after(permalinkButton(el, t));
     $("#more").addEventListener("click", showMore);
     $("#export").addEventListener("click", exportCSV);
     window.addEventListener("popstate", () => { const p = readParams(); writeForm(p); go(p, false); });
