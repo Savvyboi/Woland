@@ -1,0 +1,46 @@
+# Field ids are kept stable: the site can open this form with them filled in
+# (…/issues/new?template=glossary-override.yml&russian=…&machine=…&url=…).
+name: Translation correction
+description: The machine translation gets a name, title or term wrong; suggest a correction for config/glossary.yaml.
+title: "[glossary] "
+labels: ["glossary"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Woland stores the machine translation as it was made and corrects names and terms when the site is
+        built, wherever the Russian has them (`config/glossary.yaml`). A correction should hold in every
+        headline where the Russian phrase appears, not only in this one.
+  - type: input
+    id: russian
+    attributes:
+      label: Russian phrase
+      placeholder: Уиткофф
+    validations:
+      required: true
+  - type: input
+    id: machine
+    attributes:
+      label: Machine translation now
+      placeholder: Whitkoff
+    validations:
+      required: true
+  - type: input
+    id: suggested
+    attributes:
+      label: Suggested English
+      placeholder: Witkoff
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: Example
+      description: An article where it occurs (its address, or its Woland record id).
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Optional. Where the correction would be wrong (another person of that name, an ordinary word …), and any source for the spelling.
