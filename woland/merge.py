@@ -63,6 +63,10 @@ def _record(o, a: dict, b: dict) -> dict:
     ls = {**(second.get("ls") or {}), **(first.get("ls") or {})}
     if ls:
         out["ls"] = ls
+    # a page found gone (vanish.py) stays gone, from the earliest time either side found it missing
+    va = min((r for r in (a, b) if r.get("va")), key=lambda r: r["va"], default=None)
+    if va:
+        out["va"], out["vs"] = va["va"], va["vs"]
     return out
 
 
@@ -124,6 +128,9 @@ def merge_json(name: str, base: str, ours: str, theirs: str) -> str:
         merged = merge_seen(o, a, b)
     elif name == "runs.json":
         merged = merge_runs(o, a, b)
+    elif name == "gone.json":  # pages missing once: per outlet and URL, the later check
+        merged = _three_way(o, a, b, lambda o_, x, y: _three_way(o_ or {}, x, y,
+                                                                lambda _o, p, q: max(p, q, key=lambda e: e["at"])))
     elif name == "check.json":  # per outlet, the later check
         merged = _three_way(o, a, b, lambda _o, x, y: max(x, y, key=lambda e: e.get("at", "")))
     else:

@@ -22,7 +22,7 @@ NARRATIVES = {n.id for n in load_lexicon()}
 HEX16 = re.compile(r"^[0-9a-f]{16}$")
 UTC = re.compile(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
 FIELDS = {"id", "o", "u", "p", "m", "t", "te", "d", "de", "s", "g", "a", "w", "h", "r", "kb", "kbe", "via", "ar",
-          "ls", "rv"}
+          "ls", "rv", "va", "vs"}
 LISTINGS = ("rss", "sitemap", "html")
 CAPTURE = re.compile(r"^20\d{12}$")  # an Internet Archive capture time, YYYYMMDDhhmmss
 
@@ -106,6 +106,9 @@ def problems_in(path) -> list[str]:
                 or e.get("via") not in LISTINGS or not str(e.get("t", "")).strip() or len(e["t"]) > 301
                 or ("te" in e and o.lang != "ru") for e in rv) or [e["at"] for e in rv] != sorted(e["at"] for e in rv):
             out.append(f"{where}: bad headline rewrites")
+        if ("va" in r) != ("vs" in r) or ("va" in r and (not UTC.match(r["va"]) or r["vs"] not in (404, 410)
+                                                         or r.get("via") != "page")):
+            out.append(f"{where}: bad gone mark {r.get('va')!r} {r.get('vs')!r}")
         for nid, snip in (r.get("kb") or {}).items():
             if nid not in NARRATIVES:
                 out.append(f"{where}: body match for unknown framing {nid}")

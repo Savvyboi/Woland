@@ -379,6 +379,15 @@ def save_coverage(cov: dict, only=None) -> None:
     _save("coverage.json", _merged("coverage.json", cov, only))
 
 
+def load_gone() -> dict:
+    """Pages found missing once, to be asked for again (vanish.py): {outlet: {url: {"at", "s", "d"}}}."""
+    return _load("gone.json", {})
+
+
+def save_gone(pending: dict) -> None:
+    _save("gone.json", {o: urls for o, urls in sorted(pending.items()) if urls})
+
+
 def load_seen() -> dict:
     return _load("seen.json", {})
 

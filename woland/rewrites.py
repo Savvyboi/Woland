@@ -1,8 +1,10 @@
-"""Headlines rewritten after publication (store.revise_day): the last weeks' rewrites, for the site.
+"""Headlines rewritten after publication (store.revise_day) and articles taken down (vanish.py): the last
+weeks' of both, for the site.
 
 A rewrite is what a listing (feed, sitemap or section page) shows as an article's headline when that listing
 showed it differently before. The stored headline stays as first published; `rv` holds the rewrites. This
-module gathers the records that have any, with a word-by-word comparison of the headline before and after.
+module gathers the records that have any, with a word-by-word comparison of the headline before and after,
+and the records whose page answered 404 or 410 twice in a row (`va`, `vs`).
 """
 from __future__ import annotations
 
@@ -15,7 +17,7 @@ from datetime import date
 from .store import day_path
 
 DAYS = 30        # the period shown
-SHOWN = 400      # rewrites listed, newest first
+SHOWN = 400      # rewrites (and, apart, articles gone) listed, newest first
 _TOKEN = re.compile(r"\s+|[^\s]+")
 
 
@@ -53,6 +55,7 @@ def gather(days: list[date], outlets: list[str], is_machine, fix=lambda ru, en: 
     items the outlet labels machine-written (of `machine_outlets`), listed but not counted. `fix(ru, en)`: the glossary's
     corrections to a translation."""
     items, rewritten, articles = [], Counter(), Counter()
+    gone, vanished = [], Counter()
     for d in days:
         counted = through is None or d.isoformat() <= through
         for o in outlets:
@@ -60,10 +63,21 @@ def gather(days: list[date], outlets: list[str], is_machine, fix=lambda ru, en: 
             if not p.exists():
                 continue
             for line in p.read_text(encoding="utf-8").splitlines():
-                if '"rv":' not in line and o not in machine_outlets:
+                if '"rv":' not in line and '"va":' not in line and o not in machine_outlets:
                     articles[o] += counted
                     continue
                 rec = json.loads(line)
+                if rec.get("va"):
+                    g = {"o": o, "u": rec["u"], "id": rec["id"], "p": rec["p"][:16], "at": rec["va"], "s": rec["vs"],
+                         "t": (rec["rv"][-1]["t"] if rec.get("rv") else rec["t"])}
+                    en = rec["rv"][-1].get("te", "") if rec.get("rv") else rec.get("te", "")
+                    if en:
+                        g["te"] = fix(g["t"], en)
+                    if is_machine(rec):
+                        g["m"] = 1
+                    else:
+                        vanished[o] += 1
+                    gone.append(g)
                 if not rec.get("rv"):
                     articles[o] += counted and not is_machine(rec)
                     continue
@@ -87,6 +101,8 @@ def gather(days: list[date], outlets: list[str], is_machine, fix=lambda ru, en: 
                     item["m"] = 1
                 items.append(item)
     items.sort(key=lambda x: (x["at"], x["u"]), reverse=True)
+    gone.sort(key=lambda x: (x["at"], x["u"]), reverse=True)
     return {"days": [days[0].isoformat(), days[-1].isoformat()] if days else [], "through": through, "items": items[:SHOWN],
-            "total": len(items),
-            "outlets": {o: {"rewritten": rewritten[o], "articles": articles[o]} for o in outlets if articles[o]}}
+            "total": len(items), "gone": gone[:SHOWN], "gone_total": len(gone),
+            "outlets": {o: {"rewritten": rewritten[o], "articles": articles[o], **({"gone": vanished[o]} if vanished[o] else {})}
+                        for o in outlets if articles[o]}}
