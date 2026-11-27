@@ -208,6 +208,8 @@ own situation.
 | `mt` | the machine-translation model that made the record's translations (`argos-ru_en-1.9`); records translated before 27 November 2026 lack it (the same model, as far as the repository's history shows) |
 | `via` | `page` (article page read) or `feed` (from the outlet's own feed, sitemap or listing only: for feed-only outlets always; for the others a *headline-only* record, kept when the page could not be read and completed by a later run) |
 | `ar` | only when the page was read from the Internet Archive's copy because the outlet did not answer Woland: the time of that capture, `YYYYMMDDhhmmss` UTC (the copy is at `https://web.archive.org/web/<ar>/<u>`) |
+| `ls`, `rv` | headline rewrites seen in the listings: per listing (`rss`, `sitemap`, `html`) the headline it first showed (`""` where it is `t`), and each rewrite `{at, via, t, te}`, oldest first; `t` stays as first published |
+| `va`, `vs` | only when the outlet took the page down: when it was first found missing (UTC) and the status it answered (404 or 410) two nights in a row (`python -m woland recheck`, a sample of the last week's pages each night) |
 
 `data/state/coverage.json` records, for every outlet and day, how many articles were stored, how many the
 outlet's own listings announced, how many are still headline only (`h`), and whether the day is complete.

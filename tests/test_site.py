@@ -419,6 +419,8 @@ def test_a_link_to_a_view_opens_it_with_only_the_filters_that_make_sense():
                       "order": "old"}
     assert out[1] == {**empty, "from": "2026-10-01", "to": "2026-10-15"}
     assert out[2] == empty and out[3] == empty and out[4] == empty
+
+
 def test_the_today_page_says_what_the_day_held_without_javascript(built_site):
     """A link preview, a search engine or a web archive reads index.html as built, without running scripts."""
     html = (built_site / "index.html").read_text(encoding="utf-8")

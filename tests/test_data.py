@@ -21,7 +21,9 @@ OUTLETS = {o.id: o for o in load_outlets(include_disabled=True)}
 NARRATIVES = {n.id for n in load_lexicon()}
 HEX16 = re.compile(r"^[0-9a-f]{16}$")
 UTC = re.compile(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
-FIELDS = {"id", "o", "u", "p", "m", "t", "te", "d", "de", "s", "g", "a", "w", "h", "r", "kb", "kbe", "via", "ar", "mt"}
+FIELDS = {"id", "o", "u", "p", "m", "t", "te", "d", "de", "s", "g", "a", "w", "h", "r", "kb", "kbe", "via", "ar", "mt",
+          "ls", "rv", "va", "vs"}
+LISTINGS = ("rss", "sitemap", "html")
 MT = re.compile(r"^[a-z0-9][a-z0-9_.+-]{2,60}$")  # the translation model, e.g. argos-ru_en-1.9
 CAPTURE = re.compile(r"^20\d{12}$")  # an Internet Archive capture time, YYYYMMDDhhmmss
 
@@ -99,6 +101,18 @@ def problems_in(path) -> list[str]:
             out.append(f"{where}: via {r['via']}")
         if "ar" in r and (r["via"] != "page" or not CAPTURE.match(r["ar"])):
             out.append(f"{where}: bad Internet Archive capture {r['ar']!r}")
+        ls = r.get("ls", {})
+        if not isinstance(ls, dict) or any(k not in LISTINGS or not isinstance(v, str) or len(v) > 301 for k, v in ls.items()):
+            out.append(f"{where}: bad listing headlines {ls!r}")
+        rv = r.get("rv", [])
+        if not isinstance(rv, list) or any(
+                not isinstance(e, dict) or set(e) - {"at", "via", "t", "te"} or not UTC.match(e.get("at", ""))
+                or e.get("via") not in LISTINGS or not str(e.get("t", "")).strip() or len(e["t"]) > 301
+                or ("te" in e and o.lang != "ru") for e in rv) or [e["at"] for e in rv] != sorted(e["at"] for e in rv):
+            out.append(f"{where}: bad headline rewrites")
+        if ("va" in r) != ("vs" in r) or ("va" in r and (not UTC.match(r["va"]) or r["vs"] not in (404, 410)
+                                                         or r.get("via") != "page")):
+            out.append(f"{where}: bad gone mark {r.get('va')!r} {r.get('vs')!r}")
         for nid, snip in (r.get("kb") or {}).items():
             if nid not in NARRATIVES:
                 out.append(f"{where}: body match for unknown framing {nid}")

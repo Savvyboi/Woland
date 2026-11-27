@@ -182,8 +182,19 @@ def test_a_rebase_merges_two_runs_that_wrote_the_same_files(tmp_path):
     assert not git("status", "--porcelain")
 
 
+def test_headline_rewrites_seen_by_either_side_are_kept():
+    base = {"id": "t:1", "u": "https://t.ru/a/1", "p": "2026-09-10T10:00:00+03:00", "t": "A", "via": "page", "r": "2026-09-10T08:00:00Z"}
+    a = {**base, "ls": {"rss": ""}, "rv": [{"at": "2026-09-10T12:00:00Z", "via": "rss", "t": "B"}]}
+    b = {**base, "ls": {"sitemap": "A!"}, "rv": [{"at": "2026-09-10T11:00:00Z", "via": "sitemap", "t": "C"}]}
+    line = lambda r: json.dumps(r, ensure_ascii=False, separators=(",", ":")) + "\n"
+    (out,) = [json.loads(x) for x in merge_records(line(base), line(a), line(b)).splitlines()]
+    assert [e["t"] for e in out["rv"]] == ["C", "B"] and out["ls"] == {"rss": "", "sitemap": "A!"}
+
+
 @pytest.mark.skipif(not shutil.which("git") or not shutil.which("bash") or sys.platform == "win32",
                     reason="needs git and bash (and symbolic links)")
+
+
 def test_two_runs_that_push_at_the_same_time_both_keep_their_work(tmp_path):
     """.github/commit-data.sh, as the workflows run it: the second run's push is refused, it pulls the first
     run's commit, the data files merge record by record, and its push succeeds."""

@@ -602,6 +602,15 @@ ol.tag-list li { grid-template-columns: minmax(8rem, 15rem) 1fr 4rem 4.5rem; }
 .feed-list { columns: 2 16rem; padding-left: 1.2rem; margin: .5rem 0; }
 .feed-list li { break-inside: avoid; margin: .2rem 0; }
 
+/* Rewritten headlines (analysis.js renderRewrites) */
+.rewrite .diff { font: 600 1.02rem/1.45 var(--serif); margin: .3rem 0 0; color: var(--text); }
+.rewrite .diff del { color: var(--crimson-text); text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.rewrite .diff ins { color: var(--gilt-text); text-decoration: underline; text-underline-offset: .18em; }
+.rewrite .rw-label { font: normal .72rem/1 var(--sans); color: var(--text-3); text-transform: uppercase; letter-spacing: .08em; }
+.rewrite .diff del + ins { margin-left: .3em; }
+.gone .headline { font: 600 1.02rem/1.45 var(--serif); margin: .3rem 0 0; padding-left: .6rem; border-left: 3px solid var(--crimson-text); }
+.gone .dead-link { font: .78rem/1.3 var(--mono, monospace); color: var(--text-3); overflow-wrap: anywhere; }
+
 /* A word or badge with a note (core.js tipped): on hover, on keyboard focus, and on a tap, which focuses it */
 .tipped { position: relative; cursor: help; }
 .tipped:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
