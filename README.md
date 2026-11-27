@@ -215,7 +215,13 @@ articles had been stored before: the feed may have moved past articles published
 the run shows a warning), `data/state/check.json` the latest outlet check. `data/state/urls/<outlet>.txt` lists every URL stored (a
 key and its day), so that an article is stored once even if its site re-dates it months later. An article is always filed under the Moscow day it was published, even when it turned up
 while another day was being collected. The repository grows by roughly 2–3 MB of compressed history a day; after a year or two,
-consider moving older years to a release archive.
+consider moving older years to a release archive: `python tools/export_quarter.py 2026-Q4` packs a quarter's day
+files, with the lexicon, the glossary and the audit, into a reproducible `.tar.gz` with SHA-256 checksums.
+
+The published site is limited by GitHub Pages to 1 GB, and each month's search index takes about 90–100 MB of it
+(autumn 2026). `python -m woland budget _site` lists what takes the room and how many more months fit; the deploy
+workflow runs it after every build, warns above 700 MB and stops above 920 MB, before Pages would refuse the site.
+`WOLAND_SEARCH_MONTHS` (18 by default) sets how many months stay searchable.
 
 ## Limitations
 
