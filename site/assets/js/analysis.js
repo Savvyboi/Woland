@@ -3,7 +3,7 @@
 // (write_analysis) over completed days only.
 import {
   $, el, t, META, loadMeta, getJSON, getGz, initChrome, fillFooter, fmtInt, fmtPct, fmtDay, outlet,
-  groupVar, articleCard, fromExample, archiveSearch, showError, debounce, fmtStamp, copyUrl,
+  groupVar, articleCard, fromExample, archiveSearch, showError, debounce, countryName, narrative, tl, fmtStamp, copyUrl,
 } from "./core.js";
 import { sparkline, barList, columnChart, withTable } from "./charts.js";
 import { oneOf, permalinkButton, setParam } from "./urlstate.js";
@@ -19,6 +19,7 @@ const state = {
   vlang: params.get("vl") === "en" ? "en" : "ru",
   kind: oneOf(params.get("vk"), ["all", "person", "inst", "role", "media"], "all"),
   clang: ["ru", "en"].includes(params.get("cl")) ? params.get("cl") : "all",
+  cr: params.get("cr") === "nordic-baltic" ? "nordic-baltic" : "top",
   outlet: params.get("o") || null,
   day: params.get("d") || null,
 };
@@ -262,8 +263,6 @@ async function loadWorld() {
   if (!world) world = await fetch("assets/data/world.json").then((r) => r.json());
   return world;
 }
-const regionNames = (() => { try { return new Intl.DisplayNames([lang], { type: "region" }); } catch (_) { return null; } })();
-const countryName = (code) => { try { return regionNames?.of(code) || code; } catch (_) { return code; } };
 
 async function renderCountries() {
   const [data, map] = await Promise.all([getJSON(`analysis/countries/${state.w}.json`), loadWorld()]);
@@ -277,15 +276,29 @@ async function renderCountries() {
     el("p", { class: "lede-small" }, t("countries.lede", { all: fmtInt(total) })),
     el("div", { class: "filters" }, periodControl(),
       seg(t("voices.lang"), [["all", t("series.all")], ["ru", t("lang.ru")], ["en", t("lang.en")]], state.clang,
-        (v) => { state.clang = v; setParam("cl", v === "all" ? null : v); route(); })),
+        (v) => { state.clang = v; setParam("cl", v === "all" ? null : v); route(); }),
+      seg(t("countries.rows"), [["top", t("countries.rows.top")], ["nordic-baltic", t("region.nordic-baltic")]], state.cr,
+        (v) => { state.cr = v; setParam("cr", v === "top" ? null : v); route(); })),
     periodNote(data),
   ];
+  const region = state.cr === "nordic-baltic" ? (data.regions?.["nordic-baltic"] || []) : null;
   const c1 = el("div", { class: "map-wrap" });
   const p1 = plate("I", t("countries.map"), t("countries.map.sub"), c1);
   kids.push(p1);
   const c2 = el("div");
   const p2 = plate("II", t("countries.list"), t("countries.list.sub"), c2);
   kids.push(el("div", { class: "section" }, p2));
+  let p3 = null, c3 = null, cells = null;
+  if (region) {
+    c3 = el("div");
+    p3 = plate("III", t("countries.pulse"), t("countries.pulse.sub"), c3);
+    kids.push(el("div", { class: "section" }, p3));
+  }
+  const c4 = el("div", { class: "cf-wrap" });
+  const p4 = plate(region ? "IV" : "III", t("countries.cf"), t("countries.cf.sub", { min: fmtInt(data.framing?.min ?? 5) }), c4);
+  kids.push(el("div", { class: "section" }, p4));
+  kids.push(el("p", { class: "syntax" }, t("countries.cf.method"), " ",
+    el("a", { href: `feeds/region/nordic-baltic.xml`, type: "application/atom+xml" }, t("countries.feed.nb"))));
   kids.push(el("p", { class: "syntax" }, t("countries.method"), " ", el("a", { href: "method.html#analysis" }, `${t("nav.method")} →`)));
   main.replaceChildren(...kids);
 
@@ -299,6 +312,67 @@ async function renderCountries() {
     el("span", { class: "val" }, fmtInt(r.n), el("small", {}, ` ${pctOf(r.share)}`)),
     sparkline(r.d, { width: 80, height: 20, label: t("voices.perday") }),
     change(r.n, r.prev)))));
+  if (region) drawPulse(c3, data, region, inLang);
+  cells = drawCountryFraming(c4, data, region || rows.slice(0, 12).map((r) => r.code));
+  if (cells) withTable(p4, c4, () => simpleTable([t("countries.country"), ...cells.cols.map((id) => tl(narrative(id)?.label) || id)],
+    cells.rows.map((code) => [countryName(code), ...cells.cols.map((id) => cells.text(code, id))])));
+}
+
+/** The Nordic and Baltic countries day by day: share of all articles naming each. A day without articles has no
+ * share (a gap), not a zero. */
+function drawPulse(box, data, codes, inLang) {
+  const totals = data.day_totals || [];
+  const hasPrev = Object.values(data.countries).some((c) => c.prev !== null && c.prev !== undefined);
+  const rows = codes.map((code) => {
+    const c = data.countries[code];
+    const n = c ? sum(Object.entries(c.o).filter(([o]) => inLang(o)).map(([, v]) => v)) : 0;
+    const d = c?.d || totals.map(() => 0);
+    return { code, n, prev: state.clang === "all" ? (c ? c.prev : (hasPrev ? 0 : null)) : null,
+      share: totals.map((tt, i) => (tt ? (d[i] || 0) / tt : null)) };
+  }).sort((a, b) => b.n - a.n);
+  box.replaceChildren(el("ol", { class: "country-list pulse" }, rows.map((r) => el("li", {},
+    el("a", { class: "lab", href: searchLink(data, { c: r.code }) }, countryName(r.code)),
+    el("span", { class: "val" }, fmtInt(r.n)),
+    sparkline(r.share, { width: 140, height: 22, gaps: true, label: t("countries.pulse.spark", { country: countryName(r.code) }) }),
+    change(r.n, r.prev)))));
+}
+
+/** Countries × framings: of the articles naming a country, the share counted under each framing. A cell links to
+ * those articles in the archive. Below the minimum number of shared articles the share is shown dimmed and no lift
+ * is given. All languages; completed days only. */
+function drawCountryFraming(box, data, codes) {
+  const cf = data.framing;
+  if (!cf) { box.replaceChildren(el("p", { class: "empty" }, t("countries.cf.none"))); return null; }
+  const cells = cf.cells || {};
+  const colTotals = new Map();
+  for (const code of codes) for (const [id, [k]] of Object.entries(cells[code] || {})) colTotals.set(id, (colTotals.get(id) || 0) + k);
+  const cols = [...colTotals.entries()].filter(([id]) => narrative(id)).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([id]) => id);
+  if (!cols.length) { box.replaceChildren(el("p", { class: "empty" }, t("countries.cf.none"))); return null; }
+  const share = (code, id) => { const nc = cf.countries[code]; const k = cells[code]?.[id]?.[0] || 0; return nc ? k / nc : null; };
+  const max = Math.max(1e-9, ...codes.flatMap((code) => cols.map((id) => share(code, id) ?? 0)));
+  const text = (code, id) => {
+    const v = share(code, id);
+    return v === null ? "—" : pctOf(v);
+  };
+  const head = el("tr", {}, el("th", { scope: "col" }, t("countries.country")),
+    cols.map((id) => el("th", { scope: "col" }, el("a", { href: `narratives.html#${id}` }, tl(narrative(id).label)))));
+  const body = codes.map((code) => {
+    const nc = cf.countries[code] || 0;
+    return el("tr", {}, el("th", { scope: "row" }, countryName(code), el("small", {}, ` ${fmtInt(nc)}`)),
+      cols.map((id) => {
+        const [k = 0, lift = null] = cells[code]?.[id] || [];
+        const v = share(code, id);
+        if (v === null) return el("td", { class: "cf-cell none", title: t("countries.cf.nothing", { country: countryName(code) }) }, "—");
+        const few = k < cf.min;
+        const step = v ? Math.max(1, Math.ceil((v / max) * 6)) : 0;
+        const tip = t("countries.cf.tip", { k: fmtInt(k), n: fmtInt(nc), share: pctOf(v), country: countryName(code), framing: tl(narrative(id).label) }) +
+          (few ? ` ${t("countries.cf.few", { min: fmtInt(cf.min) })}` : lift !== null ? ` ${t("countries.cf.lift", { x: lift.toLocaleString(LOCALES[lang] || "en-GB") })}` : "");
+        const cell = k ? el("a", { href: searchLink(data, { c: code, k: id }), title: tip, "aria-label": tip }, pctOf(v)) : el("span", { title: tip }, pctOf(v));
+        return el("td", { class: `cf-cell${few ? " few" : ""}`, style: { background: `var(--seq-${step})`, color: step >= 4 ? "var(--ink-1)" : "" } }, cell);
+      }));
+  });
+  box.replaceChildren(el("div", { class: "cf-scroll" }, el("table", { class: "cf" }, el("thead", {}, head), el("tbody", {}, body))));
+  return { rows: codes, cols, text };
 }
 
 function drawMap(container, map, rows) {

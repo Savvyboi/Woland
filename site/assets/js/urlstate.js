@@ -29,6 +29,7 @@ export function archiveState(search, meta) {
     o: oneOf(p.get("o"), outlets, ""),
     l: oneOf(p.get("l"), ["ru", "en"], ""),
     k: oneOf(p.get("k"), narratives, ""),
+    c: /^[A-Za-z]{2}$/.test(p.get("c") || "") ? p.get("c").toUpperCase() : "",
     order: oneOf(p.get("order"), ["new", "old"], "new"),
   };
 }

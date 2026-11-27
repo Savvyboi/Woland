@@ -270,6 +270,12 @@ def test_analysis_counts_completed_days_only(built_site):
     countries = json.loads((folder / "countries" / "all.json").read_text(encoding="utf-8"))
     assert countries["countries"]["FI"]["n"] == 7 and countries["countries"]["FI"]["o"] == {"rt": 6, "tsargrad": 1}
     assert countries["countries"]["RU"]["n"] >= 6 and countries["names"]["FI"] == "Finland"
+    assert len(countries["day_totals"]) == 6 and all(countries["day_totals"])
+    assert countries["regions"]["nordic-baltic"] == ["FI", "SE", "NO", "DK", "IS", "EE", "LV", "LT"]
+    cf = countries["framing"]
+    assert cf["min"] == 5 and cf["n"] == sum(countries["day_totals"]) and cf["countries"]["FI"] == 7
+    for code, row in cf["cells"].items():                      # never more than the articles naming the country
+        assert all(0 < k <= cf["countries"][code] for k, _, _ in row.values())
     stories = json.loads((folder / "stories" / "all.json").read_text(encoding="utf-8"))
     assert stories["per_day"] == [0] * 6 and stories["min"] == 4     # two outlets: no story reaches four
     assert json.loads(gzip.decompress((folder / "stories" / "day" / "2026-09-03.json.gz").read_bytes())) == []
@@ -326,6 +332,17 @@ def test_feeds_for_framings_outlets_countries_and_saved_searches(built_site):
     assert listing["feeds"]["country"]["FI"] == 8 and listing["countries"]["FI"] == "Finland"
     assert {s["id"] for s in listing["searches"]} >= {"nato", "arctic"}
     assert (feeds_dir / "search" / "nato.xml").exists() and listing["feeds"]["search"]["nato"] == 0
+    nb = atom(feeds_dir / "region" / "nordic-baltic.xml")[1]     # Finland is the only Nordic or Baltic country here
+    assert len(nb) == len(fi) and listing["feeds"]["region"]["nordic-baltic"] == 8
+
+
+@needs_node
+def test_search_by_country(built_site):
+    """The archive's country filter (archive.html?c=FI): articles naming the country in the headline or lead."""
+    fi, fi_framed, nowhere = search(built_site, {"country": "FI"}, {"country": "FI", "narr": 0}, {"country": "IS"})
+    assert fi["total"] == 8 + 1                                  # RT on each of 1–8 September, Tsargrad once
+    assert all("Finland" in h["t"] or "Финск" in h["t"] for h in fi["hits"])
+    assert fi_framed["total"] <= fi["total"] and nowhere["total"] == 0
 
 
 def test_saved_searches_match_every_word_form():
@@ -406,17 +423,17 @@ def test_a_link_to_a_view_opens_it_with_only_the_filters_that_make_sense():
     url = (SITE / "assets" / "js" / "urlstate.js").as_uri()
     meta = {"start": "2026-09-01", "last": "2026-11-27", "outlets": [{"id": "ria"}, {"id": "tass"}],
             "narratives": [{"id": "kyiv-regime"}]}
-    cases = ["?q=%D0%9A%D0%B8%D0%B5%D0%B2&from=2026-10-01&to=2026-10-15&o=ria&l=ru&k=kyiv-regime&order=old",
+    cases = ["?q=%D0%9A%D0%B8%D0%B5%D0%B2&from=2026-10-01&to=2026-10-15&o=ria&l=ru&k=kyiv-regime&c=fi&order=old",
              "?from=2026-10-15&to=2026-10-01",                                   # swapped: put right
-             "?from=2026-02-30&to=yesterday&o=bbc&l=de&k=nope&order=random",     # all invalid: defaults
+             "?from=2026-02-30&to=yesterday&o=bbc&l=de&k=nope&c=FIN&order=random",     # all invalid: defaults
              "?from=2025-12-31&to=2027-01-01", ""]                               # outside the archive
     script = (f"const m = await import('{url}');\nconst meta = {json.dumps(meta)};\n"
               f"console.log(JSON.stringify({json.dumps(cases)}.map((c) => m.archiveState(c, meta))));")
     out = json.loads(subprocess.run([NODE, "--input-type=module", "-e", script], capture_output=True, text=True,
                                     encoding="utf-8", check=True).stdout)
-    empty = {"q": "", "from": "", "to": "", "o": "", "l": "", "k": "", "order": "new"}
+    empty = {"q": "", "from": "", "to": "", "o": "", "l": "", "k": "", "c": "", "order": "new"}
     assert out[0] == {"q": "Киев", "from": "2026-10-01", "to": "2026-10-15", "o": "ria", "l": "ru", "k": "kyiv-regime",
-                      "order": "old"}
+                      "c": "FI", "order": "old"}
     assert out[1] == {**empty, "from": "2026-10-01", "to": "2026-10-15"}
     assert out[2] == empty and out[3] == empty and out[4] == empty
 

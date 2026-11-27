@@ -83,6 +83,9 @@ export const outletAt = (i) => META.outlets[i];
 export const narrative = (id) => narrMap.get(id);
 export const narrativeAt = (i) => META.narratives[i];
 export const groupVar = (g) => `var(--g-${g})`;
+const regionNames = (() => { try { return new Intl.DisplayNames([lang], { type: "region" }); } catch (_) { return null; } })();
+/** A country's name in the reader's language, from its ISO code (config/countries.yaml). */
+export const countryName = (code) => { try { return regionNames?.of(code) || code; } catch (_) { return code; } };
 
 /** Days whose collection had not finished when the site was built (see woland/build.py). */
 export function isOpenDay(iso) {
