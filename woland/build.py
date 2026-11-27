@@ -35,10 +35,11 @@ from datetime import date, datetime, timedelta
 from datetime import time as dtime
 from pathlib import Path
 
-from . import analysis, feeds
+from . import analysis, divergence, feeds, sources
 from . import disarm as disarm_export
 from .config import CONFIG_DIR, ROOT, START_DATE, load_contexts, load_disarm, load_lexicon, load_outlets
 from .glossary import Glossary
+from . import prerender
 from .lexicon import Lexicon
 from .store import available_days, day_dir, load_coverage, load_runs, read_day
 from .textproc import STOP_EN, STOP_RU, headline_words, index_terms
@@ -46,7 +47,7 @@ from .util import MSK, iso_utc, normalize, parse_dt, today_msk, truncate
 
 log = logging.getLogger("woland.build")
 
-BUILD_VERSION = "8"
+BUILD_VERSION = "9"
 # A search downloads one index shard per month and one block per result it shows (20 at a time, mostly in
 # different blocks): with 256 shards and 25 documents a block, a search for "Finland" over September and
 # October 2026 needed ~160 KB of blocks instead of ~520 KB with 100, at four times as many files.
@@ -67,6 +68,7 @@ BRIEF_BASE_WEEKS = 4     # the weekly brief compares a week with the weeks befor
 BRIEF_MIN = 20           # articles a framing needs in a week to be listed as rising or falling
 BRIEF_SHOWN = 8          # items per list in the brief
 WINDOWS = {"7": 7, "30": 30, "all": None}   # the Analysis page's periods, in completed days
+SOURCES_SHOWN = 60   # citation flows listed per period
 VOICES_SHOWN = 60        # speakers listed per language and kind of speaker
 STORY_OUTLETS = 4        # a story counts when this many outlets publish it on the same day
 STORIES_SHOWN = 60       # stories listed per day
@@ -189,14 +191,31 @@ def delta_encode(nums: list[int]) -> list[int]:
     return out
 
 
+def utf16_spans(spans: list[list] | None, text: str) -> list[list]:
+    """Glossary spans ([start, end, the model's words], in code points) as the site counts: in UTF-16 units,
+    and only those wholly within `text` (which may be the translation cut short)."""
+    if not spans or not text:
+        return []
+    def u(i: int) -> int:
+        return i + sum(1 for c in text[:i] if ord(c) > 0xFFFF)
+    return [[u(a), u(b), raw] for a, b, raw in spans if b <= len(text)]
+
+
+def glossed(r: dict, te: str, se: str, nid: str | None) -> dict:
+    """An example's glossary spans: {"te": …, "se": …} (Builder.corrected)."""
+    g = r.get("_g") or {}
+    out = {"te": utf16_spans(g.get("te"), te), "se": utf16_spans((g.get("kbe") or {}).get(nid) if nid else None, se)}
+    return {k: v for k, v in out.items() if v}
+
+
 class DayDocs:
     """A day's search documents, collected for MonthIndex.add in their order."""
 
     def __init__(self):
-        self.items: list[tuple[list, int, list]] = []
+        self.items: list[tuple[list, int, list, list]] = []
 
-    def add(self, doc: list, outlet_index: int, terms: list[tuple[str, str]]) -> None:
-        self.items.append((doc, outlet_index, terms))
+    def add(self, doc: list, outlet_index: int, terms: list[tuple[str, str]], countries=()) -> None:
+        self.items.append((doc, outlet_index, terms, list(countries)))
 
 
 _WORKER: "Builder | None" = None   # the builder, as the forked worker processes inherit it
@@ -216,8 +235,9 @@ class MonthIndex:
         self.postings: dict[str, list[int]] = defaultdict(list)
         self.forms: dict[str, str] = {}
         self.narr: dict[int, list[int]] = defaultdict(list)
+        self.ctry: dict[str, list[int]] = defaultdict(list)
 
-    def add(self, doc: list, outlet_index: int, terms: list[tuple[str, str]]) -> None:
+    def add(self, doc: list, outlet_index: int, terms: list[tuple[str, str]], countries=()) -> None:
         i = len(self.docs)
         self.docs.append(doc)
         self.codes.append(CODES[outlet_index])
@@ -229,6 +249,8 @@ class MonthIndex:
                 p.append(i)
         for k in doc[6]:
             self.narr[k].append(i)
+        for c in countries:
+            self.ctry[c].append(i)
 
     def write(self, sdir: Path) -> None:
         for b in range(0, len(self.docs), BLOCK):
@@ -241,6 +263,7 @@ class MonthIndex:
         for b, shard in enumerate(shards):
             dump_gz(sdir / "i" / f"{b}.json.gz", shard)
         dump_gz(sdir / "k.json.gz", {str(k): delta_encode(v) for k, v in self.narr.items()})
+        dump_gz(sdir / "c.json.gz", {c: delta_encode(v) for c, v in self.ctry.items()})
         dump_gz(sdir / "m.json.gz", {"n": len(self.docs), "days": self.day_starts, "o": "".join(self.codes)})
 
 
@@ -293,17 +316,29 @@ class Builder:
         return ks, snippets
 
     def corrected(self, rec: dict) -> dict:
-        """The record with its machine translations run through the glossary (config/glossary.yaml)."""
-        fixed = {}
+        """The record with its machine translations run through the glossary (config/glossary.yaml). Where the
+        glossary changed words, `_g` says where and what the model wrote ({"te"|"de": spans, "kbe": {id: spans}}),
+        for the site to mark them."""
+        fixed, where = {}, {}
         for field, src in (("te", "t"), ("de", "d")):
             if rec.get(field):
-                en = self.glossary.fix(rec.get(src, ""), rec[field])
+                en, spans = self.glossary.fix_spans(rec.get(src, ""), rec[field])
                 if en != rec[field]:
                     fixed[field] = en
+                if spans:
+                    where[field] = spans
         if rec.get("kbe"):
-            kbe = {nid: self.glossary.fix((rec.get("kb") or {}).get(nid, ""), en) for nid, en in rec["kbe"].items()}
+            kbe, kspans = {}, {}
+            for nid, en in rec["kbe"].items():
+                kbe[nid], spans = self.glossary.fix_spans((rec.get("kb") or {}).get(nid, ""), en)
+                if spans:
+                    kspans[nid] = spans
             if kbe != rec["kbe"]:
                 fixed["kbe"] = kbe
+            if kspans:
+                where["kbe"] = kspans
+        if where:
+            fixed["_g"] = where
         return {**rec, **fixed} if fixed else rec
 
     # ── months ────────────────────────────────────────────────────────────────
@@ -312,9 +347,9 @@ class Builder:
         if not hasattr(self, "_code_key"):
             h = hashlib.sha1(f"{BUILD_VERSION}|{self.lex_fp}|{self.glossary.fingerprint()}|"
                              f"{[(o.id, o.machine) for o in self.outlets]}|{sorted(self.techs.items())}".encode())
-            for src in ("build.py", "lexicon.py", "textproc.py", "glossary.py", "analysis.py", "feeds.py"):  # code too
+            for src in ("build.py", "lexicon.py", "textproc.py", "glossary.py", "analysis.py", "feeds.py", "sources.py"):  # code too
                 h.update((Path(__file__).parent / src).read_bytes())
-            for cfg in ("countries.yaml", "feeds.yaml"):
+            for cfg in ("countries.yaml", "feeds.yaml", "speakers.yaml", "outlets.yaml"):
                 if (CONFIG_DIR / cfg).exists():
                     h.update((CONFIG_DIR / cfg).read_bytes())
             self._code_key = h.hexdigest()
@@ -402,8 +437,8 @@ class Builder:
         for d in days:
             res = results.pop(d)
             idx.day_starts.append([d.isoformat(), len(idx.docs)])
-            for doc, oi, terms in res["docs"]:
-                idx.add(doc, oi, terms)
+            for doc, oi, terms, countries in res["docs"]:
+                idx.add(doc, oi, terms, countries)
             summary[d.isoformat()] = res["summary"]
             if d in self.recent:
                 dump_gz(cdir / "feed" / f"{d.isoformat()}.json.gz", res["feed"])
@@ -440,15 +475,18 @@ class Builder:
         examples = defaultdict(list)
         voices = {"ru": {}, "en": {}}
         countries = defaultdict(Counter)
+        cf = defaultdict(Counter)   # country → framing → articles naming the one and counted under the other
         tags, sections = defaultdict(Counter), defaultdict(Counter)
+        src, cite, cname = defaultdict(Counter), defaultdict(Counter), {}   # who is cited (woland/sources.py)
         gaz = analysis.gazetteer()
         for r in recs:
             o = r["o"]
             lang = self.olang.get(o, "ru")
+            codes = gaz.find(f'{r["t"]} {r.get("d", "")}', lang)
             if self.is_machine(r):  # searchable, marked, and counted apart from everything else
                 machine[o] += 1
                 ks, snips = self.narratives_of(r)
-                self.index_doc(idx, r, ks, snips, machine=True)
+                self.index_doc(idx, r, ks, snips, machine=True, countries=codes)
                 continue
             totals[o] += 1
             v = analysis.voice(r["t"], lang)
@@ -458,7 +496,12 @@ class Builder:
                                             {"y": {}, "f": {}, "o": {}, "v": {}, "ex": self.example(r, None)})
                 for field, val in (("y", kind), ("f", name), ("o", o), ("v", verb)):
                     e[field][val] = e[field].get(val, 0) + 1
-            codes = gaz.find(f'{r["t"]} {r.get("d", "")}', lang)
+                bucket, key = sources.classify(r["t"], name, kind)
+                if key != o:           # "ТАСС: …" in TASS is its own reporting, not a citation
+                    src[o][bucket] += 1
+                if key and key != o:
+                    cite[key][o] += 1
+                    cname[key] = name
             for code in codes:
                 countries[code][o] += 1
             for tag in r.get("g") or []:
@@ -473,8 +516,12 @@ class Builder:
                 dis[tid][o] += 1
             if any(self.narratives[k].family == "framing" for k in ks):
                 framed += 1
+            for code in codes:
+                for k in ks:
+                    if self.narratives[k].family == "framing":
+                        cf[code][self.narratives[k].id] += 1
             kbe = r.get("kbe") or {}
-            stems = self.index_doc(idx, r, ks, snips)
+            stems = self.index_doc(idx, r, ks, snips, countries=codes)
             if feed is not None:
                 feed.append(self.feed_item(r, ks, codes, stems))
             # rising words: in how many of the day's headlines each word (lemma) occurs, and which
@@ -493,7 +540,7 @@ class Builder:
             for k in ks:  # narrative examples
                 ex = examples[self.narratives[k].id]
                 if len(ex) < 40:
-                    ex.append(self.example(r, snips.get(k), kbe.get(self.narratives[k].id)))
+                    ex.append(self.example(r, snips.get(k), kbe.get(self.narratives[k].id), self.narratives[k].id))
         chosen = {}
         for nid, exs in examples.items():
             by_outlet, picked = set(), []
@@ -512,10 +559,13 @@ class Builder:
                 "df": {lang: dict(c) for lang, c in df.items()}, "forms": forms,
                 "examples": chosen, "stem_ex": stem_ex, "voices": voices,
                 "countries": {k: dict(v) for k, v in countries.items()},
+                "cf": {k: dict(v) for k, v in cf.items()},
                 "tags": {o: dict(c) for o, c in tags.items()}, "sections": {o: dict(c) for o, c in sections.items()},
+                "src": {o: dict(c) for o, c in src.items()}, "cite": {k: dict(c) for k, c in cite.items()}, "cname": cname,
                 "posts": {lang: {k: v for k, v in p.items() if len(v) >= RISING_MIN[lang]} for lang, p in posts.items()}}
 
-    def index_doc(self, idx: "MonthIndex", r: dict, ks: list[int], snips: dict[int, str], machine: bool = False):
+    def index_doc(self, idx: "MonthIndex", r: dict, ks: list[int], snips: dict[int, str], machine: bool = False,
+                  countries=()):
         """Add one record to the month's search index."""
         o = r["o"]
         ts = int(parse_dt(r["p"]).timestamp())
@@ -526,15 +576,27 @@ class Builder:
                self.headline_only(r), r.get("w", 0),
                # then, where there are any: the Internet Archive's copy that was read, the lead's
                # translation, the snippets' translations, and 1 for an item the outlet labels machine-written
-               r.get("ar", ""), truncate(r.get("de", ""), SEARCH_LEAD),
+               r.get("ar", ""), doc_de := truncate(r.get("de", ""), SEARCH_LEAD),
                {str(k): kbe[self.narratives[k].id] for k in snips if self.narratives[k].id in kbe},
-               int(machine)]
+               int(machine), self.glossed_doc(r, doc_de, snips)]
         while len(doc) > 13 and not doc[-1]:
             doc.pop()
         text = " ".join(x for x in (r["t"], lead, r.get("te", ""), r.get("de", "")) if x)
         terms = index_terms(text)
-        idx.add(doc, self.oidx[o], terms)
+        idx.add(doc, self.oidx[o], terms, countries)
         return {st for _, st in terms}
+
+    def glossed_doc(self, r: dict, de: str, snips: dict[int, str]) -> dict:
+        """Where the glossary changed the translations a search document carries: {"te"|"de": spans,
+        "s": {narrative index: spans}} (glossed)."""
+        if not r.get("_g"):
+            return {}
+        out = {f: sp for f, text in (("te", r.get("te", "")), ("de", de)) if (sp := utf16_spans(r["_g"].get(f), text))}
+        s = {str(k): sp for k in snips
+             if (sp := utf16_spans((r["_g"].get("kbe") or {}).get(self.narratives[k].id), (r.get("kbe") or {}).get(self.narratives[k].id, "")))}
+        if s:
+            out["s"] = s
+        return out
 
     def feed_item(self, r: dict, ks: list[int], codes, stems: set[str]) -> dict:
         """What the feeds need of one article: its text, and which framings, countries and saved searches it is in."""
@@ -548,7 +610,7 @@ class Builder:
         """1 for an outlet whose pages Woland reads, when this article's page has not been read (yet)."""
         return int(r.get("via") == "feed" and self.ofetch.get(r["o"], False))
 
-    def example(self, r: dict, snippet: str | None, snippet_en: str | None = None) -> dict:
+    def example(self, r: dict, snippet: str | None, snippet_en: str | None = None, nid: str | None = None) -> dict:
         ex = {"o": r["o"], "t": r["t"], "u": r["u"], "p": r["p"][11:16], "id": r["id"],
               "h": r.get("h", ""), "r": (r.get("r") or "")[:10], "w": r.get("w", 0)}
         if r.get("te"):
@@ -561,6 +623,9 @@ class Builder:
             ex["s"] = snippet
             if snippet_en:
                 ex["se"] = snippet_en
+        g = glossed(r, ex.get("te", ""), ex.get("se", ""), nid)
+        if g:
+            ex["g"] = g
         return ex
 
     def day_stories(self, recs: list[dict]) -> tuple[list[dict], dict]:
@@ -611,8 +676,43 @@ class Builder:
             dump(out / "stories" / f"{w}.json", {**head, **self.stories_of(sums)})
             dump(out / "countries" / f"{w}.json", {**head, **self.countries_of(sums, psums)})
             dump(out / "tags" / f"{w}.json", {**head, **self.tags_of(sums, psums)})
+            dump(out / "sources" / f"{w}.json", {**head, **self.sources_of(sums)})
+        # the same per calendar month, for downloading (data/source_laundering.json)
+        months = defaultdict(list)
+        for d in done:
+            months[d.isoformat()[:7]].append(self._summary_for(d))
+        dump(self.out / "data" / "source_laundering.json",
+             {"months": {m: self.sources_of(ss) for m, ss in sorted(months.items())}, "through": through})
         dump(out / "verbs.json", {"kinds": analysis.KINDS, "verbs": dict(sorted(
             {analysis.VERB_BASE[f]: k for f, k in analysis.VERB_KIND.items()}.items()))})
+
+    def sources_of(self, sums: list[dict]) -> dict:
+        """Who is cited (woland/sources.py): per outlet, its headlines' speakers by bucket and the share left
+        unnamed; the citation flows, source → citing outlet, the largest first, and every fringe-to-wire one."""
+        by = defaultdict(Counter)
+        flows: Counter = Counter()
+        names: dict[str, str] = {}
+        for s in sums:
+            for o, c in (s.get("src") or {}).items():
+                by[o].update(c)
+            for key, c in (s.get("cite") or {}).items():
+                for o, n in c.items():
+                    flows[(key, o)] += n
+            names.update(s.get("cname") or {})
+        outlets = {}
+        for o, c in by.items():
+            n = sum(c.values())
+            outlets[o] = {"n": n, "b": {b: c.get(b, 0) for b in sources.BUCKETS},
+                          "anon": round(c.get("anonymous_expert", 0) / n, 4) if n else None}
+        sp = sources.speakers()
+        own = set(self.oidx)
+        edge = lambda k, o, n: {"s": k, "name": names.get(k, k), "own": k if k in own else None, "o": o, "n": n,  # noqa: E731
+                                "fringe": sources.is_fringe_to_state(k, o, sp)}
+        ranked = sorted(flows.items(), key=lambda x: (-x[1], x[0]))
+        return {"buckets": sources.BUCKETS, "outlets": outlets, "state": sorted(sp.wires),
+                "edges": [edge(k, o, n) for (k, o), n in ranked[:SOURCES_SHOWN]],
+                "fringe": [edge(k, o, n) for (k, o), n in ranked if sources.is_fringe_to_state(k, o, sp)],
+                "sources": len({k for k, _ in flows})}
 
     def voices_of(self, sums: list[dict]) -> dict:
         out, kinds = {}, {}
@@ -637,7 +737,7 @@ class Builder:
                 for n, key, a in sorted(items, key=lambda x: (-x[0], x[1]))[:VOICES_SHOWN]:
                     rows.append({"k": key, "name": a["f"].most_common(1)[0][0], "y": kind, "n": n,
                                  "o": dict(a["o"].most_common(8)), "v": dict(a["v"].most_common(6)), "d": a["d"],
-                                 "ex": {**{k: v for k, v in a["ex"].items() if k in ("o", "t", "te", "u", "p", "id", "h", "r", "w", "ar", "f")},
+                                 "ex": {**{k: v for k, v in a["ex"].items() if k in ("o", "t", "te", "u", "p", "id", "h", "r", "w", "ar", "f", "g")},
                                         "d": self._day_of(sums, a["exd"])}})
             rows.sort(key=lambda r: -r["n"])
             out[lang] = rows
@@ -690,9 +790,14 @@ class Builder:
                 if code in agg:
                     agg[code]["prev"] += sum(by.values())
         names = analysis.gazetteer().names
+        framings = {n.id for n in self.narratives if n.family == "framing"}
         return {"countries": {code: {"n": sum(a["d"]), "o": dict(a["o"]), "d": a["d"],
                                      "prev": a["prev"] if psums else None} for code, a in agg.items()},
-                "names": {code: names[code] for code in agg if code in names}}
+                "names": {code: names[code] for code in agg if code in names},
+                # all articles of each day, for shares; and countries crossed with framings
+                "day_totals": [sum((s.get("totals") or {}).values()) for s in sums],
+                "framing": analysis.country_framing(sums, psums, framings),
+                "regions": {"nordic-baltic": list(analysis.NORDIC_BALTIC)}}
 
     def tags_of(self, sums: list[dict], psums: list[dict]) -> dict:
         def gather(ss, field):
@@ -853,11 +958,20 @@ class Builder:
         self.write_examples(days)
         self.write_analysis(days)
         self.write_brief(days)
+        self.write_rewrites(days)
         self.write_feeds(days)
         self.write_exports(days)
         self.write_meta(days, month_list[-SEARCH_MONTHS:], cov)
+        self.prerender(days)
         self.prune_day_cache(month_list)
         log.info("site built in %.1fs → %s", time.monotonic() - t0, self.out)
+
+    def write_rewrites(self, days: list[date]):
+        """data/analysis/rewrites.json: headlines rewritten after publication, over the last weeks (rewrites.py)."""
+        from . import rewrites
+        dump(self.out / "data" / "analysis" / "rewrites.json",
+             rewrites.gather(days[-rewrites.DAYS:], [o.id for o in self.outlets], self.is_machine, self.glossary.fix,
+                             self.complete_through(days), frozenset(self.omachine)))
 
     # ── the weekly brief ──────────────────────────────────────────────────────
     def weeks(self, days: list[date]) -> list[list[date]]:
@@ -879,16 +993,22 @@ class Builder:
         was not collected. Built from the same day summaries, digests and stories as the other pages."""
         weeks = self.weeks(days)
         out = self.out / "data" / "brief"
-        index, entries = [], []
+        index, entries, trend = [], [], []
         for i, wdays in enumerate(weeks):
             base_days = [d for w in weeks[max(0, i - BRIEF_BASE_WEEKS):i] for d in w]
             prev_days = weeks[i - 1] if i else []
             b = self.brief(wdays, prev_days, base_days, days)
             dump(out / f"{b['week']}.json", b)
             index.append({"week": b["week"], "from": b["from"], "to": b["to"]})
+            ab = b["abroad"]
+            trend.append({"week": b["week"], "from": b["from"], "to": b["to"], "jsd": ab["jsd"], "n": ab["n"],
+                          "framed": ab["framed"], "outlets": {k: len(v) for k, v in ab["outlets"].items()}})
             entries.append(b)
         index.reverse()
         dump(out / "index.json", index)
+        # the weekly divergence between the domestic and the foreign-facing outlets, oldest week first
+        dump(self.out / "data" / "divergence.json", {"weeks": trend, "gap_min": divergence.GAP_MIN,
+                                                     "gap_ratio": divergence.GAP_RATIO})
         updated = iso_utc()
         feed_entries = [feeds.text_entry(f"urn:woland:brief:{b['week']}",
                                          f"The week in the Russian state press, {b['from']} – {b['to']}",
@@ -971,7 +1091,18 @@ class Builder:
             "rising": rising, "falling": falling, "top": top,
             "events": events[:BRIEF_SHOWN + 4], "stories": stories[:BRIEF_SHOWN], "speakers": speakers,
             "countries": countries[:BRIEF_SHOWN], "countries_rose": rose[:BRIEF_SHOWN // 2], "gaps": gaps,
+            "abroad": self.abroad(sums, wdays, days),
         }
+
+    def abroad(self, sums: list[dict], wdays: list[date], days: list[date]) -> dict:
+        """At home and abroad (woland/divergence.py): the outlets writing for Russian readers against those
+        writing for readers abroad, over the outlets collected on every day of the week."""
+        idx = {d: i for i, d in enumerate(days)}
+        complete = divergence.complete_outlets(getattr(self, "_cov_codes", {}), idx, wdays)
+        audience = {o.id: o.audience for o in self.outlets}
+        framings = {n.id for n in self.narratives if n.family == "framing"}
+        topics = {n.id for n in self.narratives if n.family == "topic"}
+        return divergence.week(sums, audience, complete, framings, topics)
 
     def brief_text(self, b: dict) -> str:
         """The weekly brief as plain text, for the feed."""
@@ -1025,7 +1156,8 @@ class Builder:
         counts: dict[tuple[str, str], int] = Counter()
         for it in items:
             keys = [("outlet", it["o"])] + [("framing", k) for k in it.get("k", [])] + \
-                   [("country", c) for c in it.get("c", [])] + [("search", q) for q in it.get("q", [])]
+                   [("country", c) for c in it.get("c", [])] + [("search", q) for q in it.get("q", [])] + \
+                   ([("region", "nordic-baltic")] if set(it.get("c", [])) & set(analysis.NORDIC_BALTIC) else [])
             for key in keys:
                 counts[key] += 1
                 if len(buckets[key]) < FEED_ENTRIES:
@@ -1037,12 +1169,13 @@ class Builder:
         sfirst = {s.id: s.any[0][0] for s in self.searches}
         updated = iso_utc()
         span = f"{recent[0].isoformat()} – {recent[-1].isoformat()}" if recent else ""
-        listing: dict[str, dict] = {"outlet": {}, "framing": {}, "country": {}, "search": {}}
+        listing: dict[str, dict] = {"outlet": {}, "framing": {}, "country": {}, "search": {}, "region": {}}
         targets = (
             [("outlet", o.id, f"outlet: {o.name}", f"outlets.html#{o.id}") for o in self.outlets if o.enabled] +
             [("framing", n.id, f"{n.family}: {nlabel[n.id]}", f"narratives.html#{n.id}") for n in self.narratives] +
-            [("country", c, f"country: {cname.get(c, c)}", f"archive.html?q={cname.get(c, c)}")
+            [("country", c, f"country: {cname.get(c, c)}", f"archive.html?c={c}")
              for (kind, c) in sorted(counts) if kind == "country"] +
+            [("region", "nordic-baltic", "the Nordic and Baltic countries (NB8)", "analysis.html?cr=nordic-baltic#countries")] +
             [("search", s.id, f"saved search: {slabel[s.id]}", f"archive.html?q={sfirst[s.id]}") for s in self.searches])
         for kind, key, title, page in targets:
             path = f"feeds/{kind}/{key}.xml"
@@ -1058,6 +1191,36 @@ class Builder:
             "searches": [{"id": s.id, "label": s.label} for s in self.searches],
             "countries": {c: cname.get(c, c) for c in listing["country"]}})
 
+    def prerender(self, days: list[date]) -> None:
+        """The Today page's summary of the day it opens on, for readers and robots without JavaScript and for
+        link previews (woland/prerender.py)."""
+        if not days:
+            return
+        through = self.complete_through(days)
+        day = through if through and through >= days[0].isoformat() else days[-1].isoformat()
+        path = self.out / "data" / "days" / f"{day}.json"
+        if not path.exists():
+            return
+        with open(path, encoding="utf-8") as fh:
+            dg = json.load(fh)
+        ex_path = path.with_suffix(".ex.json")
+        examples = json.loads(ex_path.read_text(encoding="utf-8")) if ex_path.exists() else {}
+        # outlets not collected that day (coverage code m: not "collected and empty"), as the page names them
+        codes = getattr(self, "_cov_codes", {}) or {}
+        i = [d.isoformat() for d in days].index(day)
+        missing = [o.name for o in self.outlets if o.enabled and not dg["totals"].get(o.id)
+                   and (codes.get(o.id) or "m" * len(days))[i:i + 1] in ("m", "")]
+        story_path = self.out / "data" / "analysis" / "stories" / "day" / f"{day}.json.gz"
+        stories = json.loads(gzip.decompress(story_path.read_bytes())) if story_path.exists() else []
+        x = prerender.summary(dg, day, open_day=bool(through) and day > through,
+                              labels={n.id: n.label["en"] for n in self.narratives},
+                              families={n.id: n.family for n in self.narratives},
+                              outlets={o.id: o.name for o in self.outlets},
+                              s=prerender.en_strings(ROOT / "site" / "assets" / "js" / "i18n.js"), examples=examples,
+                              enabled=sum(o.enabled for o in self.outlets), missing=missing,
+                              story=stories[0] if stories else None)
+        prerender.apply_today(self.out / "index.html", x, self.base_url)
+
     def copy_site(self):
         """Copy site/ to the output, expanding <!-- include:name --> from site/partials/."""
         src = ROOT / "site"
@@ -1070,6 +1233,7 @@ class Builder:
             for name, body in partials.items():
                 html = html.replace(f"<!-- include:{name} -->", body.strip())
             html = html.replace("</head>", preload_links(page.name, html, src) + "</head>", 1)
+            html = prerender.page_tags(html, page.name, self.base_url)
             page.write_text(html, encoding="utf-8", newline="\n")
         (self.out / ".nojekyll").write_text("")
 

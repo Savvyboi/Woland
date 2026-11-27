@@ -20,6 +20,10 @@ log = logging.getLogger("woland.translate")
 
 MODEL_URL = os.environ.get("WOLAND_MT_URL", "https://argos-net.com/v1/translate-ru_en-1_9.argosmodel")
 MODEL_NAME = "translate-ru_en-1_9"
+# Stored with every record a translation is added to (`mt`), so that the translations of one model can be found
+# and redone later. Records translated before 27 November 2026 have no `mt`: as far as the repository's history
+# shows, they were all translated by this same model.
+MT_VERSION = os.environ.get("WOLAND_MT_VERSION", "argos-ru_en-1.9")
 MODEL_HOME = Path(os.environ.get("WOLAND_MODELS", Path.home() / ".cache" / "woland" / "models"))
 
 

@@ -15,9 +15,10 @@ from .config import START_DATE, Outlet, load_lexicon, load_outlets
 from .discover import Candidate, discover, parse_sitemap
 from .extract import clean_lead, clean_title, extract, first_paragraph, published_from_url
 from .lexicon import Lexicon
-from .store import (append_run, drop_urls, fill_day, headline_only, known_urls, load_coverage, load_runs,
+from .store import (LISTINGS, append_run, drop_urls, fill_day, headline_only, known_urls, listing_baseline,
+                    load_coverage, load_runs, revise_day,
                     load_seen, merge_day, read_day, save_coverage, save_seen)
-from .translate import get_translator
+from .translate import MT_VERSION, get_translator
 from .util import (MSK, canonical_url, daterange, fingerprint, iso_msk, iso_utc, msk_day, now_utc, parse_dt,
                    short_hash, today_msk, truncate)
 
@@ -37,7 +38,9 @@ class OutletRun:
     found_by_day: Counter = field(default_factory=Counter)
     published_by_day: dict = field(default_factory=dict)
     rejected: dict = field(default_factory=dict)
+    sightings: list = field(default_factory=list)  # stored articles' headlines as listings show them now
     aborted: str = ""
+    rolled_over: list = field(default_factory=list)  # feeds that held nothing already stored (see rolled_over)
     seconds: float = 0.0
     requests: int = 0
 
@@ -180,6 +183,27 @@ def _fetch_page(o: Outlet, c: Candidate, fetchers: list, local: threading.local)
     return (info, None, r.status, None) if info else (None, "unparsable", r.status, None)
 
 
+# A feed with at least this many articles of the range, none of them stored before, may have rolled over.
+ROLLOVER_MIN = 5
+
+
+def rolled_over(cands: list, known, start: date, end: date) -> list[str]:
+    """Feeds of a polled outlet none of whose articles of the range were stored before: the feed may have
+    moved on past articles published since it was last read, which are then lost (the build's `gaps` show
+    the hours lost afterwards; this says so at the time). Only meaningful when the outlet has stored articles."""
+    if not known:
+        return []
+    tally: dict[str, list[int]] = {}
+    for c in cands:
+        if not (c.hint and start <= msk_day(c.hint) <= end):
+            continue
+        for feed in c.feeds:
+            n = tally.setdefault(feed, [0, 0])
+            n[0] += 1
+            n[1] += c.url in known
+    return sorted(f for f, (n, old) in tally.items() if n >= ROLLOVER_MIN and not old)
+
+
 def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict, rejected_before: dict, *,
                    feeds_only: bool = False, backfill: bool = False, limit: int | None = None,
                    budget: Budget | None = None, sink=None, flush_every: int = 300,
@@ -214,6 +238,8 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict,
     todo, upgrades, urls = [], [], set()
     unread = []  # new candidates whose pages were refused or not reached
     refresh = []  # feed-only outlets: stored articles the feed describes again (to fill in what they lack)
+    recent = (today_d - timedelta(days=REVISE_DAYS)).isoformat()
+    seen_at = iso_utc()
     for c in cands:
         c.url = canonical_url(c.url)
         if c.url.startswith("http://") and o.home.startswith("https://"):
@@ -232,6 +258,11 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict,
                 upgrades.append(c)  # stored from a listing only: try the page again
             else:
                 run.stats["known"] += 1
+                filed = dict.get(known, c.url) if isinstance(known, dict) else None
+                if filed and filed[1] >= recent and c.title and c.via in LISTINGS:
+                    # its headline as the listing shows it now: compared for rewrites (store.revise_day)
+                    run.sightings.append({"u": c.url, "_rev": filed[1], "via": c.via, "t": clean_title(c.title),
+                                          "at": seen_at})
                 # (dict.get: the records of the days looked at, not the whole URL index)
                 if not o.fetch and isinstance(known, dict) and dict.get(known, c.url) and (c.body or c.lead):
                     refresh.append(c)
@@ -239,6 +270,8 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict,
             run.stats["skipped"] += 1
         else:
             todo.append(c)
+    if o.poll:
+        run.rolled_over = rolled_over(cands, known, start, end)
     if o.fetch and not feeds_only:
         for r in retry:  # headline-only records no listing announced this time
             if r["u"] not in urls and r["u"] in known and r["u"] not in rejected_before:
@@ -303,6 +336,10 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict,
                 run.stats["incomplete"] += 1
                 continue
             rec, body = built
+            if c.title:
+                ls = listing_baseline(rec, c.via, clean_title(c.title))
+                if ls:
+                    rec["ls"] = ls
             day = date.fromisoformat(rec["p"][:10])
             if not START_DATE <= day <= today_d:
                 run.rejected[c.url] = today
@@ -355,6 +392,8 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict,
             run.stats["listed"] += 1
     if sink and pending:
         sink(pending[:])
+    if sink and run.sightings:
+        sink(run.sightings)
 
     if o.coverage_sitemap and not feeds_only:
         r = fetcher.get(o.coverage_sitemap)
@@ -373,7 +412,8 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict,
 
 def translate_records(records: list[dict]) -> int:
     """Add the English machine translations Russian records lack: of the headline (te), the lead (de) and
-    the snippets of body matches (kbe, by framing). Returns how many records gained one."""
+    the snippets of body matches (kbe, by framing), and which model made them (mt). Returns how many records
+    gained one."""
     jobs = []  # (record, field, framing or None, the Russian)
     for r in records:
         if r.get("t") and not r.get("te"):
@@ -396,6 +436,7 @@ def translate_records(records: list[dict]) -> int:
             r[field] = en
         else:
             r.setdefault("kbe", {})[nid] = en
+        r["mt"] = MT_VERSION
         changed.add(id(r))
     return len(changed)
 
@@ -406,6 +447,7 @@ def _day_complete(day: date, run_started_msk: datetime) -> bool:
 
 
 KNOWN_DAYS = 45  # how far back already-stored URLs are looked up
+REVISE_DAYS = 7  # how far back stored headlines are compared with what the listings show now
 
 # Every night the last WINDOW + 1 days are looked at again. Discovery is cheap (articles already stored
 # are skipped), and several sources only list an article a day or two after it appeared.
@@ -465,6 +507,15 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
     translated: Counter = Counter()
     filled: Counter = Counter()  # stored records completed from a feed that describes them better now
     tr_lock = threading.Lock()  # one translation model, shared by the outlets' threads
+    rewritten: Counter = Counter()  # headlines rewritten since they were stored (store.revise_day)
+
+    def english(texts: list[str]) -> list[str] | None:
+        """The rewrites' translations, unless translation is off or its time is spent."""
+        if not translate or budget.exceeded():
+            return None
+        with tr_lock:
+            tr = get_translator()
+            return tr.translate(texts) if tr else None
     touched: dict[str, set[str]] = {}  # outlet → days whose files this run changed (some outside its range)
 
     def sink_for(o: Outlet):
@@ -474,13 +525,17 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
             # by `woland translate` too.)
             if translate and o.lang == "ru" and not budget.exceeded():
                 with tr_lock:
-                    translated[o.id] += translate_records([r for r in records if "_fill" not in r])
+                    translated[o.id] += translate_records([r for r in records if "_fill" not in r and "_rev" not in r])
             if dry_run:
                 return
             by_day: dict[str, list] = {}
             moved: dict[str, set] = {}
             fills: dict[str, list] = {}
+            revs: dict[str, list] = {}
             for r in records:
+                if "_rev" in r:  # a stored article's headline as a listing shows it now
+                    revs.setdefault(r.pop("_rev"), []).append(r)
+                    continue
                 if "_fill" in r:  # a stored article described again by a feed
                     fills.setdefault(r.pop("_fill"), []).append(r)
                     continue
@@ -498,7 +553,13 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
                 if n:
                     filled[o.id] += n
                     filled_days.add(key)
-            touched.setdefault(o.id, set()).update(by_day, moved, filled_days)
+            revised_days = set()
+            for key, recs in revs.items():
+                added = revise_day(date.fromisoformat(key), o.id, recs, translate=english if o.lang == "ru" else None)
+                if added:
+                    rewritten[o.id] += len(added)
+                    revised_days.add(key)
+            touched.setdefault(o.id, set()).update(by_day, moved, filled_days, revised_days)
         return sink
 
     def job(o):
@@ -541,6 +602,13 @@ def run_collection(ranges: dict[str, tuple[date, date]], outlets: list[Outlet], 
             }
             if filled[o.id]:
                 summary["outlets"][o.id]["filled"] = filled[o.id]
+            if rewritten[o.id]:
+                summary["outlets"][o.id]["rewritten"] = rewritten[o.id]
+            if run.rolled_over:
+                summary["outlets"][o.id]["rolled_over"] = run.rolled_over
+                # (a line starting ::warning:: is shown as a warning on the run's page on GitHub)
+                print(f"::warning::{o.id}: nothing in {', '.join(run.rolled_over)} was stored before: "
+                      "the feed may have rolled over since it was last read, losing articles", flush=True)
             log.info("%-10s done: %d new, %d requests, %.0fs%s%s", o.id, new, run.requests,
                      run.seconds, f", errors: {run.errors}" if run.errors else "",
                      f", aborted: {run.aborted}" if run.aborted else "")

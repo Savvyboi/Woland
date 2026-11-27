@@ -475,3 +475,40 @@ def stories(recs: list[dict], langs: list[str]) -> list[list[int]]:
 @lru_cache(maxsize=1)
 def gazetteer() -> Gazetteer:
     return Gazetteer()
+
+
+# ── Countries × framings ──────────────────────────────────────────────────────
+NORDIC_BALTIC = ("FI", "SE", "NO", "DK", "IS", "EE", "LV", "LT")   # the Nordic-Baltic Eight (NB8)
+CF_MIN = 5   # articles a country and a framing must share before their association is worked out
+
+
+def country_framing(sums: list[dict], psums: list[dict], framings: set[str], min_support: int = CF_MIN) -> dict:
+    """How often articles naming a country are counted under a framing, over the days of `sums` (day summaries:
+    "totals", "countries", "nar", "cf"), and in the period before (`psums`, if any).
+
+    For each pair: [articles, lift, articles in the period before]. Lift is how many times more often the framing
+    occurs among articles naming the country than among all articles (1 = as often; above 1, more often):
+    n(c, f) · N / (n(c) · n(f)). It is None below `min_support` shared articles, where it says little. The
+    period before is None without one; a pair absent from `cells` occurred in no article (0)."""
+    def tally(ss):
+        n, nc, nf, ncf = 0, Counter(), Counter(), defaultdict(Counter)
+        for s in ss:
+            n += sum((s.get("totals") or {}).values())
+            for code, by in (s.get("countries") or {}).items():
+                nc[code] += sum(by.values())
+            for nid, by in (s.get("nar") or {}).items():
+                if nid in framings:
+                    nf[nid] += sum(by.values())
+            for code, by in (s.get("cf") or {}).items():
+                ncf[code].update(by)
+        return n, nc, nf, ncf
+    n, nc, nf, ncf = tally(sums)
+    prev = tally(psums)[3] if psums else None
+    cells = {}
+    for code, by in ncf.items():
+        row = {}
+        for nid, k in by.items():
+            lift = round(k * n / (nc[code] * nf[nid]), 2) if k >= min_support and nc[code] and nf[nid] else None
+            row[nid] = [k, lift, prev[code].get(nid, 0) if prev is not None else None]
+        cells[code] = row
+    return {"n": n, "countries": dict(nc), "framings": dict(nf), "cells": cells, "min": min_support}

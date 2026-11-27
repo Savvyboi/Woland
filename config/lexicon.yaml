@@ -4,7 +4,8 @@
 #         topic    = a neutral subject, tracked for context
 #
 # Patterns are matched case-insensitively against the headline, the lead and (where Woland can read it)
-# the full article text. Text is normalised first (lower case, ё → е).
+# the full article text. Text is normalised first (lower case, ё → е; soft hyphens, zero-width characters
+# and stress marks ignored, unusual spaces read as spaces).
 #   нацист*          a word starting with "нацист" (нацисты, нацистов, нацистский …)
 #   сво              exactly the word "сво"
 #   киевск* режим*   a phrase: two consecutive words

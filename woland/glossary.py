@@ -25,13 +25,38 @@ class Entry:
     def applies(self, ru: str) -> bool:
         return bool(self.ru.search(ru)) and not (self.not_ru and self.not_ru.search(ru))
 
+    def render(self, m: re.Match) -> str:
+        out = self.en
+        if m.group(0)[:1].isupper() and out[:1].islower():  # "Moon park" at the start → "Amusement park"
+            out = out[0].upper() + out[1:]
+        return out
+
     def fix(self, en: str) -> str:
-        def repl(m: re.Match) -> str:
-            out = self.en
-            if m.group(0)[:1].isupper() and out[:1].islower():  # "Moon park" at the start → "Amusement park"
-                out = out[0].upper() + out[1:]
-            return out
-        return self.wrong.sub(repl, en)
+        return self.wrong.sub(self.render, en)
+
+    def fix_spans(self, en: str, spans: list[list]) -> tuple[str, list[list]]:
+        """fix(), also returning where it put its words: [start, end, the model's words] in the result, with
+        the earlier `spans` (of the text before) moved to where their words are now."""
+        out, new, last, shift = [], [], 0, []   # shift: (position in en, change in length from there on)
+        for m in self.wrong.finditer(en):
+            rep = self.render(m)
+            if rep == m.group(0):
+                continue
+            out.append(en[last:m.start()])
+            start = sum(map(len, out))
+            out.append(rep)
+            new.append([start, start + len(rep), m.group(0)])
+            shift.append((m.start(), m.end(), len(rep) - len(m.group(0))))
+            last = m.end()
+        if not new:
+            return en, spans
+        out.append(en[last:])
+
+        def moved(x: int) -> int:
+            return x + sum(d for a, b, d in shift if b <= x)
+        kept = [[moved(a), moved(b), raw] for a, b, raw in spans
+                if not any(a < e and s < b for s, e, _ in shift)]   # (a span this one rewrote is its own now)
+        return "".join(out), sorted(kept + new)
 
 
 def load_glossary(path: Path | None = None) -> list[Entry]:
@@ -60,13 +85,17 @@ class Glossary:
 
     def fix(self, ru: str, en: str) -> str:
         """The translation `en` of the Russian text `ru`, corrected."""
+        return self.fix_spans(ru, en)[0]
+
+    def fix_spans(self, ru: str, en: str) -> tuple[str, list[list]]:
+        """fix(), with the corrected words: [start, end, the model's words], in code points of the result."""
         if not en:
-            return en
-        en = _FURNITURE.sub("", en)
+            return en, []
+        en, spans = _FURNITURE.sub("", en), []
         for e in self.entries:
             if e.applies(ru):
-                en = e.fix(en)
-        return en
+                en, spans = e.fix_spans(en, spans)
+        return en, spans
 
     def fingerprint(self) -> str:
         from .util import short_hash
