@@ -3,8 +3,10 @@
   collect   daily collection (rolling window + automatic catch-up back to the start date)
   poll      hourly read of short-lived feeds (TASS, Gazeta.ru, Zvezda, Kremlin)
   backfill  collect an explicit date range
+  recheck   ask again for a sample of the last week's pages, to notice articles taken down (vanish.py)
   translate add missing English translations (headlines, leads, snippets of body matches)
   build     build the static website into _site/
+  budget    how big the built site is, against GitHub Pages' 1 GB (fails above 920 MB)
   probe     try one outlet on one day and print what Woland would store
   check     can every outlet still be read? (discovery + a few article pages per outlet)
   mtcheck   what the translation glossary (config/glossary.yaml) corrects, and what it still misses
@@ -60,12 +62,22 @@ def main(argv=None):
     p.add_argument("start", type=date.fromisoformat)
     p.add_argument("end", type=date.fromisoformat, nargs="?")
     p.add_argument("--wayback", action="store_true", help="also ask the Internet Archive for URLs")
+    p = sub.add_parser("recheck")
+    p.add_argument("--outlets", help="comma-separated outlet ids (default: all enabled)")
+    p.add_argument("--sample", type=int, default=100, help="pages asked for again per outlet")
+    p.add_argument("--workers", type=int, default=24, help="outlets checked at the same time")
+    p.add_argument("--budget", type=float, help="stop after this many minutes")
+    p.add_argument("--dry-run", action="store_true", help="do not write anything")
     p = sub.add_parser("translate")
     p.add_argument("--days", type=int, default=7, help="look this many days back for missing translations")
     p.add_argument("--budget", type=float, help="stop after this many minutes")
     p = sub.add_parser("build")
     p.add_argument("--out", default="_site")
     p.add_argument("--base-url", default="", help="public URL of the site, for citations")
+    p = sub.add_parser("budget")
+    p.add_argument("site", nargs="?", default="_site")
+    p.add_argument("--warn", type=float, default=700, help="warn above this many MB")
+    p.add_argument("--fail", type=float, default=920, help="fail above this many MB")
     p = sub.add_parser("probe")
     p.add_argument("outlet")
     p.add_argument("--date", type=date.fromisoformat)
@@ -96,6 +108,9 @@ def main(argv=None):
     if a.cmd == "merge":
         from .merge import main as merge_main
         return merge_main(a.base, a.ours, a.theirs, a.path)
+    if a.cmd == "budget":
+        from .budget import main as budget_main
+        return budget_main(a.site, a.warn, a.fail)
     if (sys.stdout.encoding or "").lower().replace("-", "") != "utf8":
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Windows, when the output is piped
     logging.basicConfig(level=logging.DEBUG if a.verbose else logging.INFO,
@@ -124,6 +139,18 @@ def main(argv=None):
             flag = " ⚠ " + (v.get("aborted") or "; ".join(v.get("errors", [])) or v.get("error", "")) \
                 if (v.get("errors") or v.get("aborted") or v.get("error")) else ""
             print(f"  {oid:11} {v.get('new', 0):6} new{flag}")
+        return 0
+
+    if a.cmd == "recheck":
+        from .vanish import recheck
+        summary = recheck(_outlets(a.outlets), sample=a.sample, budget_minutes=a.budget, workers=a.workers,
+                          dry_run=a.dry_run)
+        print(f"recheck: {sum(v.get('gone', 0) for v in summary['outlets'].values())} pages gone "
+              f"in {summary['seconds']}s")
+        for oid, v in sorted(summary["outlets"].items()):
+            flag = f" ⚠ {v.get('stopped') or v.get('error')}" if v.get("stopped") or v.get("error") else ""
+            print(f"  {oid:11} {v.get('asked', 0):4} asked {v.get('missing', 0):3} missing once "
+                  f"{v.get('gone', 0):3} gone{flag}")
         return 0
 
     if a.cmd == "translate":

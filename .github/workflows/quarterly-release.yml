@@ -1,0 +1,94 @@
+name: Quarterly data release
+
+# On the 2nd of January, April, July and October: the quarter just over, packed for citation
+# (tools/quarterly_release.py) and published as a GitHub Release tagged data-YYYY-Q#. Once the maintainer has
+# switched on Zenodo's GitHub integration for this repository, Zenodo archives every published release with
+# a DOI (it archives the repository as it stands at the tag; the release's files are for GitHub readers).
+#
+# Run it by hand with "dry run" (the default for a manual run) to see the files without publishing anything:
+# they are kept as the run's artifact for a week.
+
+on:
+  schedule:
+    - cron: "40 6 2 1,4,7,10 *"   # 09:40 Moscow time, after the nightly collection of the quarter's last day
+  workflow_dispatch:
+    inputs:
+      quarter:
+        description: "YYYY-Q1 … YYYY-Q4 (empty: the quarter before today's)"
+        required: false
+        default: ""
+      dry_run:
+        description: "Only build the files (keep them as the run's artifact); publish nothing"
+        type: boolean
+        default: true
+      force:
+        description: "Release even if not every day of the quarter is collected in full"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # to create the release and its tag
+
+concurrency:
+  group: quarterly-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      # the built site gives the monthly Parquet snapshots and tells which days are complete
+      - name: Build cache
+        uses: actions/cache/restore@v6
+        with:
+          path: .cache/build
+          key: build-${{ github.run_id }}
+          restore-keys: build-
+
+      - run: python -m woland build --out _site
+
+      - name: Assemble the release
+        id: files
+        env:
+          QUARTER: ${{ inputs.quarter }}
+          FORCE: ${{ inputs.force && '--force' || '' }}
+        run: |
+          python tools/quarterly_release.py $QUARTER --site _site --out dist \
+            --repo "https://github.com/${{ github.repository }}" $FORCE | tee files.txt
+          echo "quarter=$(sed -n 's/^quarter=//p' files.txt)" >> "$GITHUB_OUTPUT"
+          { echo '### Files'; echo '```'; grep -v '^quarter=' files.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          (cd dist && sha256sum -c SHA256SUMS)
+
+      - name: Keep the files (dry run)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: woland-data-${{ steps.files.outputs.quarter }}
+          path: dist/
+          retention-days: 7
+
+      - name: Publish the release
+        if: ${{ github.event_name == 'schedule' || !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: data-${{ steps.files.outputs.quarter }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::$TAG is already released: a release is cited, so it is never replaced."
+            exit 1
+          fi
+          gh release create "$TAG" dist/*.tar.gz dist/*.parquet dist/*SHA256SUMS* \
+            --target "$(git rev-parse HEAD)" --title "Woland data, ${{ steps.files.outputs.quarter }}" \
+            --notes-file dist/RELEASE.md
