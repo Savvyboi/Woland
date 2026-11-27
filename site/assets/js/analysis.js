@@ -12,7 +12,7 @@ import { lang, LOCALES } from "./i18n.js";
 initChrome("analysis");
 const main = $("#analysis");
 const tabsNav = $("#tabs");
-const TABS = ["voices", "stories", "countries", "tags", "rewrites"];
+const TABS = ["voices", "sources", "stories", "countries", "tags", "rewrites"];
 const params = new URLSearchParams(location.search);
 const state = {
   w: ["7", "30", "all"].includes(params.get("r")) ? params.get("r") : "30",
@@ -423,6 +423,50 @@ function drawMap(container, map, rows) {
   container.replaceChildren(svg, scale, tip);
 }
 
+// ── Who is cited ────────────────────────────────────────────────────────────
+const BUCKET_COLOR = { named_official: "var(--k-inst)", named_other: "var(--k-person)", anonymous_expert: "var(--k-role)",
+  cited_outlet: "var(--k-media)" };
+const SOURCES_MIN = 20;   // headlines naming a speaker before an outlet's ratio is shown
+
+async function renderSources() {
+  const data = await getJSON(`analysis/sources/${state.w}.json`);
+  const B = data.buckets;
+  const rows = Object.entries(data.outlets).filter(([, v]) => v.n >= SOURCES_MIN)
+    .map(([o, v]) => ({ o, ...v })).sort((a, b) => b.anon - a.anon || b.n - a.n);
+  const kids = [
+    el("p", { class: "lede-small" }, t("sources.lede")),
+    el("div", { class: "filters" }, periodControl()),
+    periodNote(data),
+  ];
+  const c1 = el("div");
+  const p1 = plate("I", t("sources.ratio"), t("sources.ratio.sub", { min: fmtInt(SOURCES_MIN) }), c1);
+  const c2 = el("div");
+  const p2 = plate("II", t("sources.fringe"), t("sources.fringe.sub", { outlets: data.state.map((o) => outlet(o).name).join(", ") }), c2);
+  const c3 = el("div");
+  const p3 = plate("III", t("sources.flows"), t("sources.flows.sub", { n: fmtInt(data.sources || 0) }), c3);
+  kids.push(p1, el("div", { class: "section grid-2" }, p2, p3));
+  kids.push(el("p", { class: "syntax" }, t("sources.method"), " ", el("a", { href: "method.html#analysis" }, `${t("nav.method")} →`)));
+  main.replaceChildren(...kids);
+
+  c1.replaceChildren(rows.length ? el("ul", { class: "stack-list sources" }, rows.map((r) => el("li", {},
+    el("span", { class: "lab" }, el("span", { class: "swatch", style: { background: groupVar(outlet(r.o).group) }, "aria-hidden": "true" }), outlet(r.o).name),
+    stackBar(B.map((b) => ({ v: r.b[b] || 0, color: BUCKET_COLOR[b], label: t(`sources.b.${b}`) }))),
+    el("span", { class: "val", title: t("sources.of", { k: fmtInt(r.b.anonymous_expert), n: fmtInt(r.n) }) }, pctOf(r.anon))))) :
+    el("p", { class: "empty" }, t("sources.none")),
+  el("p", { class: "kind-legend" }, ...B.map((b) => el("span", {}, el("i", { style: { background: BUCKET_COLOR[b] }, "aria-hidden": "true" }), t(`sources.b.${b}`)))));
+  withTable(p1, c1, () => simpleTable([t("col.outlet"), ...B.map((b) => t(`sources.b.${b}`)), t("sources.attributed"), t("sources.anon")],
+    rows.map((r) => [outlet(r.o).name, ...B.map((b) => fmtInt(r.b[b] || 0)), fmtInt(r.n), pctOf(r.anon)])));
+
+  const srcName = (e) => (e.own ? outlet(e.own).name : e.name);
+  const flowList = (edges) => el("ol", { class: "brief-list flows" }, edges.map((e) => el("li", {},
+    el("a", { href: searchLink(data, { q: srcName(e), o: e.o }) }, `${srcName(e)} → ${outlet(e.o).name}`), " ",
+    el("small", {}, fmtInt(e.n)), e.fringe ? [" ", el("span", { class: "pill fringe", title: t("sources.fringe.mark.title") }, t("sources.fringe.mark"))] : null)));
+  c2.replaceChildren(data.fringe.length ? flowList(data.fringe) : el("p", { class: "empty" }, t("sources.fringe.none")));
+  c3.replaceChildren(data.edges.length ? flowList(data.edges.slice(0, 25)) : el("p", { class: "empty" }, t("sources.none")));
+  withTable(p3, c3, () => simpleTable([t("sources.source"), t("col.outlet"), t("unit.articles")],
+    data.edges.map((e) => [srcName(e), outlet(e.o).name, fmtInt(e.n)])));
+}
+
 // ── Tags ────────────────────────────────────────────────────────────────────
 async function renderTags() {
   const data = await getJSON(`analysis/tags/${state.w}.json`);
@@ -539,7 +583,7 @@ async function renderRewrites() {
 }
 
 // ── routing ─────────────────────────────────────────────────────────────────
-const RENDER = { voices: renderVoices, stories: renderStories, countries: renderCountries, tags: renderTags, rewrites: renderRewrites };
+const RENDER = { voices: renderVoices, sources: renderSources, stories: renderStories, countries: renderCountries, tags: renderTags, rewrites: renderRewrites };
 function route() {
   renderTabs();
   const k = tab();

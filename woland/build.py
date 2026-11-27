@@ -35,7 +35,7 @@ from datetime import date, datetime, timedelta
 from datetime import time as dtime
 from pathlib import Path
 
-from . import analysis, divergence, feeds
+from . import analysis, divergence, feeds, sources
 from .config import CONFIG_DIR, ROOT, START_DATE, load_contexts, load_lexicon, load_outlets
 from .glossary import Glossary
 from . import prerender
@@ -67,6 +67,7 @@ BRIEF_BASE_WEEKS = 4     # the weekly brief compares a week with the weeks befor
 BRIEF_MIN = 20           # articles a framing needs in a week to be listed as rising or falling
 BRIEF_SHOWN = 8          # items per list in the brief
 WINDOWS = {"7": 7, "30": 30, "all": None}   # the Analysis page's periods, in completed days
+SOURCES_SHOWN = 60   # citation flows listed per period
 VOICES_SHOWN = 60        # speakers listed per language and kind of speaker
 STORY_OUTLETS = 4        # a story counts when this many outlets publish it on the same day
 STORIES_SHOWN = 60       # stories listed per day
@@ -344,9 +345,9 @@ class Builder:
         if not hasattr(self, "_code_key"):
             h = hashlib.sha1(f"{BUILD_VERSION}|{self.lex_fp}|{self.glossary.fingerprint()}|"
                              f"{[(o.id, o.machine) for o in self.outlets]}".encode())
-            for src in ("build.py", "lexicon.py", "textproc.py", "glossary.py", "analysis.py", "feeds.py"):  # code too
+            for src in ("build.py", "lexicon.py", "textproc.py", "glossary.py", "analysis.py", "feeds.py", "sources.py"):  # code too
                 h.update((Path(__file__).parent / src).read_bytes())
-            for cfg in ("countries.yaml", "feeds.yaml"):
+            for cfg in ("countries.yaml", "feeds.yaml", "speakers.yaml", "outlets.yaml"):
                 if (CONFIG_DIR / cfg).exists():
                     h.update((CONFIG_DIR / cfg).read_bytes())
             self._code_key = h.hexdigest()
@@ -473,6 +474,7 @@ class Builder:
         countries = defaultdict(Counter)
         cf = defaultdict(Counter)   # country → framing → articles naming the one and counted under the other
         tags, sections = defaultdict(Counter), defaultdict(Counter)
+        src, cite, cname = defaultdict(Counter), defaultdict(Counter), {}   # who is cited (woland/sources.py)
         gaz = analysis.gazetteer()
         for r in recs:
             o = r["o"]
@@ -491,6 +493,12 @@ class Builder:
                                             {"y": {}, "f": {}, "o": {}, "v": {}, "ex": self.example(r, None)})
                 for field, val in (("y", kind), ("f", name), ("o", o), ("v", verb)):
                     e[field][val] = e[field].get(val, 0) + 1
+                bucket, key = sources.classify(r["t"], name, kind)
+                if key != o:           # "ТАСС: …" in TASS is its own reporting, not a citation
+                    src[o][bucket] += 1
+                if key and key != o:
+                    cite[key][o] += 1
+                    cname[key] = name
             for code in codes:
                 countries[code][o] += 1
             for tag in r.get("g") or []:
@@ -548,6 +556,7 @@ class Builder:
                 "countries": {k: dict(v) for k, v in countries.items()},
                 "cf": {k: dict(v) for k, v in cf.items()},
                 "tags": {o: dict(c) for o, c in tags.items()}, "sections": {o: dict(c) for o, c in sections.items()},
+                "src": {o: dict(c) for o, c in src.items()}, "cite": {k: dict(c) for k, c in cite.items()}, "cname": cname,
                 "posts": {lang: {k: v for k, v in p.items() if len(v) >= RISING_MIN[lang]} for lang, p in posts.items()}}
 
     def index_doc(self, idx: "MonthIndex", r: dict, ks: list[int], snips: dict[int, str], machine: bool = False,
@@ -662,8 +671,43 @@ class Builder:
             dump(out / "stories" / f"{w}.json", {**head, **self.stories_of(sums)})
             dump(out / "countries" / f"{w}.json", {**head, **self.countries_of(sums, psums)})
             dump(out / "tags" / f"{w}.json", {**head, **self.tags_of(sums, psums)})
+            dump(out / "sources" / f"{w}.json", {**head, **self.sources_of(sums)})
+        # the same per calendar month, for downloading (data/source_laundering.json)
+        months = defaultdict(list)
+        for d in done:
+            months[d.isoformat()[:7]].append(self._summary_for(d))
+        dump(self.out / "data" / "source_laundering.json",
+             {"months": {m: self.sources_of(ss) for m, ss in sorted(months.items())}, "through": through})
         dump(out / "verbs.json", {"kinds": analysis.KINDS, "verbs": dict(sorted(
             {analysis.VERB_BASE[f]: k for f, k in analysis.VERB_KIND.items()}.items()))})
+
+    def sources_of(self, sums: list[dict]) -> dict:
+        """Who is cited (woland/sources.py): per outlet, its headlines' speakers by bucket and the share left
+        unnamed; the citation flows, source → citing outlet, the largest first, and every fringe-to-wire one."""
+        by = defaultdict(Counter)
+        flows: Counter = Counter()
+        names: dict[str, str] = {}
+        for s in sums:
+            for o, c in (s.get("src") or {}).items():
+                by[o].update(c)
+            for key, c in (s.get("cite") or {}).items():
+                for o, n in c.items():
+                    flows[(key, o)] += n
+            names.update(s.get("cname") or {})
+        outlets = {}
+        for o, c in by.items():
+            n = sum(c.values())
+            outlets[o] = {"n": n, "b": {b: c.get(b, 0) for b in sources.BUCKETS},
+                          "anon": round(c.get("anonymous_expert", 0) / n, 4) if n else None}
+        sp = sources.speakers()
+        own = set(self.oidx)
+        edge = lambda k, o, n: {"s": k, "name": names.get(k, k), "own": k if k in own else None, "o": o, "n": n,  # noqa: E731
+                                "fringe": sources.is_fringe_to_state(k, o, sp)}
+        ranked = sorted(flows.items(), key=lambda x: (-x[1], x[0]))
+        return {"buckets": sources.BUCKETS, "outlets": outlets, "state": sorted(sp.wires),
+                "edges": [edge(k, o, n) for (k, o), n in ranked[:SOURCES_SHOWN]],
+                "fringe": [edge(k, o, n) for (k, o), n in ranked if sources.is_fringe_to_state(k, o, sp)],
+                "sources": len({k for k, _ in flows})}
 
     def voices_of(self, sums: list[dict]) -> dict:
         out, kinds = {}, {}
