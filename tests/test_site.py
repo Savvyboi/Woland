@@ -353,6 +353,12 @@ def test_weekly_brief_covers_completed_weeks(built_site):
     assert b["gaps"]["tass"] == ["2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04", "2026-09-05", "2026-09-06"]
     root, entries, ns = atom(built_site / "feeds" / "brief.xml")
     assert len(entries) == 1 and "37 articles from 3 outlets" in entries[0].find("a:summary", ns).text
+    ab = b["abroad"]                   # at home and abroad: Tsargrad has days not collected that week
+    assert ab["outlets"] == {"domestic": ["ria"], "foreign": ["rt"]} and ab["left_out"] == ["tsargrad"]
+    assert ab["n"] == {"domestic": 24, "foreign": 12} and 0 < ab["jsd"] < 1
+    assert ("country", "FI") in {(g["kind"], g["id"]) for g in ab["gaps"]["foreign"]}
+    trend = json.loads((built_site / "data" / "divergence.json").read_text(encoding="utf-8"))
+    assert [w["week"] for w in trend["weeks"]] == ["2026-W36"] and trend["weeks"][0]["jsd"] == ab["jsd"]
 
 
 # ── interface strings ─────────────────────────────────────────────────────────

@@ -35,7 +35,7 @@ from datetime import date, datetime, timedelta
 from datetime import time as dtime
 from pathlib import Path
 
-from . import analysis, feeds
+from . import analysis, divergence, feeds
 from .config import CONFIG_DIR, ROOT, START_DATE, load_contexts, load_lexicon, load_outlets
 from .glossary import Glossary
 from .lexicon import Lexicon
@@ -873,16 +873,22 @@ class Builder:
         was not collected. Built from the same day summaries, digests and stories as the other pages."""
         weeks = self.weeks(days)
         out = self.out / "data" / "brief"
-        index, entries = [], []
+        index, entries, trend = [], [], []
         for i, wdays in enumerate(weeks):
             base_days = [d for w in weeks[max(0, i - BRIEF_BASE_WEEKS):i] for d in w]
             prev_days = weeks[i - 1] if i else []
             b = self.brief(wdays, prev_days, base_days, days)
             dump(out / f"{b['week']}.json", b)
             index.append({"week": b["week"], "from": b["from"], "to": b["to"]})
+            ab = b["abroad"]
+            trend.append({"week": b["week"], "from": b["from"], "to": b["to"], "jsd": ab["jsd"], "n": ab["n"],
+                          "framed": ab["framed"], "outlets": {k: len(v) for k, v in ab["outlets"].items()}})
             entries.append(b)
         index.reverse()
         dump(out / "index.json", index)
+        # the weekly divergence between the domestic and the foreign-facing outlets, oldest week first
+        dump(self.out / "data" / "divergence.json", {"weeks": trend, "gap_min": divergence.GAP_MIN,
+                                                     "gap_ratio": divergence.GAP_RATIO})
         updated = iso_utc()
         feed_entries = [feeds.text_entry(f"urn:woland:brief:{b['week']}",
                                          f"The week in the Russian state press, {b['from']} – {b['to']}",
@@ -965,7 +971,18 @@ class Builder:
             "rising": rising, "falling": falling, "top": top,
             "events": events[:BRIEF_SHOWN + 4], "stories": stories[:BRIEF_SHOWN], "speakers": speakers,
             "countries": countries[:BRIEF_SHOWN], "countries_rose": rose[:BRIEF_SHOWN // 2], "gaps": gaps,
+            "abroad": self.abroad(sums, wdays, days),
         }
+
+    def abroad(self, sums: list[dict], wdays: list[date], days: list[date]) -> dict:
+        """At home and abroad (woland/divergence.py): the outlets writing for Russian readers against those
+        writing for readers abroad, over the outlets collected on every day of the week."""
+        idx = {d: i for i, d in enumerate(days)}
+        complete = divergence.complete_outlets(getattr(self, "_cov_codes", {}), idx, wdays)
+        audience = {o.id: o.audience for o in self.outlets}
+        framings = {n.id for n in self.narratives if n.family == "framing"}
+        topics = {n.id for n in self.narratives if n.family == "topic"}
+        return divergence.week(sums, audience, complete, framings, topics)
 
     def brief_text(self, b: dict) -> str:
         """The weekly brief as plain text, for the feed."""
