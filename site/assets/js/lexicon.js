@@ -6,13 +6,24 @@ const W = "[\\p{L}\\p{N}_]";                 // Python's \w
 const isWord = (ch) => /[\p{L}\p{N}_]/u.test(ch);
 const esc = (s) => s.replace(/[\\^$.*+?()[\]{}|/]/g, "\\$&");
 
+// Characters that web pages carry invisibly inside or between words, and unusual spaces: as INVISIBLE and
+// SPACES in woland/lexicon.py (dropped, and matched as plain spaces).
+const INVISIBLE = /[\u00ad\u0301\u180e\u200b\u200c\u200d\u2060\ufeff]/g;
+const SPACES = /[\x1c-\x1f\x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]/g;
+const clean = (s) => s.replace(INVISIBLE, "").replace(SPACES, " ");
+
 /** Python's normalize(): lower case, ё → е, unified spaces and dashes. */
 export function normalize(s) {
-  return s.toLowerCase().replace(/ё/g, "е").replace(/ /g, " ").replace(/[‑‐]/g, "-");
+  return s.toLowerCase().replace(/ё/g, "е").replace(/\u00a0/g, " ").replace(/[‑‐]/g, "-");
 }
+
+/** The matching form of a pattern or of context text (lex_normalize). */
+export const lexNormalize = (s) => normalize(clean(s));
 
 /** normalize() one UTF-16 unit at a time, so that offsets stay valid in the original text. */
 export function normSameLength(s) {
+  const whole = normalize(s);
+  if (whole.length === s.length) return whole;  // as Python: nearly always
   let out = "";
   for (let i = 0; i < s.length; i++) {
     const n = normalize(s[i]);
@@ -21,9 +32,23 @@ export function normSameLength(s) {
   return out;
 }
 
+/** The text to match in, and where each of its units is in s (null: at the same offset): Python's prepare(). */
+export function prepare(s) {
+  const t = clean(s);
+  if (t.length === s.length) return [normSameLength(t), null];
+  const where = [];
+  for (let i = 0; i < s.length; i++) {
+    INVISIBLE.lastIndex = 0;
+    if (!INVISIBLE.test(s[i])) where.push(i);
+  }
+  return [normSameLength(t), where];
+}
+
+const back = ([a, b], where) => (where ? [where[a], where[b - 1] + 1] : [a, b]);
+
 /** A pattern as a regular expression: * is any ending, ~ up to three words (as in pattern_regex). */
 export function patternSource(pattern) {
-  const words = normalize(pattern).split(/\s+/).filter(Boolean);
+  const words = lexNormalize(pattern).split(/\s+/).filter(Boolean);
   let src = "";
   words.forEach((w, i) => {
     if (w === "~") {
@@ -101,15 +126,15 @@ export function compileLexicon(narratives, contexts = {}) {
 export function find(lex, text, lang, extra = "", window = null) {
   const hits = {};
   if (!text) return hits;
-  const t = normSameLength(text);
-  const e = extra ? normalize(extra) : "";
+  const [t, where] = prepare(text);
+  const e = extra ? lexNormalize(extra) : "";
   for (const [id, groups] of lex[lang] || []) {
     let best = null;
     for (const g of groups) {
       const [span] = g.all(t, e, window, true);
       if (span && (!best || span[0] < best[0])) best = span;
     }
-    if (best) hits[id] = best;
+    if (best) hits[id] = back(best, where);
   }
   return hits;
 }
@@ -119,7 +144,7 @@ export function spans(lex, text, lang, id, extra = "") {
   if (!text) return [];
   const entry = (lex[lang] || []).find(([nid]) => nid === id);
   if (!entry) return [];
-  const t = normSameLength(text);
-  const e = extra ? normalize(extra) : "";
-  return entry[1].flatMap((g) => g.all(t, e, null)).sort((x, y) => x[0] - y[0]);
+  const [t, where] = prepare(text);
+  const e = extra ? lexNormalize(extra) : "";
+  return entry[1].flatMap((g) => g.all(t, e, null)).sort((x, y) => x[0] - y[0]).map((s) => back(s, where));
 }
