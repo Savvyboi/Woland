@@ -417,3 +417,28 @@ def test_a_link_to_a_view_opens_it_with_only_the_filters_that_make_sense():
                       "order": "old"}
     assert out[1] == {**empty, "from": "2026-10-01", "to": "2026-10-15"}
     assert out[2] == empty and out[3] == empty and out[4] == empty
+def test_the_today_page_says_what_the_day_held_without_javascript(built_site):
+    """A link preview, a search engine or a web archive reads index.html as built, without running scripts."""
+    html = (built_site / "index.html").read_text(encoding="utf-8")
+    today = html[html.index('<div id="today">'):html.index("</main>")]
+    assert "Consulting the archive" not in today
+    assert "On Sunday 6 September 2026, Woland collected 6 articles from 2 outlets." in today   # complete_through
+    # no rising words yet (a week of history at least): a headline of each of the day's top framings instead
+    assert '<a href="https://ria.ru/20260906/a-1000.html" lang="ru">Киевский режим готовит провокацию в Донбассе</a>' in today
+    assert "The Kiev regime is preparing a provocation in Donbass" in today
+    assert '<a href="narratives.html#' in today and "<noscript>" in today
+    # Today at a glance: no rising framing yet (too little history); outlets not collected are named as such
+    glance = today[today.index('<section class="glance"'):today.index("</section>")]
+    assert "Compared with earlier days once the day is complete" in glance
+    assert "2 of 23 outlets" in glance and "Not collected: TASS," in glance
+    head = html[:html.index("</head>")]
+    assert "<title>Woland — 6 Sep 2026: today in the Russian state press</title>" in head
+    for tag in ('property="og:title"', 'property="og:description"', 'property="og:image"', 'name="twitter:card"',
+                'name="description"'):
+        assert head.count(tag) == 1, tag
+    assert re.search(r'<meta property="og:description" content="6 Sep 2026: 6 articles from 2 Russian', head)
+    # every page: one title and description for previews, the card picture
+    for page in built_site.glob("*.html"):
+        text = page.read_text(encoding="utf-8")
+        assert text.count('property="og:title"') == 1 and 'content="assets/img/og-card.png"' in text, page.name
+    assert (built_site / "assets" / "img" / "og-card.png").stat().st_size > 10_000

@@ -47,6 +47,11 @@ jobs:
 
       - run: python -m woland build --out _site --base-url "${{ steps.pages.outputs.base_url }}"
 
+      # GitHub Pages refuses a site over 1 GB: a table of what takes the room, in the run summary; a warning
+      # above 700 MB, and the deployment stops above 920 MB (the site already published stays up).
+      - name: Site size
+        run: python -m woland budget _site
+
       # (Files whose names start with a dot, such as .nojekyll, are left out: Pages published from
       # Actions does not run Jekyll anyway.)
       - uses: actions/upload-pages-artifact@v5
