@@ -5,6 +5,7 @@ import {
   outlet, narrative, archiveSearch, showError,
 } from "./core.js";
 import { lang, LOCALES } from "./i18n.js";
+import { feedButton, feedLink } from "./feeds.js";
 
 initChrome("brief");
 const root = $("#brief");
@@ -95,7 +96,10 @@ function collected(b) {
 
 /** The feeds: the brief, each framing and topic, outlet, country and saved search. */
 function follow(feeds) {
-  const link = (path, label) => el("a", { href: path, type: "application/atom+xml" }, label);
+  const link = (path, label) => {
+    const m = /^feeds\/(framing|outlet|country|search)\/(.+)\.xml$/.exec(path);
+    return m ? feedLink(m[1], m[2], label) : el("a", { href: path, type: "application/atom+xml" }, label);
+  };
   const group = (title, items) => (items.length ? el("details", {}, el("summary", {}, `${title} (${fmtInt(items.length)})`),
     el("ul", { class: "feed-list" }, items.map(([path, label, n]) => el("li", {}, link(path, label),
       n !== undefined ? el("small", {}, ` ${t("brief.feed.n", { n: fmtInt(n) })}`) : null)))) : null);
@@ -106,6 +110,7 @@ function follow(feeds) {
   return section("follow", t("brief.follow"), null,
     el("p", {}, t("brief.follow.about", { days: fmtInt((feeds?.days || []).length || 7), n: fmtInt(feeds?.entries || 40) })),
     el("p", {}, link("feeds/brief.xml", t("brief.follow.brief")), " ", el("small", {}, t("brief.follow.brief.hint"))),
+    feeds ? el("p", {}, feedButton(() => null, t("feeds.button.all"))) : null,
     feeds ? [
       group(t("narratives.framings"), fam("framing")),
       group(t("narratives.topics"), fam("topic")),

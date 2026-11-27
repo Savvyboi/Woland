@@ -31,12 +31,13 @@ import shutil
 import time
 from concurrent.futures import ProcessPoolExecutor
 from collections import Counter, defaultdict
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from datetime import time as dtime
+from email.utils import format_datetime
 from pathlib import Path
 
 from . import analysis, feeds
-from .config import CONFIG_DIR, ROOT, START_DATE, load_contexts, load_lexicon, load_outlets
+from .config import CONFIG_DIR, GROUPS, ROOT, START_DATE, load_contexts, load_lexicon, load_outlets
 from .glossary import Glossary
 from .lexicon import Lexicon
 from .store import available_days, day_dir, load_coverage, load_runs, read_day
@@ -65,6 +66,7 @@ FEED_ENTRIES = 40        # entries per feed
 BRIEF_BASE_WEEKS = 4     # the weekly brief compares a week with the weeks before it
 BRIEF_MIN = 20           # articles a framing needs in a week to be listed as rising or falling
 BRIEF_SHOWN = 8          # items per list in the brief
+NORDIC_BALTIC = ("FI", "SE", "NO", "DK", "IS", "EE", "LV", "LT")   # the Nordic-Baltic Eight (NB8)
 WINDOWS = {"7": 7, "30": 30, "all": None}   # the Analysis page's periods, in completed days
 VOICES_SHOWN = 60        # speakers listed per language and kind of speaker
 STORY_OUTLETS = 4        # a story counts when this many outlets publish it on the same day
@@ -1032,6 +1034,7 @@ class Builder:
         updated = iso_utc()
         span = f"{recent[0].isoformat()} – {recent[-1].isoformat()}" if recent else ""
         listing: dict[str, dict] = {"outlet": {}, "framing": {}, "country": {}, "search": {}}
+        written: dict[tuple[str, str], tuple[str, str, str]] = {}
         targets = (
             [("outlet", o.id, f"outlet: {o.name}", f"outlets.html#{o.id}") for o in self.outlets if o.enabled] +
             [("framing", n.id, f"{n.family}: {nlabel[n.id]}", f"narratives.html#{n.id}") for n in self.narratives] +
@@ -1047,10 +1050,41 @@ class Builder:
                              f"{span} (Moscow days); at most {FEED_ENTRIES}.", self.href(path), self.href(page),
                              updated, entries)
             listing[kind][key] = counts.get((kind, key), 0)
+            written[(kind, key)] = (title, path, page)
+        bundles = self.write_opml(written, format_datetime(datetime.now(timezone.utc), usegmt=True))
         dump(self.out / "data" / "feeds.json", {
             "days": [d.isoformat() for d in recent], "entries": FEED_ENTRIES, "feeds": listing,
             "searches": [{"id": s.id, "label": s.label} for s in self.searches],
-            "countries": {c: cname.get(c, c) for c in listing["country"]}})
+            "countries": {c: cname.get(c, c) for c in listing["country"]}, "bundles": bundles})
+
+    def write_opml(self, written: dict, created: str) -> list[dict]:
+        """feeds/opml/<bundle>.opml: subscription lists that follow a whole group of feeds at once (every
+        framing, every outlet of a group, the Nordic and Baltic countries, ...). Returns what data/feeds.json
+        lists of them: [{id, kind, group?, n, path}]."""
+        fam = {n.id: n.family for n in self.narratives}
+        ogroup = {o.id: o.group for o in self.outlets}
+        sets = [("all", None, None, lambda k, key: True),
+                ("framings", "framing", None, lambda k, key: k == "framing" and fam.get(key) == "framing"),
+                ("topics", "framing", None, lambda k, key: k == "framing" and fam.get(key) == "topic"),
+                ("outlets", "outlet", None, lambda k, key: k == "outlet")]
+        sets += [(f"outlets-{g}", "outlet", g, lambda k, key, g=g: k == "outlet" and ogroup.get(key) == g)
+                 for g in GROUPS]
+        sets += [("countries", "country", None, lambda k, key: k == "country"),
+                 ("nordic-baltic", "country", None, lambda k, key: k == "country" and key in NORDIC_BALTIC),
+                 ("searches", "search", None, lambda k, key: k == "search")]
+        out = []
+        for bid, kind, group, pick in sets:
+            items = [(title, self.href(path), self.href(page)) for (k, key), (title, path, page) in written.items()
+                     if pick(k, key)]
+            if not items:
+                continue
+            path = f"feeds/opml/{bid}.opml"
+            name = {"all": "every feed", "framings": "all framings", "topics": "all topics", "outlets": "all outlets",
+                    "countries": "all countries named", "nordic-baltic": "the Nordic and Baltic countries (NB8)",
+                    "searches": "all saved searches"}.get(bid) or f"outlets, {group}"
+            feeds.write_opml(self.out / path, f"Woland — {name}", created, items)
+            out.append({"id": bid, "kind": kind, **({"group": group} if group else {}), "n": len(items), "path": path})
+        return out
 
     def copy_site(self):
         """Copy site/ to the output, expanding <!-- include:name --> from site/partials/."""

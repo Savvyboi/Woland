@@ -7,6 +7,7 @@ import {
 } from "./core.js";
 import { sparkline, barList, columnChart, withTable } from "./charts.js";
 import { lang, LOCALES } from "./i18n.js";
+import { feedButton } from "./feeds.js";
 
 initChrome("analysis");
 const main = $("#analysis");
@@ -281,7 +282,8 @@ async function renderCountries() {
     el("p", { class: "lede-small" }, t("countries.lede", { all: fmtInt(total) })),
     el("div", { class: "filters" }, periodControl(),
       seg(t("voices.lang"), [["all", t("series.all")], ["ru", t("lang.ru")], ["en", t("lang.en")]], state.clang,
-        (v) => { state.clang = v; setParam("cl", v === "all" ? null : v); route(); })),
+        (v) => { state.clang = v; setParam("cl", v === "all" ? null : v); route(); }),
+      feedButton(() => ({ kind: "country", id: rows[0]?.code }))),
     periodNote(data),
   ];
   const c1 = el("div", { class: "map-wrap" });
