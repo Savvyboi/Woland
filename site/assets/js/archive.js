@@ -1,13 +1,14 @@
 // Chapter III: the searchable archive.
 import {
   $, el, t, tl, META, loadMeta, initChrome, fillFooter, fmtInt, fmtPct, fmtDay, outlet, narrative,
-  groupVar, articleCard, downloadBlob, sourceStamp, showError, addDays, downloadCSV, GROUPS, isOpenDay, recordOf, recordId,
+  groupVar, articleCard, textModeToggle, downloadBlob, sourceStamp, showError, addDays, downloadCSV, GROUPS, isOpenDay, recordOf, recordId,
 } from "./core.js";
 import { search, loadDocs } from "./search.js";
 import { columnChart, barList, withTable, tableOf, withExport } from "./charts.js";
 import { archiveState, permalinkButton } from "./urlstate.js";
 
 initChrome("archive");
+$("#results").before(textModeToggle());
 const form = $("#search-form");
 const status = $("#status");
 const area = $("#results-area");

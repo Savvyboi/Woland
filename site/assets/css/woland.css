@@ -602,6 +602,29 @@ ol.tag-list li { grid-template-columns: minmax(8rem, 15rem) 1fr 4rem 4.5rem; }
 .feed-list { columns: 2 16rem; padding-left: 1.2rem; margin: .5rem 0; }
 .feed-list li { break-inside: avoid; margin: .2rem 0; }
 
+/* A word or badge with a note (core.js tipped): on hover, on keyboard focus, and on a tap, which focuses it */
+.tipped { position: relative; cursor: help; }
+.tipped:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.tipped .tip { display: none; position: absolute; z-index: 20; left: 0; top: calc(100% + .35rem); width: max-content; max-width: min(19rem, 80vw);
+  font: normal .78rem/1.4 var(--sans); letter-spacing: normal; text-transform: none; color: var(--text); white-space: normal;
+  background: var(--ink-2); border: 1px solid var(--rule-2); border-radius: var(--radius); padding: .4rem .55rem; box-shadow: 0 4px 14px rgba(0, 0, 0, .35); }
+.tipped:hover .tip, .tipped:focus .tip, .tipped:focus-within .tip { display: block; }
+.gl { text-decoration: underline dotted var(--text-3); text-underline-offset: .2em; }
+
+/* Original | English | Both (core.js textModeToggle) */
+.textmode { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .15rem .7rem; border: 0; padding: 0; margin: .4rem 0 .6rem;
+  font: .82rem/1.3 var(--sans); color: var(--text-2); }
+.textmode legend { float: left; padding: 0; margin-right: .3rem; color: var(--text-3); }
+.textmode label { display: inline-flex; align-items: center; gap: .25rem; cursor: pointer; }
+:root[data-text="en"] .article .has-tr { display: none; }
+:root[data-text="original"] .article .tr { display: none; }
+:root[data-text="en"] .article .tr { font-style: normal; color: var(--text); }
+:root[data-text="en"] .article .tr-head { font: 600 1.05rem/1.35 var(--serif); margin-top: .25rem; }
+.article details.prov .report { margin: .45rem 0 0; color: var(--text-3); }
+@media (max-width: 40rem) {  /* on a phone the note sits above the bottom edge, where it cannot run off the side */
+  .tipped .tip { position: fixed; left: 1rem; right: 1rem; top: auto; bottom: 1rem; width: auto; max-width: none; }
+}
+
 /* "Copy link" (urlstate.js) and the message that confirms it */
 .tabs .permalink { margin-left: auto; align-self: center; }
 .filters .permalink { align-self: end; }

@@ -1,7 +1,7 @@
 // Chapter II: one narrative at a time — over time, by outlet type, at home and abroad, by outlet.
 import {
   $, el, t, tl, META, loadMeta, getJSON, initChrome, fillFooter, fmtInt, fmtPct, fmtDay, outlet, narrative,
-  groupVar, articleCard, fromExample, archiveSearch, showError, GROUPS, isOpenDay, downloadBlob, sourceStamp,
+  groupVar, articleCard, textModeToggle, fromExample, archiveSearch, showError, GROUPS, isOpenDay, downloadBlob, sourceStamp,
 } from "./core.js";
 import { lineChart, heatmap, barList, withTable, tableOf, withExport } from "./charts.js";
 import { oneOf, permalinkButton, setParam } from "./urlstate.js";
@@ -230,7 +230,7 @@ async function renderNarrative(id) {
 
   // examples from the latest digests
   const exList = el("ul", { class: "articles" });
-  kids.push(el("section", { class: "section" }, el("div", { class: "section-head" }, el("h2", {}, t("narratives.examples"))), exList));
+  kids.push(el("section", { class: "section" }, el("div", { class: "section-head" }, el("h2", {}, t("narratives.examples"))), textModeToggle(), exList));
   main.replaceChildren(...kids);
 
   const denom = (c, i) => t("narratives.denominator", { h: fmtInt(c.hits[i]), n: fmtInt(c.totals[i]), k: fmtInt(c.outlets[i]) });
