@@ -188,6 +188,23 @@ def delta_encode(nums: list[int]) -> list[int]:
     return out
 
 
+def utf16_spans(spans: list[list] | None, text: str) -> list[list]:
+    """Glossary spans ([start, end, the model's words], in code points) as the site counts: in UTF-16 units,
+    and only those wholly within `text` (which may be the translation cut short)."""
+    if not spans or not text:
+        return []
+    def u(i: int) -> int:
+        return i + sum(1 for c in text[:i] if ord(c) > 0xFFFF)
+    return [[u(a), u(b), raw] for a, b, raw in spans if b <= len(text)]
+
+
+def glossed(r: dict, te: str, se: str, nid: str | None) -> dict:
+    """An example's glossary spans: {"te": …, "se": …} (Builder.corrected)."""
+    g = r.get("_g") or {}
+    out = {"te": utf16_spans(g.get("te"), te), "se": utf16_spans((g.get("kbe") or {}).get(nid) if nid else None, se)}
+    return {k: v for k, v in out.items() if v}
+
+
 class DayDocs:
     """A day's search documents, collected for MonthIndex.add in their order."""
 
@@ -291,17 +308,29 @@ class Builder:
         return ks, snippets
 
     def corrected(self, rec: dict) -> dict:
-        """The record with its machine translations run through the glossary (config/glossary.yaml)."""
-        fixed = {}
+        """The record with its machine translations run through the glossary (config/glossary.yaml). Where the
+        glossary changed words, `_g` says where and what the model wrote ({"te"|"de": spans, "kbe": {id: spans}}),
+        for the site to mark them."""
+        fixed, where = {}, {}
         for field, src in (("te", "t"), ("de", "d")):
             if rec.get(field):
-                en = self.glossary.fix(rec.get(src, ""), rec[field])
+                en, spans = self.glossary.fix_spans(rec.get(src, ""), rec[field])
                 if en != rec[field]:
                     fixed[field] = en
+                if spans:
+                    where[field] = spans
         if rec.get("kbe"):
-            kbe = {nid: self.glossary.fix((rec.get("kb") or {}).get(nid, ""), en) for nid, en in rec["kbe"].items()}
+            kbe, kspans = {}, {}
+            for nid, en in rec["kbe"].items():
+                kbe[nid], spans = self.glossary.fix_spans((rec.get("kb") or {}).get(nid, ""), en)
+                if spans:
+                    kspans[nid] = spans
             if kbe != rec["kbe"]:
                 fixed["kbe"] = kbe
+            if kspans:
+                where["kbe"] = kspans
+        if where:
+            fixed["_g"] = where
         return {**rec, **fixed} if fixed else rec
 
     # ── months ────────────────────────────────────────────────────────────────
@@ -488,7 +517,7 @@ class Builder:
             for k in ks:  # narrative examples
                 ex = examples[self.narratives[k].id]
                 if len(ex) < 40:
-                    ex.append(self.example(r, snips.get(k), kbe.get(self.narratives[k].id)))
+                    ex.append(self.example(r, snips.get(k), kbe.get(self.narratives[k].id), self.narratives[k].id))
         chosen = {}
         for nid, exs in examples.items():
             by_outlet, picked = set(), []
@@ -521,15 +550,27 @@ class Builder:
                self.headline_only(r), r.get("w", 0),
                # then, where there are any: the Internet Archive's copy that was read, the lead's
                # translation, the snippets' translations, and 1 for an item the outlet labels machine-written
-               r.get("ar", ""), truncate(r.get("de", ""), SEARCH_LEAD),
+               r.get("ar", ""), doc_de := truncate(r.get("de", ""), SEARCH_LEAD),
                {str(k): kbe[self.narratives[k].id] for k in snips if self.narratives[k].id in kbe},
-               int(machine)]
+               int(machine), self.glossed_doc(r, doc_de, snips)]
         while len(doc) > 13 and not doc[-1]:
             doc.pop()
         text = " ".join(x for x in (r["t"], lead, r.get("te", ""), r.get("de", "")) if x)
         terms = index_terms(text)
         idx.add(doc, self.oidx[o], terms)
         return {st for _, st in terms}
+
+    def glossed_doc(self, r: dict, de: str, snips: dict[int, str]) -> dict:
+        """Where the glossary changed the translations a search document carries: {"te"|"de": spans,
+        "s": {narrative index: spans}} (glossed)."""
+        if not r.get("_g"):
+            return {}
+        out = {f: sp for f, text in (("te", r.get("te", "")), ("de", de)) if (sp := utf16_spans(r["_g"].get(f), text))}
+        s = {str(k): sp for k in snips
+             if (sp := utf16_spans((r["_g"].get("kbe") or {}).get(self.narratives[k].id), (r.get("kbe") or {}).get(self.narratives[k].id, "")))}
+        if s:
+            out["s"] = s
+        return out
 
     def feed_item(self, r: dict, ks: list[int], codes, stems: set[str]) -> dict:
         """What the feeds need of one article: its text, and which framings, countries and saved searches it is in."""
@@ -543,7 +584,7 @@ class Builder:
         """1 for an outlet whose pages Woland reads, when this article's page has not been read (yet)."""
         return int(r.get("via") == "feed" and self.ofetch.get(r["o"], False))
 
-    def example(self, r: dict, snippet: str | None, snippet_en: str | None = None) -> dict:
+    def example(self, r: dict, snippet: str | None, snippet_en: str | None = None, nid: str | None = None) -> dict:
         ex = {"o": r["o"], "t": r["t"], "u": r["u"], "p": r["p"][11:16], "id": r["id"],
               "h": r.get("h", ""), "r": (r.get("r") or "")[:10], "w": r.get("w", 0)}
         if r.get("te"):
@@ -556,6 +597,9 @@ class Builder:
             ex["s"] = snippet
             if snippet_en:
                 ex["se"] = snippet_en
+        g = glossed(r, ex.get("te", ""), ex.get("se", ""), nid)
+        if g:
+            ex["g"] = g
         return ex
 
     def day_stories(self, recs: list[dict]) -> tuple[list[dict], dict]:
@@ -632,7 +676,7 @@ class Builder:
                 for n, key, a in sorted(items, key=lambda x: (-x[0], x[1]))[:VOICES_SHOWN]:
                     rows.append({"k": key, "name": a["f"].most_common(1)[0][0], "y": kind, "n": n,
                                  "o": dict(a["o"].most_common(8)), "v": dict(a["v"].most_common(6)), "d": a["d"],
-                                 "ex": {**{k: v for k, v in a["ex"].items() if k in ("o", "t", "te", "u", "p", "id", "h", "r", "w", "ar", "f")},
+                                 "ex": {**{k: v for k, v in a["ex"].items() if k in ("o", "t", "te", "u", "p", "id", "h", "r", "w", "ar", "f", "g")},
                                         "d": self._day_of(sums, a["exd"])}})
             rows.sort(key=lambda r: -r["n"])
             out[lang] = rows

@@ -218,6 +218,22 @@ def test_the_glossary_corrects_names_only_where_the_russian_has_them():
     assert g.fix("Матвиенко: СФ одобрил", "Matvienko: SF approved") == "Matvienko: Federation Council approved"
 
 
+
+def test_the_glossary_says_which_words_it_corrected():
+    from woland.build import utf16_spans
+    from woland.glossary import Glossary
+    g = Glossary()
+    en, spans = g.fix_spans("Уиткофф и Каллас обсудили СВО", "Whitkoff and Callas discussed the SBO")
+    assert en == "Witkoff and Kallas discussed the SVO"
+    assert [(en[a:b], raw) for a, b, raw in spans] == [("Witkoff", "Whitkoff"), ("Kallas", "Callas"), ("SVO", "SBO")]
+    assert g.fix_spans("Погода в Москве", "Mask and SBO") == ("Mask and SBO", [])
+    # spans from an earlier entry move with the text a later entry lengthens
+    en, spans = g.fix_spans("Матвиенко: СФ одобрил, Уиткофф", "SF approved, Whitkoff")
+    assert [(en[a:b], raw) for a, b, raw in spans] == [("Federation Council", "SF"), ("Witkoff", "Whitkoff")]
+    # the site counts UTF-16 units, and a translation cut short keeps only the spans within it
+    assert utf16_spans([[2, 9, "Whitkoff"]], "😀 Witkoff") == [[3, 10, "Whitkoff"]]
+    assert utf16_spans([[0, 7, "Whitkoff"], [30, 36, "Callas"]], "Witkoff met…") == [[0, 7, "Whitkoff"]]
+
 def test_rising_words_group_word_forms_by_lemma():
     from woland.textproc import headline_words
     keys = lambda t: [k for _, _, k in headline_words(t)]

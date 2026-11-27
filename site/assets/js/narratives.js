@@ -1,7 +1,7 @@
 // Chapter II: one narrative at a time — over time, by outlet type, at home and abroad, by outlet.
 import {
   $, el, t, tl, META, loadMeta, getJSON, initChrome, fillFooter, fmtInt, fmtPct, fmtDay, outlet, narrative,
-  groupVar, articleCard, fromExample, archiveSearch, showError, GROUPS, isOpenDay,
+  groupVar, articleCard, textModeToggle, fromExample, archiveSearch, showError, GROUPS, isOpenDay,
 } from "./core.js";
 import { lineChart, heatmap, barList, withTable, tableOf } from "./charts.js";
 
@@ -210,7 +210,7 @@ async function renderNarrative(id) {
 
   // examples from the latest digests
   const exList = el("ul", { class: "articles" });
-  kids.push(el("section", { class: "section" }, el("div", { class: "section-head" }, el("h2", {}, t("narratives.examples"))), exList));
+  kids.push(el("section", { class: "section" }, el("div", { class: "section-head" }, el("h2", {}, t("narratives.examples"))), textModeToggle(), exList));
   main.replaceChildren(...kids);
 
   lineChart(c1, { days, yFormat: fmt, openFrom,

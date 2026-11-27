@@ -144,6 +144,8 @@ def test_english_searches_find_either_spelling_and_corrected_translations(built_
     kyiv, kiev, witkoff = search(built_site, {"q": "kyiv"}, {"q": "kiev"}, {"q": "witkoff"})
     assert kyiv["total"] == kiev["total"] == 16                 # "Kiev" in RT's headline and in the translation
     assert witkoff["total"] == 8 and all(h["te"] == "Witkoff arrived in Moscow" for h in witkoff["hits"])
+    # and say what the glossary changed, for the site to underline it with the model's own words
+    assert all(h["g"]["te"] == [[0, 7, "Whitkoff"]] and h["g"]["de"] == [[14, 21, "Whitkoff"]] for h in witkoff["hits"])
 
 
 @needs_node

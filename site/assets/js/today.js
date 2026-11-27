@@ -1,7 +1,7 @@
 // Chapter I: the day's chronicle.
 import {
   $, el, t, tl, META, loadMeta, getJSON, initChrome, fillFooter, fmtInt, fmtPct, fmtDay, fmtDayShort, fmtRatio, delta,
-  outlet, narrative, groupVar, articleCard, fromExample, archiveSearch, showError, addDays, isOpenDay,
+  outlet, narrative, groupVar, articleCard, textModeToggle, fromExample, archiveSearch, showError, addDays, isOpenDay,
 } from "./core.js";
 import { lang } from "./i18n.js";
 import { sparkline, barList } from "./charts.js";
@@ -94,6 +94,7 @@ function ledger(rows, day, family, dg, compare) {
     const examples = el("ul", { class: "articles" }, el("li", { class: "empty" }, `${t("loading")}…`));
     const details = el("tr", { class: "details", id: detailsId, hidden: true },
       el("td", { colspan: "5" },
+        textModeToggle(),
         examples,
         el("p", {}, el("a", { href: archiveSearch({ k: r.id, from: day, to: day }) }, t("today.more", { n: fmtInt(r.n) }))),
         el("p", { class: "syntax" }, label),
