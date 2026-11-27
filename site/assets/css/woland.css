@@ -601,6 +601,15 @@ ol.tag-list li { grid-template-columns: minmax(8rem, 15rem) 1fr 4rem 4.5rem; }
 .feed-list { columns: 2 16rem; padding-left: 1.2rem; margin: .5rem 0; }
 .feed-list li { break-inside: avoid; margin: .2rem 0; }
 
+/* "Copy link" (urlstate.js) and the message that confirms it */
+.tabs .permalink { margin-left: auto; align-self: center; }
+.filters .permalink { align-self: end; }
+.toast { position: fixed; left: 50%; bottom: 1.5rem; transform: translate(-50%, 1rem); max-width: min(36rem, calc(100vw - 2rem));
+  background: var(--ink-2); color: var(--text); border: 1px solid var(--rule-2); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: .6rem 1rem; font: .9rem/1.4 var(--sans); overflow-wrap: anywhere; opacity: 0; pointer-events: none;
+  transition: opacity .2s, transform .2s; z-index: 50; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
 /* The Today page as written by the build (woland/prerender.py), until today.js replaces it */
 .prerender-stories { list-style: none; padding: 0; margin: 1rem 0 0; display: grid; gap: .9rem; }
 .prerender-stories li { font: .95rem/1.45 var(--serif); }

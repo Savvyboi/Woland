@@ -5,6 +5,7 @@ import {
 } from "./core.js";
 import { search, loadDocs } from "./search.js";
 import { columnChart, barList, withTable, tableOf } from "./charts.js";
+import { archiveState, permalinkButton } from "./urlstate.js";
 
 initChrome("archive");
 const form = $("#search-form");
@@ -29,11 +30,8 @@ function fillSelects() {
   for (const id of ["from", "to"]) { $(`#${id}`).min = META.start; $(`#${id}`).max = META.last; }
 }
 
-function readParams() {
-  const p = new URLSearchParams(location.search);
-  return { q: p.get("q") || "", from: p.get("from") || "", to: p.get("to") || "", o: p.get("o") || "",
-    l: p.get("l") || "", k: p.get("k") || "", order: p.get("order") || "new" };
-}
+/** The search in the address; anything unknown or malformed is left out (urlstate.js). */
+const readParams = () => archiveState(location.search, META);
 function writeForm(s) {
   $("#q").value = s.q; $("#from").value = s.from; $("#to").value = s.to; $("#outlet").value = s.o;
   $("#lang-f").value = s.l; $("#narr").value = s.k; $("#order").value = s.order;
@@ -212,6 +210,7 @@ async function start() {
     form.addEventListener("submit", (e) => { e.preventDefault(); go(readForm()); });
     for (const id of ["from", "to", "outlet", "lang-f", "narr", "order"]) $(`#${id}`).addEventListener("change", () => go(readForm()));
     $("#clear").addEventListener("click", () => { writeForm(EMPTY); go({ ...EMPTY }); });
+    $("#clear").after(permalinkButton(el, t));
     $("#more").addEventListener("click", showMore);
     $("#export").addEventListener("click", exportCSV);
     window.addEventListener("popstate", () => { const p = readParams(); writeForm(p); go(p, false); });

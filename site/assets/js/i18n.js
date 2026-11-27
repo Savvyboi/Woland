@@ -6,6 +6,7 @@ export const LOCALES = { en: "en-GB", fi: "fi-FI", sv: "sv-SE" };
 
 const S = {
   en: {
+    "permalink.copy": "Copy link", "permalink.copied": "Link copied: it opens this view with the same filters.", "permalink.manual": "Copy this link to share the view: {url}",
     "what.today": "Daily briefing",
     "what.narratives": "Narrative tracker",
     "what.archive": "Archive search",
@@ -377,6 +378,7 @@ const S = {
   },
 
   fi: {
+    "permalink.copy": "Kopioi linkki", "permalink.copied": "Linkki kopioitu: se avaa tämän näkymän samoilla suodattimilla.", "permalink.manual": "Kopioi tämä linkki jakaaksesi näkymän: {url}",
     "what.today": "Päivän katsaus",
     "what.narratives": "Narratiiviseuranta",
     "what.archive": "Arkistohaku",
@@ -748,6 +750,7 @@ const S = {
   },
 
   sv: {
+    "permalink.copy": "Kopiera länk", "permalink.copied": "Länken kopierad: den öppnar den här vyn med samma filter.", "permalink.manual": "Kopiera den här länken för att dela vyn: {url}",
     "what.today": "Dagens översikt",
     "what.narratives": "Narrativbevakning",
     "what.archive": "Arkivsökning",
