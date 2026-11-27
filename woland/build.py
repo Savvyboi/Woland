@@ -1068,11 +1068,20 @@ class Builder:
             dg = json.load(fh)
         ex_path = path.with_suffix(".ex.json")
         examples = json.loads(ex_path.read_text(encoding="utf-8")) if ex_path.exists() else {}
+        # outlets not collected that day (coverage code m: not "collected and empty"), as the page names them
+        codes = getattr(self, "_cov_codes", {}) or {}
+        i = [d.isoformat() for d in days].index(day)
+        missing = [o.name for o in self.outlets if o.enabled and not dg["totals"].get(o.id)
+                   and (codes.get(o.id) or "m" * len(days))[i:i + 1] in ("m", "")]
+        story_path = self.out / "data" / "analysis" / "stories" / "day" / f"{day}.json.gz"
+        stories = json.loads(gzip.decompress(story_path.read_bytes())) if story_path.exists() else []
         x = prerender.summary(dg, day, open_day=bool(through) and day > through,
                               labels={n.id: n.label["en"] for n in self.narratives},
                               families={n.id: n.family for n in self.narratives},
                               outlets={o.id: o.name for o in self.outlets},
-                              s=prerender.en_strings(ROOT / "site" / "assets" / "js" / "i18n.js"), examples=examples)
+                              s=prerender.en_strings(ROOT / "site" / "assets" / "js" / "i18n.js"), examples=examples,
+                              enabled=sum(o.enabled for o in self.outlets), missing=missing,
+                              story=stories[0] if stories else None)
         prerender.apply_today(self.out / "index.html", x, self.base_url)
 
     def copy_site(self):

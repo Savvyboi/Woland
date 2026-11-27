@@ -408,6 +408,10 @@ def test_the_today_page_says_what_the_day_held_without_javascript(built_site):
     assert '<a href="https://ria.ru/20260906/a-1000.html" lang="ru">Киевский режим готовит провокацию в Донбассе</a>' in today
     assert "The Kiev regime is preparing a provocation in Donbass" in today
     assert '<a href="narratives.html#' in today and "<noscript>" in today
+    # Today at a glance: no rising framing yet (too little history); outlets not collected are named as such
+    glance = today[today.index('<section class="glance"'):today.index("</section>")]
+    assert "Compared with earlier days once the day is complete" in glance
+    assert "2 of 23 outlets" in glance and "Not collected: TASS," in glance
     head = html[:html.index("</head>")]
     assert "<title>Woland — 6 Sep 2026: today in the Russian state press</title>" in head
     for tag in ('property="og:title"', 'property="og:description"', 'property="og:image"', 'name="twitter:card"',
