@@ -153,6 +153,7 @@ function follow(feeds) {
       group(t("narratives.topics"), fam("topic")),
       group(t("brief.follow.outlets"), Object.entries(f.outlet || {}).map(([id, n]) => [`feeds/outlet/${id}.xml`, outlet(id).name, n]).sort(byLabel)),
       group(t("brief.follow.countries"), Object.entries(f.country || {}).map(([c, n]) => [`feeds/country/${c}.xml`, regionName(c, feeds.countries[c]), n]).sort(byLabel)),
+      group(t("brief.follow.regions"), Object.entries(f.region || {}).map(([id, n]) => [`feeds/region/${id}.xml`, t(`region.${id}`), n])),
       group(t("brief.follow.searches"), (feeds.searches || []).map((s) => [`feeds/search/${s.id}.xml`, tl(s.label), (f.search || {})[s.id]])),
     ] : null,
     el("p", { class: "syntax" }, t("brief.follow.ask"), " ", META.repo ? el("a", { href: `${META.repo}/issues` }, `${t("brief.follow.ask.link")} →`) : null));

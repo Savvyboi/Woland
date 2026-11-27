@@ -1,6 +1,6 @@
 // Runs the website's own search code (site/assets/js/search.js) in Node against a built site.
 // usage: node search_harness.mjs <built site dir> '<JSON list of queries>'
-// Each query is an object for search() — {q, from, to, outlets: [ids], lang, narr, order}.
+// Each query is an object for search() — {q, from, to, outlets: [ids], lang, narr, country, order}.
 // Prints, per query, the total and the first hits (outlet, headline, URL).
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -29,7 +29,7 @@ for (const q of JSON.parse(queries)) {
   try {
     const res = await search({ order: "new", ...q, outlets: q.outlets ? new Set(q.outlets) : null });
     const docs = await loadDocs(res.hits.slice(0, 100));
-    out.push({ total: res.total, hits: docs.map((d) => ({ o: d.o, t: d.t, te: d.te, de: d.de, sne: d.sne, u: d.u, ks: d.ks, f: d.f, m: d.m })),
+    out.push({ total: res.total, hits: docs.map((d) => ({ o: d.o, t: d.t, te: d.te, de: d.de, sne: d.sne, u: d.u, ks: d.ks, f: d.f, m: d.m, g: d.g })),
                days: Object.fromEntries(res.byDay), forms: [...res.forms].sort() });
   } catch (e) {
     out.push({ error: e.code || String(e) });

@@ -265,6 +265,22 @@ def test_merge_day_lends_a_translation_only_with_the_text_it_translates(archive)
     assert rec["t"] == "A" and rec["d"] == "Лид" and "te" not in rec and "de" not in rec
 
 
+def test_the_translation_model_goes_with_the_translations_it_made(archive):
+    page = {"id": "t:1", "u": "https://t.ru/a/1", "p": "2026-09-10T10:00:00+03:00", "t": "A", "via": "page"}
+    # a headline-only record translated by a model; its page read later, untranslated: both are kept
+    store.write_day(D, "t", [{**page, "via": "feed", "te": "A!", "mt": "argos-ru_en-1.9"}])
+    store.merge_day(D, "t", [page])
+    (rec,) = store.read_day(D, "t")
+    assert rec["via"] == "page" and rec["te"] == "A!" and rec["mt"] == "argos-ru_en-1.9"
+    # a record translated before models were named is not credited to the model of another version's translation
+    store.write_day(D, "t", [{**page, "te": "A (older)"}])
+    store.merge_day(D, "t", [{**page, "te": "A!", "d": "Лид", "de": "Lead", "mt": "other-model"}])
+    (rec,) = store.read_day(D, "t")
+    assert rec["te"] == "A (older)" and rec["d"] == "Лид" and "mt" not in rec
+    assert store.lends("mt", {"t": "A"}, {"t": "A", "te": "A!", "mt": "m"})          # nothing of its own yet
+    assert store.lends("mt", {"t": "A", "te": "A!"}, {"t": "A", "te": "A!", "mt": "m"})
+
+
 class FakeTranslator:
     """Translates by marking the text, and records what it was asked."""
     def __init__(self):
@@ -284,7 +300,8 @@ def test_headlines_leads_and_snippets_are_translated_once(monkeypatch):
             {"t": "Третий", "te": "Third"}]
     assert collect.translate_records(recs) == 2
     assert recs[0] == {"t": "Заголовок", "te": "EN(Заголовок)", "d": "Лид.", "de": "EN(Лид.)", "kb": {"nazis": "…нацисты…"},
-                       "kbe": {"nazis": "EN(…нацисты…)"}}
+                       "kbe": {"nazis": "EN(…нацисты…)"}, "mt": collect.MT_VERSION}
+    assert recs[1]["mt"] == collect.MT_VERSION and "mt" not in recs[2]   # (the third had nothing to translate)
     assert recs[1]["te"] == "Second" and recs[1]["de"] == "Lead two" and recs[1]["kbe"] == {"nazis": "…x…!", "fakes": "EN(…фейк…)"}
     assert sorted(fake.asked) == sorted(["Заголовок", "Лид.", "…нацисты…", "…фейк…"])
     assert collect.translate_records(recs) == 0
@@ -628,3 +645,103 @@ def test_an_outlet_that_refuses_its_pages_is_read_from_the_archive(monkeypatch):
     asked.clear()
     assert collect._fetch_page(plain, Candidate(url="https://t.ru/a/5", hint=hint), [], local)[1] == "403"
     assert asked == ["https://t.ru/a/5"]
+
+
+def test_a_rewritten_headline_is_recorded_once_and_formatting_changes_are_not(fake_site, archive, monkeypatch):
+    """The feeds show a stored article's headline again: spacing, case, quotation marks or punctuation changed
+    are no rewrite; changed words are, once, and the stored headline stays as first published."""
+    monkeypatch.setattr(collect, "today_msk", lambda: date(2026, 9, 12))
+    first = "Путин провёл совещание с членами правительства"
+    c = Candidate(url="https://t.ru/a/1", hint=datetime(2026, 9, 10, 9, tzinfo=MSK), title=first, via="rss")
+    fake_site["cands"] = [c]
+    collect.run_collection({"t": (D, D)}, [outlet(fetch=False)], mode="poll", translate=False)
+    (rec,) = store.read_day(D, "t")
+    assert rec["ls"] == {"rss": ""} and "rv" not in rec
+    for title in ("Путин  провел «совещание» с членами правительства.", "ПУТИН ПРОВЁЛ СОВЕЩАНИЕ С ЧЛЕНАМИ ПРАВИТЕЛЬСТВА"):
+        fake_site["cands"] = [Candidate(url=c.url, hint=c.hint, title=title, via="rss")]
+        collect.run_collection({"t": (D, D)}, [outlet(fetch=False)], mode="poll", translate=False)
+        (rec,) = store.read_day(D, "t")
+        assert "rv" not in rec, title
+    rewrite = "Путин отменил совещание с членами правительства"
+    for _ in range(2):  # (seen again unchanged: still one rewrite)
+        fake_site["cands"] = [Candidate(url=c.url, hint=c.hint, title=rewrite, via="rss")]
+        summary = collect.run_collection({"t": (D, D)}, [outlet(fetch=False)], mode="poll", translate=False)
+    (rec,) = store.read_day(D, "t")
+    assert rec["t"] == first and [(e["via"], e["t"]) for e in rec["rv"]] == [("rss", rewrite)]
+    assert "rewritten" not in summary["outlets"]["t"]   # (the second run found nothing new)
+
+
+def test_a_listing_that_words_a_headline_its_own_way_sets_a_baseline_not_a_rewrite(archive):
+    url = "https://t.ru/a/1"
+    store.write_day(D, "t", [{"id": "t:1", "u": url, "p": "2026-09-10T10:00:00+03:00", "t": "Путин провёл совещание",
+                              "ls": {"rss": ""}}])
+    at = "2026-09-10T12:00:00Z"
+    # the sitemap's first say differs from the page's headline: it becomes the sitemap's baseline
+    assert store.revise_day(D, "t", [{"u": url, "via": "sitemap", "t": "Путин провёл совещание — РИА", "at": at}]) == []
+    (rec,) = store.read_day(D, "t")
+    assert rec["ls"] == {"rss": "", "sitemap": "Путин провёл совещание — РИА"}
+    assert store.revise_day(D, "t", [{"u": url, "via": "sitemap", "t": "Путин провёл совещание - РИА", "at": at}]) == []
+    added = store.revise_day(D, "t", [{"u": url, "via": "rss", "t": "Путин отменил совещание", "at": at}],
+                             translate=lambda texts: [f"EN {x}" for x in texts])
+    assert added == [{"at": at, "via": "rss", "t": "Путин отменил совещание", "te": "EN Путин отменил совещание"}]
+    (rec,) = store.read_day(D, "t")
+    assert rec["rv"] == added and store.last_seen(rec, "rss") == "Путин отменил совещание"
+
+
+def test_a_page_read_later_keeps_the_rewrites_and_baselines_of_its_headline_only_record(archive):
+    url = "https://t.ru/a/1"
+    rv = [{"at": "2026-09-10T12:00:00Z", "via": "rss", "t": "Новый заголовок"}]
+    store.write_day(D, "t", [{"id": "t:1", "u": url, "p": "2026-09-10T10:00:00+03:00", "t": "Заголовок ленты",
+                              "via": "feed", "ls": {"rss": ""}, "rv": rv}])
+    store.merge_day(D, "t", [{"id": "t:1", "u": url, "p": "2026-09-10T10:00:00+03:00", "t": "Заголовок страницы",
+                              "via": "page", "w": 100}])
+    (rec,) = store.read_day(D, "t")
+    assert rec["t"] == "Заголовок страницы" and rec["rv"] == rv and rec["ls"] == {"rss": "Заголовок ленты"}
+
+
+def test_rewrites_are_listed_with_a_word_diff_and_counted_per_outlet(archive):
+    from woland import rewrites
+    assert rewrites.word_diff("Путин провёл совещание", "Путин отменил совещание") == \
+        [["=", "Путин "], ["-", "провёл"], ["+", "отменил"], ["=", " совещание"]]
+    rv = [{"at": "2026-09-10T12:00:00Z", "via": "rss", "t": "Путин отменил совещание", "te": "Putin cancelled the meeting"}]
+    store.write_day(D, "t", [
+        {"id": "t:1", "o": "t", "u": "https://t.ru/a/1", "p": "2026-09-10T10:00:00+03:00", "t": "Путин провёл совещание",
+         "te": "Putin held a meeting", "rv": rv},
+        {"id": "t:2", "o": "t", "u": "https://t.ru/a/2", "p": "2026-09-10T11:00:00+03:00", "t": "Другое"}])
+    out = rewrites.gather([D], ["t"], lambda r: False, through=D.isoformat())
+    (item,) = out["items"]
+    assert item["was"] == "Путин провёл совещание" and item["now"] == rv[0]["t"] and item["te0"] == "Putin held a meeting"
+    assert item["te1"] == "Putin cancelled the meeting" and item["n"] == 1 and out["outlets"] == {"t": {"rewritten": 1, "articles": 2}}
+    # a day still being collected is listed, not counted
+    assert rewrites.gather([D], ["t"], lambda r: False, through="2026-09-09")["outlets"] == {}
+
+
+# ── feeds that may have rolled over between two readings ─────────────────────
+def test_a_feed_holding_nothing_stored_before_is_reported_as_possibly_rolled_over():
+    def fed(i, *feeds, day=D):
+        c = listed(i, day)
+        c.feeds = list(feeds)
+        return c
+    known = {f"https://t.ru/a/{i}": ("page", "") for i in range(3)}
+    main, extra = "https://t.ru/rss", "https://t.ru/rss/world"
+    # the main feed still holds articles stored at the last reading; the section feed holds only new ones
+    cands = [fed(i, main) for i in range(8)] + [fed(i, extra) for i in range(10, 16)]
+    assert collect.rolled_over(cands, known, D, D) == [extra]
+    # an article in both feeds counts for both: the section feed reaches back to what was stored
+    cands.append(fed(1, main, extra))
+    assert collect.rolled_over(cands, known, D, D) == []
+    # too few articles to say, articles outside the range, an outlet with nothing stored yet
+    assert collect.rolled_over([fed(i, extra) for i in range(10, 14)], known, D, D) == []
+    assert collect.rolled_over([fed(i, extra, day=D - timedelta(days=3)) for i in range(10, 20)], known, D, D) == []
+    assert collect.rolled_over([fed(i, extra) for i in range(10, 20)], {}, D, D) == []
+
+
+def test_discovery_keeps_every_feed_that_announced_an_article(fake):
+    from woland.discover import discover
+    item = '<item><title>Заголовок {i}</title><link>https://t.ru/a/{i}</link><pubDate>Thu, 10 Sep 2026 09:00:00 +0300</pubDate></item>'
+    rss = lambda ids: "<rss><channel>" + "".join(item.format(i=i) for i in ids) + "</channel></rss>"
+    o = outlet(fetch=False, sources=[{"type": "rss", "url": ["https://t.ru/rss", "https://t.ru/rss/world"]}])
+    cands, errors = discover(fake({"https://t.ru/rss": rss([1, 2]), "https://t.ru/rss/world": rss([2, 3])}), o, D, D)
+    assert not errors
+    assert {c.url[-1]: c.feeds for c in cands} == {"1": ["https://t.ru/rss"], "2": ["https://t.ru/rss", "https://t.ru/rss/world"],
+                                                   "3": ["https://t.ru/rss/world"]}

@@ -1,0 +1,66 @@
+# Field ids are kept stable: the site can open this form with them filled in
+# (…/issues/new?template=lexicon-false-positive.yml&url=…&outlet=…&framing=…).
+name: Framing counted wrongly
+description: An article counted under a framing it does not fit, or one it fits but was not counted under.
+title: "[lexicon] "
+labels: ["lexicon"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Framing counts are pattern matches (`config/lexicon.yaml`), so some are wrong. How many of a random
+        sample of each framing's matches fit its definition is in
+        [docs/lexicon-audit.md](https://github.com/Savvyboi/Woland/blob/main/docs/lexicon-audit.md).
+        One article per report helps most; a pattern that goes wrong often is worth a word under *Suggested change*.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What went wrong
+      options:
+        - Counted, but does not fit the framing (false positive)
+        - Fits the framing, but was not counted (false negative)
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: Article
+      description: The article's address at the outlet, or its Woland record id (outlet:number, as in the CSV export).
+      placeholder: https://ria.ru/20261127/….html
+    validations:
+      required: true
+  - type: input
+    id: outlet
+    attributes:
+      label: Outlet
+      description: Its id in `config/outlets.yaml` (ria, tass, rt-ru …) or its name.
+    validations:
+      required: true
+  - type: input
+    id: framing
+    attributes:
+      label: Framing
+      description: The framing's id in `config/lexicon.yaml` (kyiv-regime, provocation, western-fakes …) or its name on the site.
+    validations:
+      required: true
+  - type: textarea
+    id: excerpt
+    attributes:
+      label: Excerpt
+      description: The headline, lead or snippet with the words in question, in Russian (and English if you have it).
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: reason
+    attributes:
+      label: Why it does not fit (or does)
+      description: What the words mean here, against the framing's definition on the Narratives page.
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested change
+      description: Optional. A pattern to add, narrow (`with`) or exclude (`not`); see the top of `config/lexicon.yaml`.
+      render: yaml

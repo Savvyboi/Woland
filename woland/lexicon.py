@@ -17,6 +17,21 @@ _WS = re.compile(r"\s+")
 CONTEXT_WINDOW = 50  # characters either side of a full-text match in which a `with` word must appear
 
 
+# Characters that web pages carry invisibly inside or between words (soft hyphens, zero-width spaces and
+# joiners, byte-order marks, the stress mark of dictionary Russian): matching ignores them, so that
+# "провок\u00adацию" counts as "провокацию". site/assets/js/lexicon.js drops the same ones.
+INVISIBLE = "\u00ad\u0301\u180e\u200b\u200c\u200d\u2060\ufeff"
+# Unusual spaces: matched as plain spaces. These include every character that only one of Python's and
+# JavaScript's \s counts as a space, so that the two agree on where words end.
+SPACES = "\x1c\x1d\x1e\x1f\x85\xa0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000"
+_CLEAN = str.maketrans({**{c: None for c in INVISIBLE}, **{c: " " for c in SPACES}})
+
+
+def lex_normalize(s: str) -> str:
+    """The matching form of a pattern or of context text: normalize(), without the invisible characters."""
+    return normalize(s.translate(_CLEAN))
+
+
 def norm_same_length(s: str) -> str:
     """normalize() applied character by character, so offsets stay valid in the original text."""
     n = normalize(s)
@@ -29,13 +44,26 @@ def norm_same_length(s: str) -> str:
     return "".join(out)
 
 
+def prepare(s: str) -> tuple[str, list[int] | None]:
+    """The text to match in, and where each of its characters is in s (None: at the same offset)."""
+    t = s.translate(_CLEAN)
+    if len(t) == len(s):
+        return norm_same_length(t), None
+    return norm_same_length(t), [i for i, ch in enumerate(s) if ch not in INVISIBLE]
+
+
+def _back(span: tuple[int, int], where: list[int] | None) -> tuple[int, int]:
+    """A span in the prepared text as a span in the original."""
+    return span if where is None else (where[span[0]], where[span[1] - 1] + 1)
+
+
 # A pattern word that stands for up to three words, whatever they are, and any quotation mark or bracket
 # before the next word: 'трасс* ~ новороссия' finds "трассе Р-280 «Новороссия»".
 GAP = "~"
 
 
 def pattern_regex(pattern: str) -> str:
-    words = normalize(pattern).split()
+    words = lex_normalize(pattern).split()
     if not words or GAP in (words[0], words[-1]):
         raise ValueError(f"pattern {pattern!r}: {GAP} can only stand between two words")
     out = ""
@@ -52,7 +80,7 @@ def pattern_regex(pattern: str) -> str:
 
 def _literal(pattern: str) -> str:
     """The longest stretch of text every match of the pattern contains (its longest word, without *)."""
-    words = [w[:-1] if w.endswith("*") else w for w in normalize(pattern).split() if w != GAP]
+    words = [w[:-1] if w.endswith("*") else w for w in lex_normalize(pattern).split() if w != GAP]
     return max(words, key=len, default="")
 
 
@@ -72,11 +100,12 @@ class _Group:
         lits = [_literal(p) for p in match]
         self.lits = None if not all(lits) else sorted(set(lits))
 
-    def first(self, t: str, extra: str, window: int | None) -> tuple[int, int] | None:
-        """The first match in t (normalised) that satisfies the group's conditions."""
+    def all(self, t: str, extra: str, window: int | None, first_only: bool = False) -> list[tuple[int, int]]:
+        """Every match in t (prepared) that satisfies the group's conditions, in order."""
         if self.lits is not None and not any(lit in t for lit in self.lits):
-            return None
+            return []
         spans_not = [m.span() for m in self.exclude.finditer(t)] if self.exclude else ()
+        out = []
         for m in self.rx.finditer(t):
             a, b = m.span()
             if any(c <= a and b <= d for c, d in spans_not):
@@ -88,8 +117,15 @@ class _Group:
                     around = around[_window(t, a - window, a, left=True):_window(t, b + window, b, left=False)]
                 if not (self.ctx.search(around) or (extra and self.ctx.search(extra))):
                     continue
-            return a, b
-        return None
+            out.append((a, b))
+            if first_only:
+                break
+        return out
+
+    def first(self, t: str, extra: str, window: int | None) -> tuple[int, int] | None:
+        """The first match in t (prepared) that satisfies the group's conditions."""
+        found = self.all(t, extra, window, first_only=True)
+        return found[0] if found else None
 
 
 def _window(t: str, i: int, limit: int, left: bool) -> int:
@@ -126,8 +162,8 @@ class Lexicon:
         that context may be found (for full texts)."""
         if not text:
             return {}
-        t = norm_same_length(text)
-        e = normalize(extra) if extra else ""
+        t, where = prepare(text)
+        e = lex_normalize(extra) if extra else ""
         hits = {}
         for nid, groups in self._groups.get(lang, []):
             best = None
@@ -136,8 +172,20 @@ class Lexicon:
                 if span and (best is None or span[0] < best[0]):
                     best = span
             if best:
-                hits[nid] = best
+                hits[nid] = _back(best, where)
         return hits
+
+    def spans(self, text: str, lang: str, nid: str, extra: str = "") -> list[tuple[int, int]]:
+        """Every counted occurrence of one narrative in text, in order (what the site highlights)."""
+        if not text:
+            return []
+        groups = next((g for i, g in self._groups.get(lang, []) if i == nid), None)
+        if not groups:
+            return []
+        t, where = prepare(text)
+        e = lex_normalize(extra) if extra else ""
+        found = sorted((s for g in groups for s in g.all(t, e, None)), key=lambda s: s[0])
+        return [_back(s, where) for s in found]
 
     def tag(self, title: str, lead: str, body: str, lang: str) -> tuple[set[str], dict[str, str]]:
         """Narratives found in headline/lead, and body-only matches with a context snippet."""
