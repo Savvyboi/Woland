@@ -3,6 +3,7 @@ strings exist in English, Finnish and Swedish."""
 from __future__ import annotations
 
 import gzip
+import hashlib
 import json
 import re
 import shutil
@@ -14,6 +15,7 @@ import pytest
 from woland import build as buildmod
 from woland import store
 from woland.config import ROOT
+from woland.util import MSK
 
 SITE = ROOT / "site"
 NODE = shutil.which("node")
@@ -244,8 +246,8 @@ def test_hours_between_readings_of_a_feed_that_rolled_over_are_listed(archive):
 
 def test_every_page_is_assembled_from_the_partials(built_site):
     pages = sorted(p.name for p in SITE.glob("*.html"))
-    assert pages == ["analysis.html", "archive.html", "brief.html", "index.html", "method.html", "narratives.html",
-                     "outlets.html"]
+    assert pages == ["analysis.html", "archive.html", "brief.html", "index.html", "lab.html", "method.html",
+                     "narratives.html", "outlets.html"]
     for name in pages:
         html = (built_site / name).read_text(encoding="utf-8")
         assert "include:" not in html and 'class="masthead"' in html, name
@@ -425,6 +427,65 @@ def test_feed_builder_lists_only_feeds_that_exist(built_site):
         assert len(urls) == b["n"] and set(urls) <= set(paths), b["id"]
     nb = ET.parse(built_site / bundles["nordic-baltic"]["path"]).getroot()
     assert [o.get("xmlUrl") for o in nb.iter("outline") if o.get("xmlUrl")] == ["feeds/country/FI.xml"]
+
+
+def test_parquet_snapshots_hold_every_record(built_site):
+    """data/parquet/woland-YYYY-MM.parquet: one row per stored record, machine-written items marked, with the
+    framings, countries and speaker the build found; unknown values are null."""
+    pq = pytest.importorskip("pyarrow.parquet")
+    man = json.loads((built_site / "data" / "parquet" / "manifest.json").read_text(encoding="utf-8"))
+    assert man["complete_through"] == "2026-09-06"
+    (f,) = man["files"]
+    assert f["file"] == "woland-2026-09.parquet" and f["open"] is True
+    path = built_site / "data" / "parquet" / f["file"]
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == f["sha256"]
+    table = pq.read_table(path)
+    stored = sum(1 for p in (store.ART_DIR).rglob("*.jsonl") for line in p.read_text(encoding="utf-8").splitlines() if line.strip())
+    assert table.num_rows == f["rows"] == stored == 8 * 6 + 2
+    assert table.column_names == [c["name"] for c in man["columns"]]
+    rows = table.to_pylist()
+    assert sum(r["machine"] for r in rows) == 1
+    lav = next(r for r in rows if r["title"].startswith("Лавров"))
+    assert "nazism" in lav["framings"] and lav["speaker_kind"] == "person" and lav["title_en"].startswith("Lavrov")
+    assert lav["published_at"].tzinfo is not None and str(lav["day"]) == lav["published_at"].astimezone(MSK).date().isoformat()
+    weather = next(r for r in rows if "погоду" in r["title"])
+    assert weather["words"] is None and weather["headline_only"]
+    assert weather["speaker_kind"] == "role"                                     # "Синоптики пообещали…"
+    assert next(r for r in rows if "Уиткофф" in r["title"])["speaker"] is None
+    rt = next(r for r in rows if r["outlet"] == "rt" and "Finland" in r["title"])
+    assert rt["countries"] == ["FI"] and rt["title_en"] == rt["title"] and rt["outlet_group"] == "foreign"
+    staged = next(r for r in rows if "staged" in r["title"])
+    assert staged["archive_capture"] == staged["published_at"].strftime("%Y%m%d") + "093000"
+    assert sum(r["archive_capture"] is not None for r in rows) == 8
+
+
+def test_the_query_labs_presets_run(built_site):
+    """The Query Lab's ready-made queries run on the snapshots, in DuckDB (Python's, as the browser's is the same
+    engine), over the two views the Lab defines."""
+    duckdb = pytest.importorskip("duckdb")
+    lab = (SITE / "assets" / "js" / "lab.js").read_text(encoding="utf-8")
+    presets = re.findall(r'\["(\w+)", `(.*?)`\]', lab, re.S)
+    assert len(presets) == 5
+    man = json.loads((built_site / "data" / "parquet" / "manifest.json").read_text(encoding="utf-8"))
+    files = ", ".join(f"'{built_site / 'data' / 'parquet' / f['file']}'" for f in man["files"])
+    con = duckdb.connect()
+    con.sql(f"CREATE VIEW articles AS SELECT * FROM read_parquet([{files}])")
+    con.sql(f"CREATE VIEW complete AS SELECT * FROM articles WHERE day <= DATE '{man['complete_through']}' AND NOT machine")
+    assert con.sql("SELECT count(*) FROM complete").fetchone()[0] == 6 * 6 + 1
+    for name, sql in presets:
+        con.sql(sql).fetchall()
+
+
+def test_the_query_lab_loads_duckdb_only_when_asked():
+    """No page or module but the Query Lab's loads DuckDB-Wasm, and the Lab imports it only inside the function
+    that runs the first query."""
+    for page in SITE.glob("*.html"):
+        assert "duckdb-wasm" not in page.read_text(encoding="utf-8").lower(), page.name
+    for js in (SITE / "assets" / "js").glob("*.js"):
+        if js.name != "lab.js":
+            assert "duckdb-wasm" not in js.read_text(encoding="utf-8").lower(), js.name
+    lab = (SITE / "assets" / "js" / "lab.js").read_text(encoding="utf-8")
+    assert not re.search(r"^import .*duckdb", lab, re.M | re.I) and "await import(DUCKDB)" in lab
 
 
 # ── interface strings ─────────────────────────────────────────────────────────

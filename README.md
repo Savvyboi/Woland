@@ -226,6 +226,15 @@ own situation.
 | `ls`, `rv` | headline rewrites seen in the listings: per listing (`rss`, `sitemap`, `html`) the headline it first showed (`""` where it is `t`), and each rewrite `{at, via, t, te}`, oldest first; `t` stays as first published |
 | `va`, `vs` | only when the outlet took the page down: when it was first found missing (UTC) and the status it answered (404 or 410) two nights in a row (`python -m woland recheck`, a sample of the last week's pages each night) |
 
+**Parquet.** Each month is also built into `data/parquet/woland-YYYY-MM.parquet` on the site (`woland/parquet.py`):
+one row per stored article, with its outlet and group, times, headline and its translation, section, tags,
+author, whether the page was read, whether the outlet labels it machine-written, the framings, topics and countries
+matched, the speaker its headline quotes, and the Internet Archive capture read, if any (leads stay in the JSONL
+files: they would make the snapshots two and a half times larger). `data/parquet/manifest.json`
+lists the files (rows, size, SHA-256) and documents the columns; unknown values are null. The Query Lab
+(`lab.html`) runs SQL over them in the browser with DuckDB-Wasm, fetched from jsDelivr only when a query is run;
+locally, `duckdb.sql("SELECT outlet, count(*) FROM 'woland-2026-11.parquet' GROUP BY 1")` does the same.
+
 `data/state/coverage.json` records, for every outlet and day, how many articles were stored, how many the
 outlet's own listings announced, how many are still headline only (`h`), and whether the day is complete.
 `data/state/runs.json` keeps the latest run summaries (`rolled_over` lists a polled outlet's feeds none of whose
