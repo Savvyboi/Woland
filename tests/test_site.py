@@ -271,6 +271,11 @@ def test_analysis_counts_completed_days_only(built_site):
     stories = json.loads((folder / "stories" / "all.json").read_text(encoding="utf-8"))
     assert stories["per_day"] == [0] * 6 and stories["min"] == 4     # two outlets: no story reaches four
     assert json.loads(gzip.decompress((folder / "stories" / "day" / "2026-09-03.json.gz").read_bytes())) == []
+    src = json.loads((folder / "sources" / "all.json").read_text(encoding="utf-8"))
+    assert src["outlets"]["ria"]["n"] == 12 and src["outlets"]["ria"]["anon"] == 0.5   # Лавров and "эксперт"
+    assert sum(src["outlets"]["ria"]["b"].values()) == 12 and "ria" in src["state"] and "kp" not in src["state"]
+    monthly = json.loads((built_site / "data" / "source_laundering.json").read_text(encoding="utf-8"))
+    assert list(monthly["months"]) == ["2026-09"] and monthly["months"]["2026-09"]["outlets"] == src["outlets"]
     tags = json.loads((folder / "tags" / "all.json").read_text(encoding="utf-8"))
     assert tags["outlets"] == {}                                 # the test records carry no tags or sections
 
