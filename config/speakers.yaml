@@ -1,0 +1,57 @@
+# Woland: who a headline's speaker is, for the "Who is cited" ledger (woland/sources.py, Analysis page).
+#
+# The speaker comes from the headline (woland/analysis.py: "Песков: …", "Лавров заявил…", "… – Lavrov"). Each is
+# put in one of four buckets:
+#   named_official    a named office holder (government, parliament, military, diplomacy, central bank, state
+#                     corporations), Russian or foreign, or an institution speaking as one ("МИД", "Кремль")
+#   named_other       anyone else named: commentators, ex-officials, public figures, and officials not listed here
+#   anonymous_expert  a source or an expert left unnamed: "эксперт", "источник", "политолог", "врач", "sources"
+#   cited_outlet      another outlet, a news agency or a Telegram channel
+#
+# officials   speakers' keys (the last word of the name, in lower case, as woland/analysis.voice_key gives it) of
+#             office holders; a name preceded by an office ("Посол", "Генерал", "Minister") counts as well.
+#             Listed by how often they speak: the 30 days to 26 November 2026 cover most named speakers.
+# telegram    Telegram channels and other unregistered outlets, by key; with fringe, the sources whose citation by a
+#             state outlet is shown as "fringe to state"
+# fringe      the outlets Woland calls hardline (outlets.yaml group) are fringe too; these are added by key
+# (citations of fringe sources by the outlets of the state group in outlets.yaml are flagged)
+
+officials:
+  # Russia: the president and his administration, government, parliament, regions, diplomacy, security
+  [путин, песков, ушаков, медведев, мишустин, лавров, захарова, мирошник, небензя, полянский, рябков, грушко,
+   галузин, дмитриев, мединский, орешкин, кириенко, матвиенко, володин, лантратова, слуцкий, карасин, пушков,
+   шойгу, белоусов, герасимов, конашенков, нарышкин, бортников, колокольцев, бастрыкин, краснов, набиуллина,
+   силуанов, новак, решетников, хуснуллин, мурашко, кравцов, никитин, дегтярев, голикова, ямпольская, любимова,
+   фальков, савельев, патрушев, лихачев, сечин, миллер, греф, костин, чемезов, собянин, воробьев, беглов,
+   пушилин, пасечник, сальдо, балицкий, гладков, хинштейн, богомаз, аксенов, кадыров, попова, москалькова,
+   лукашенко,
+   # Ukraine
+   зеленский, ермак, буданов, сырский, шмыгаль, свириденко, сибига, кулеба, кличко, мадьяр, умеров, стефанчук,
+   # United States
+   трамп, вэнс, рубио, уиткофф, кушнер, хегсет, бессент, лавитт, уолц, келлог,
+   # Europe, NATO and others
+   макрон, мерц, стармер, туск, каллас, рютте, ляйен, кошта, орбан, фицо, стубб, орпо, валтонен, кристерссон,
+   фредериксен, михал, ринкевич, науседа, санду, пашинян, алиев, эрдоган, нетаньяху, пезешкиан, аракчи,
+   цзиньпин, ын, моди, вучич, токаев, мирзиеев,
+   # the same in English (the English-language outlets)
+   putin, peskov, ushakov, medvedev, mishustin, lavrov, zakharova, miroshnik, nebenzia, polyanskiy, ryabkov,
+   dmitriev, medinsky, matviyenko, volodin, shoigu, belousov, nabiullina, siluanov, novak, likhachev, lukashenko,
+   zelensky, yermak, budanov, syrsky, sybiha, trump, vance, rubio, witkoff, kushner, hegseth, bessent, macron,
+   merz, starmer, tusk, kallas, rutte, leyen, orban, fico, stubb, pashinyan, aliyev, erdogan, netanyahu, xi,
+   jinping, modi, vucic, grossi, guterres]
+
+# the words of an office before a name: "Посол Небензя", "Глава МИД Венгрии Сийярто", "Defense Minister Belousov"
+offices:
+  [президент, премьер, премьер-министр, министр, замминистра, вице-премьер, глава, замглавы, посол, постпред,
+   полпред, генсек, генпрокурор, сенатор, депутат, евродепутат, спикер, губернатор, врио, мэр, пресс-секретарь,
+   представитель, генерал, адмирал, командующий, командир, канцлер, король, премьера, советник, помощник,
+   president, prime, premier, minister, ambassador, envoy, secretary, spokesman, spokeswoman, spokesperson,
+   senator, governor, mayor, chancellor, general, admiral, commander, speaker, chief, lawmaker, mp, mep, aide]
+
+telegram:
+  [shot, mash, baza, readovka, рыбарь, rybar, wargonzo, "два майора", "военная хроника", "военный осведомитель",
+   "операция z", "readovka", "топор", "акула", "112", "осторожно новости", "zvezda news"]
+
+fringe:
+  [царьград, регнум, "украина.ру", иносми, "tsargrad", "regnum"]
+

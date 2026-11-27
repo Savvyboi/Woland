@@ -15,11 +15,14 @@ The website has seven chapters (and an interface in English, Finnish and Swedish
 | II | **Narratives** — *There Were Doings at Griboyedov's* | one framing or topic over time, on completed days: overall (with the articles and outlets behind every share), by type of outlet, at home vs. abroad, by outlet, outlet × day heatmap (not collected ≠ no articles), optionally only the outlets collected every day; recent examples, the exact patterns and how many of a sample of matches fit the definition |
 | III | **Archive** — *Manuscripts Don't Burn* | full-text search over every headline and lead (all word forms; English queries also hit the machine translations of Russian headlines and leads, and either spelling of place names), active filters as chips, timeline, per-outlet counts, CSV export |
 | IV | **Outlets** — *Satan's Great Ball* | the 23 outlets: owner, language, EU-blocking status, how Woland reads them, what is known about gaps, headline-only records, what they lean on, collection day by day, the log of collection runs |
+| V | **Analysis** — *Sturgeon of the Second Freshness* | over the last 7 or 30 completed days, or all of them: who the headlines quote (people, institutions, unnamed "experts", other outlets) and with which verb; how much each outlet leans on unnamed sources, and which outlets pass on Telegram channels and hardline outlets; the stories that four or more outlets ran on the same day, who ran each first and how long the others took; the countries named, on a map; the outlets' own tags and sections |
 | V | **Analysis** — *Sturgeon of the Second Freshness* | over the last 7 or 30 completed days, or all of them: who the headlines quote (people, institutions, unnamed "experts", other outlets) and with which verb; the stories that four or more outlets ran on the same day, who ran each first and how long the others took; the countries named, on a map; the outlets' own tags and sections |
+| VI | **Week** — *News from Yalta* | each completed Monday-to-Sunday week: the framings and topics that rose or fell against the four weeks before, the words that rose most, the stories the most outlets ran, who was quoted and which countries were named, how the outlets writing for readers abroad differ from those writing at home, what was not collected; and the Atom feeds that let readers follow Woland in a feed reader |
+| V | **Analysis** — *Sturgeon of the Second Freshness* | over the last 7 or 30 completed days, or all of them: who the headlines quote (people, institutions, unnamed "experts", other outlets) and with which verb; the stories that four or more outlets ran on the same day, who ran each first and how long the others took; the countries named, on a map, and crossed with the framings (with a Nordic and Baltic preset); the outlets' own tags and sections |
 | VI | **Week** — *News from Yalta* | each completed Monday-to-Sunday week: the framings and topics that rose or fell against the four weeks before, the words that rose most, the stories the most outlets ran, who was quoted and which countries were named, what was not collected; and the Atom feeds that let readers follow Woland in a feed reader |
 | ❦ | **Method** — *Epilogue* | methodology, limitations, citation, data access, legal notes, the full lexicon |
 
-**Feeds.** Every framing and topic, outlet, country named and saved search (`config/feeds.yaml`) has an Atom feed
+**Feeds.** Every framing and topic, outlet, country named, the Nordic and Baltic countries together (`feeds/region/nordic-baltic.xml`) and saved search (`config/feeds.yaml`) has an Atom feed
 (`feeds/<kind>/<id>.xml` on the site) of its newest 40 articles of the last seven days, with English machine
 translations and a link to the Internet Archive's copy; the weekly brief has one too (`feeds/brief.xml`). Every feed
 link opens a feed builder (`site/assets/js/feeds.js`) that shows and copies a feed's address and offers OPML lists
@@ -65,6 +68,12 @@ From then on everything is automatic:
 | `test.yml` — Tests | on every push | the test-suite (see *Tests* below) |
 | `check.yml` — Check outlets | Mondays, by hand, and when the check changes | can every outlet still be read from GitHub's servers? A table in the run summary, kept per outlet in `data/state/check.json` (for feed-only outlets also: do their pages, `robots.txt` and sitemap still refuse?); the run fails if an outlet is broken |
 
+Optionally, a dead man's switch: create a check at a monitoring service such as
+[healthchecks.io](https://healthchecks.io) (free) with a daily period, and store its ping URL as the repository
+secret `HEALTHCHECKS_PING_URL` (**Settings → Secrets and variables → Actions**). The nightly run then pings it
+when it ends (`…/fail` if collection or publishing failed), and the service warns you when a night fails or no
+run comes at all. Without the secret nothing is sent.
+
 > GitHub suspends scheduled workflows in repositories with no activity for 60 days. Woland commits data every
 > day, which counts as activity, but if collection ever stops, re-enable the workflows from the Actions tab.
 
@@ -98,6 +107,15 @@ From then on everything is automatic:
   the whole archive; full-text matches are recorded when an article is collected, with a short snippet as
   evidence. `site/assets/js/lexicon.js` applies the same rules in the browser to show which words matched. A
   random sample of each framing's matches was read in September 2026: [`docs/lexicon-audit.md`](docs/lexicon-audit.md).
+* **DISARM** (`config/disarm.yaml`, `woland/disarm.py`) — each framing is mapped (`disarm` in the lexicon) to the
+  [DISARM](https://www.disarm.foundation/) Red Framework techniques Woland reads it as, *direct* or *partial*; the
+  names and tactics are kept once, in `config/disarm.yaml`, with the date and a fingerprint of the DISARM index
+  they were read from. The mapping is Woland's analytical reading, not DISARM's. Framing pages show the
+  techniques, and every build writes `exports/disarm-layer-7d.json` and `-30d.json` (DISARM Navigator layers,
+  domain `DISARM`, scored by the percentage of the period's articles that matched a framing mapped to each
+  technique) and `exports/weekly-stix.json` (a STIX 2.1 bundle for the latest completed week: Woland as an
+  identity, one attack-pattern per technique seen, and a report carrying the counts; UUIDv5 ids, so rebuilds give
+  the same file). Counts are pattern matches, not evidence of an operation.
 * **Translation** (`woland/translate.py`, `woland/glossary.py`) — Russian headlines, leads and the snippets of
   body matches are translated to English offline, sentence by sentence, with the open Argos Translate / OPUS-MT
   model through CTranslate2. No API keys, no cost. Names and terms the model gets wrong (Witkoff, Kallas, the SVO)
@@ -112,6 +130,10 @@ From then on everything is automatic:
 * **The site** (`site/`, `woland/build.py`) — plain HTML, CSS and JavaScript modules; no framework, no build
   tool. Search runs in the browser against a static inverted index sharded by month and by word, so only a
   few small gzip files are downloaded per query. Unchanged months are cached between builds, and within the last two months unchanged days, so the nightly build works out only the week it collected again.
+  The Today page is written with the latest complete day's summary already in it (`woland/prerender.py`), and
+  every page carries a title, description and preview picture (`site/assets/img/og-card.png`, made by
+  `tools/og_card.py`), so that link previews, search engines and web archives see more than "Consulting the
+  archive".
 
 ## Running it on your own computer
 
@@ -198,15 +220,26 @@ own situation.
 | `h` | content fingerprint: first 16 hex digits of SHA-256 over the normalised text |
 | `r` | when Woland retrieved it (UTC) |
 | `kb`, `kbe` | framings found **only** in the body text, each with a snippet of ≤ ~170 characters; the snippets' English machine translations, by framing (Russian outlets) |
+| `mt` | the machine-translation model that made the record's translations (`argos-ru_en-1.9`); records translated before 27 November 2026 lack it (the same model, as far as the repository's history shows) |
 | `via` | `page` (article page read) or `feed` (from the outlet's own feed, sitemap or listing only: for feed-only outlets always; for the others a *headline-only* record, kept when the page could not be read and completed by a later run) |
 | `ar` | only when the page was read from the Internet Archive's copy because the outlet did not answer Woland: the time of that capture, `YYYYMMDDhhmmss` UTC (the copy is at `https://web.archive.org/web/<ar>/<u>`) |
+| `ls`, `rv` | headline rewrites seen in the listings: per listing (`rss`, `sitemap`, `html`) the headline it first showed (`""` where it is `t`), and each rewrite `{at, via, t, te}`, oldest first; `t` stays as first published |
+| `va`, `vs` | only when the outlet took the page down: when it was first found missing (UTC) and the status it answered (404 or 410) two nights in a row (`python -m woland recheck`, a sample of the last week's pages each night) |
 
 `data/state/coverage.json` records, for every outlet and day, how many articles were stored, how many the
 outlet's own listings announced, how many are still headline only (`h`), and whether the day is complete.
-`data/state/runs.json` keeps the latest run summaries, `data/state/check.json` the latest outlet check. `data/state/urls/<outlet>.txt` lists every URL stored (a
+`data/state/runs.json` keeps the latest run summaries (`rolled_over` lists a polled outlet's feeds none of whose
+articles had been stored before: the feed may have moved past articles published since the last reading, and
+the run shows a warning), `data/state/check.json` the latest outlet check. `data/state/urls/<outlet>.txt` lists every URL stored (a
 key and its day), so that an article is stored once even if its site re-dates it months later. An article is always filed under the Moscow day it was published, even when it turned up
 while another day was being collected. The repository grows by roughly 2–3 MB of compressed history a day; after a year or two,
-consider moving older years to a release archive.
+consider moving older years to a release archive: `python tools/export_quarter.py 2026-Q4` packs a quarter's day
+files, with the lexicon, the glossary and the audit, into a reproducible `.tar.gz` with SHA-256 checksums.
+
+The published site is limited by GitHub Pages to 1 GB, and each month's search index takes about 90–100 MB of it
+(autumn 2026). `python -m woland budget _site` lists what takes the room and how many more months fit; the deploy
+workflow runs it after every build, warns above 700 MB and stops above 920 MB, before Pages would refuse the site.
+`WOLAND_SEARCH_MONTHS` (18 by default) sets how many months stay searchable.
 
 ## Limitations
 
@@ -215,6 +248,12 @@ consider moving older years to a release archive.
   check of 25 random matches per framing (three rounds, the last on 28 September 2026), 545 of 600 fit the
   definitions, from 14 of 25 ("Western fakes") to 25 of 25 (`docs/lexicon-audit.md`); that check still needs a
   specialist's review. `python -m woland sample <framing>` draws a fresh sample to read.
+* There is no detector of *temniki* (editorial directives) on the site. `python -m woland phrases --day <day>`
+  lists, for a researcher to read, rare phrases (3–5 words, stemmed, unseen in the 30 days before) that four or more
+  Russian outlets used within six hours in articles of three or more stories (`woland/phrases.py`). Tried on
+  October–November 2026 it lists a few hundred a day, nearly all ordinary coverage of one event or one quoted
+  statement ("резиденция «Цилинь Шаньчжуан»", "Путин поблагодарил Си Цзиньпина за организацию"): shared wording
+  is the norm in this press, so it is a place to start reading, not evidence of a directive.
 * The current day, and the previous one until the nightly run has gathered it, are *still being collected*: the
   site leaves them out of comparisons and averages unless asked, and marks them where they are shown.
 * TASS's Russian service is read from its own feeds only and starts on the day hourly reading began (24 September
@@ -251,6 +290,31 @@ consider moving older years to a release archive.
 * Machine translations are serviceable, not authoritative.
 
 What is still open — data gaps, planned fixes, reviews that need a person — is listed in [`TODO.md`](TODO.md).
+
+## Citing Woland datasets
+
+Cite an article by its page, with the citation the site gives under *Cite*. Cite a body of data by a **quarterly
+data release**: on the 2nd of January, April, July and October, `.github/workflows/quarterly-release.yml`
+publishes the quarter just over as a GitHub Release tagged `data-YYYY-Q#`, once every one of its days is
+collected in full. The release carries the quarter's day files with the lexicon, glossary and audit they were
+tagged with (`woland-articles-YYYY-Q#.tar.gz`, reproducible byte for byte), its monthly Parquet snapshots, and
+`SHA256SUMS`. A release is never replaced. `python tools/quarterly_release.py 2026-Q4 --site _site` builds the
+same files locally; running the workflow by hand defaults to a dry run that only keeps them as an artifact.
+
+For a DOI, the maintainer switches on Zenodo's GitHub integration once (zenodo.org → Account → GitHub → enable
+Savvyboi/Woland). Zenodo then archives every published release, as the repository stood at its tag, with the
+metadata in `.zenodo.json`, and gives the release a DOI (and the series a concept DOI that always points to
+the latest). Then replace this line with the badge Zenodo offers:
+
+<!-- [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXXX) -->
+
+> Woland: a chronicle of the Russian state press, data release 2026-Q4. https://github.com/Savvyboi/Woland/releases/tag/data-2026-Q4 (or its DOI).
+
+## Reporting a miscount or a mistranslation
+
+Two issue forms take the reports that improve Woland most: **Framing counted wrongly** (an article counted
+under a framing it does not fit, or missed) and **Translation correction** (a name or term the machine
+translation gets wrong, for `config/glossary.yaml`). Open them from the repository's *Issues → New issue*.
 
 ## Legal and ethical notes
 

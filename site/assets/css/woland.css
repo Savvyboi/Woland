@@ -65,6 +65,7 @@ body {
   min-height: 100vh;
   display: flex; flex-direction: column;
 }
+
 /* faint paper grain (a small pre-rendered tile: cheap to paint) */
 body::before {
   content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
@@ -434,6 +435,17 @@ mark.hit { background: linear-gradient(transparent 55%, rgba(207, 78, 70, .45) 5
 .chip:hover .x { color: var(--crimson-text); }
 .scope { margin: -.6rem 0 1rem; max-width: 52rem; }
 
+/* ── DISARM techniques on a framing's page ─────────────────────────────── */
+.disarm { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin: .2rem 0 .7rem; font: .78rem/1.2 var(--sans); }
+.disarm .k { color: var(--text-3); letter-spacing: .08em; margin-right: .15rem; }
+.disarm-pill { color: var(--text); background: var(--ink-2); border: 1px solid var(--rule-2); border-radius: 999px;
+  padding: .25rem .6rem; text-decoration: none; }
+.disarm-pill b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.disarm-pill.partial { border-style: dashed; color: var(--text-2); }
+.disarm-pill small { color: var(--text-3); }
+.disarm-pill:hover { border-color: var(--gilt-dim); }
+.disarm-about { color: var(--text-3); margin-left: .2rem; }
+
 /* ── Charts: days still being collected, and what a share is a share of ─── */
 .chart .line.open { stroke-dasharray: 3 3; opacity: .75; }
 .chart .dot.open { fill: var(--ink-1); stroke-width: 1.5; }
@@ -505,6 +517,10 @@ ol.voices .outs { color: var(--text-3); font-size: .8rem; overflow: hidden; text
 .plate > .btn { margin-top: .8rem; }
 ul.stack-list li { display: grid; grid-template-columns: minmax(7.5rem, 12rem) 1fr 4rem; gap: .6rem; align-items: center; padding: .25rem 0; font-size: .88rem; }
 ul.stack-list .lab { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+ul.stack-list.sources .lab .swatch { display: inline-block; width: .55rem; height: .55rem; border-radius: 50%; margin-right: .35rem; }
+ol.flows li { font-family: var(--sans); font-size: .88rem; }
+.pill.fringe { font-family: var(--sans); font-size: .68rem; letter-spacing: .04em; text-transform: uppercase; padding: .05rem .4rem;
+  border-radius: 999px; border: 1px solid var(--g-hardline); color: var(--text); white-space: nowrap; }
 ul.stack-list .val, ol.country-list .val { text-align: right; font-variant-numeric: tabular-nums; color: var(--text); }
 .daynav { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; font: .9rem/1.3 var(--sans); margin: 0 0 .6rem; }
 .daynav strong { font: 600 1rem/1.3 var(--serif); }
@@ -539,6 +555,21 @@ ol.country-list a.lab:hover { color: var(--gilt-text); }
 ol.country-list .val small { color: var(--text-3); }
 ol.country-list .track { height: 14px; position: relative; }
 ol.country-list .fill { position: absolute; left: 0; top: 2px; bottom: 2px; background: var(--gilt); border-radius: 0 4px 4px 0; min-width: 2px; }
+ol.country-list.pulse li { grid-template-columns: minmax(8rem, 13rem) 4rem 140px 4.5rem; }
+.cf-wrap { min-width: 0; }
+.cf-scroll { overflow-x: auto; max-width: 100%; }
+.section:has(> .plate > .cf-wrap), .plate:has(> .cf-wrap) { min-width: 0; max-width: 100%; }
+table.cf { border-collapse: separate; border-spacing: 2px; font-size: .82rem; font-variant-numeric: tabular-nums; }
+table.cf th { font-weight: 500; color: var(--text-2); text-align: left; padding: .25rem .4rem; vertical-align: bottom; }
+table.cf thead th { max-width: 7.5rem; font-size: .76rem; line-height: 1.25; }
+table.cf thead th a { color: inherit; }
+table.cf tbody th { white-space: nowrap; }
+table.cf tbody th small { color: var(--text-3); }
+td.cf-cell { min-width: 3.6rem; text-align: center; padding: 0; border-radius: 3px; }
+td.cf-cell > * { display: block; padding: .35rem .3rem; color: inherit; text-decoration: none; }
+td.cf-cell a:hover, td.cf-cell a:focus-visible { outline: 2px solid var(--gilt); outline-offset: -2px; }
+td.cf-cell.few { opacity: .55; font-style: italic; }
+td.cf-cell.none { color: var(--text-3); padding: .35rem .3rem; }
 ol.tag-list li { grid-template-columns: minmax(8rem, 15rem) 1fr 4rem 4.5rem; }
 @media (max-width: 640px) {
   ol.voices summary { grid-template-columns: 1fr 3rem; }
@@ -549,6 +580,8 @@ ol.tag-list li { grid-template-columns: minmax(8rem, 15rem) 1fr 4rem 4.5rem; }
   ol.stories .first { grid-column: 2; white-space: normal; }
   ol.country-list li { grid-template-columns: 7rem 1fr 4.5rem; }
   ol.country-list .spark, ol.country-list .delta { display: none; }
+  ol.country-list.pulse li { grid-template-columns: 7rem 3rem 1fr; }
+  ol.country-list.pulse .spark { display: block; width: 100%; }
   ul.stack-list li { grid-template-columns: 6.5rem 1fr 3rem; }
 }
 
@@ -615,3 +648,70 @@ ol.tag-list li { grid-template-columns: minmax(8rem, 15rem) 1fr 4rem 4.5rem; }
 .feeds-bundles li { break-inside: avoid; }
 .feeds-bundles small { color: var(--text-3); }
 .cov-legend .feeds-btn { margin-left: auto; }
+
+/* Rewritten headlines (analysis.js renderRewrites) */
+.rewrite .diff { font: 600 1.02rem/1.45 var(--serif); margin: .3rem 0 0; color: var(--text); }
+.rewrite .diff del { color: var(--crimson-text); text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.rewrite .diff ins { color: var(--gilt-text); text-decoration: underline; text-underline-offset: .18em; }
+.rewrite .rw-label { font: normal .72rem/1 var(--sans); color: var(--text-3); text-transform: uppercase; letter-spacing: .08em; }
+.rewrite .diff del + ins { margin-left: .3em; }
+.gone .headline { font: 600 1.02rem/1.45 var(--serif); margin: .3rem 0 0; padding-left: .6rem; border-left: 3px solid var(--crimson-text); }
+.gone .dead-link { font: .78rem/1.3 var(--mono, monospace); color: var(--text-3); overflow-wrap: anywhere; }
+
+/* A word or badge with a note (core.js tipped): on hover, on keyboard focus, and on a tap, which focuses it */
+.tipped { position: relative; cursor: help; }
+.tipped:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.tipped .tip { display: none; position: absolute; z-index: 20; left: 0; top: calc(100% + .35rem); width: max-content; max-width: min(19rem, 80vw);
+  font: normal .78rem/1.4 var(--sans); letter-spacing: normal; text-transform: none; color: var(--text); white-space: normal;
+  background: var(--ink-2); border: 1px solid var(--rule-2); border-radius: var(--radius); padding: .4rem .55rem; box-shadow: 0 4px 14px rgba(0, 0, 0, .35); }
+.tipped:hover .tip, .tipped:focus .tip, .tipped:focus-within .tip { display: block; }
+.gl { text-decoration: underline dotted var(--text-3); text-underline-offset: .2em; }
+
+/* Original | English | Both (core.js textModeToggle) */
+.textmode { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .15rem .7rem; border: 0; padding: 0; margin: .4rem 0 .6rem;
+  font: .82rem/1.3 var(--sans); color: var(--text-2); }
+.textmode legend { float: left; padding: 0; margin-right: .3rem; color: var(--text-3); }
+.textmode label { display: inline-flex; align-items: center; gap: .25rem; cursor: pointer; }
+:root[data-text="en"] .article .has-tr { display: none; }
+:root[data-text="original"] .article .tr { display: none; }
+:root[data-text="en"] .article .tr { font-style: normal; color: var(--text); }
+:root[data-text="en"] .article .tr-head { font: 600 1.05rem/1.35 var(--serif); margin-top: .25rem; }
+.article details.prov .report { margin: .45rem 0 0; color: var(--text-3); }
+@media (max-width: 40rem) {  /* on a phone the note sits above the bottom edge, where it cannot run off the side */
+  .tipped .tip { position: fixed; left: 1rem; right: 1rem; top: auto; bottom: 1rem; width: auto; max-width: none; }
+}
+
+/* "Copy link" (urlstate.js) and the message that confirms it */
+.tabs .permalink { margin-left: auto; align-self: center; }
+.filters .permalink { align-self: end; }
+.toast { position: fixed; left: 50%; bottom: 1.5rem; transform: translate(-50%, 1rem); max-width: min(36rem, calc(100vw - 2rem));
+  background: var(--ink-2); color: var(--text); border: 1px solid var(--rule-2); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: .6rem 1rem; font: .9rem/1.4 var(--sans); overflow-wrap: anywhere; opacity: 0; pointer-events: none;
+  transition: opacity .2s, transform .2s; z-index: 50; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+
+/* Download a chart (charts.js withExport), and a framing's audit result (narratives.js) */
+.plate-tools .export { font: .78rem/1.3 var(--sans); color: var(--text-3); margin-left: .6rem; white-space: nowrap; }
+.precision { margin: 0 0 .35rem; }
+.pill { font: .74rem/1.2 var(--sans); color: var(--text-2); background: none; border: 1px solid var(--rule-2); border-radius: 999px;
+  padding: .18rem .6rem; cursor: pointer; }
+.pill:hover, .pill:focus-visible { color: var(--gilt-text); border-color: var(--gilt-dim); }
+
+/* The Today page as written by the build (woland/prerender.py), until today.js replaces it */
+.prerender-stories { list-style: none; padding: 0; margin: 1rem 0 0; display: grid; gap: .9rem; }
+.prerender-stories li { font: .95rem/1.45 var(--serif); }
+.prerender-stories b { font-family: var(--sans); color: var(--gilt-text); }
+.prerender-stories .tr, .prerender-stories small { color: var(--text-2); }
+.prerender .tile .value a { font: 1.25rem/1.2 var(--serif); color: var(--text); }
+
+/* What each chapter is, under its literary title; and Today at a glance (today.js) */
+.chapter-what { font: 600 .8rem/1.3 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); margin: .6rem 0 0; }
+.chapter-head.compact .chapter-what { margin: 0; }
+.glance { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 1px; background: var(--rule);
+  border: 1px solid var(--rule); border-radius: var(--radius); overflow: hidden; margin: 1.5rem 0 0; }
+.glance-item { display: flex; flex-direction: column; gap: .25rem; background: var(--ink-1); padding: .9rem 1.1rem; color: var(--text); text-decoration: none; }
+.glance-item:hover, .glance-item:focus-visible { background: var(--ink-2); }
+.glance-item .label { font: .78rem/1.3 var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--gilt-text); }
+.glance-item .value { font: 1.08rem/1.3 var(--serif); }
+.glance-item .note { font: .8rem/1.35 var(--sans); color: var(--text-3); }

@@ -1,0 +1,40 @@
+# Woland: the DISARM techniques that framings are mapped to (`disarm` in config/lexicon.yaml).
+#
+# DISARM (https://www.disarm.foundation/) is an open framework for describing disinformation, used by European
+# FIMI teams; its Red Framework lists the techniques of those who create it. Only the techniques Woland maps
+# to are listed here, with their names and tactics as the framework gives them, so that the site, the
+# exports and the tests use one copy.
+#
+# The mapping is Woland's own analytical reading of what each framing does as a narrative; it is not part of
+# DISARM, and a framing counted in an article is a pattern match, not evidence of a coordinated operation.
+#
+# source      where the names were read
+# captured    the day they were read, and a fingerprint (sha256, first 16 hex digits) of the techniques index
+#             then, so that a later reading can tell whether it changed
+# tactics     id → name
+# techniques  id → {name, tactic}
+
+source: https://github.com/DISARMFoundation/DISARMframeworks/blob/main/generated_pages/techniques_index.md
+technique_url: https://github.com/DISARMFoundation/DISARMframeworks/blob/main/generated_pages/techniques/{id}.md
+captured: {date: "2026-11-27", index_sha256: "27305bfe924545f7"}
+
+tactics:
+  TA02: Plan Objectives
+  TA06: Develop Content
+  TA14: Develop Narratives
+
+techniques:
+  T0002: {name: Facilitate State Propaganda, tactic: TA02}
+  T0003: {name: Leverage Existing Narratives, tactic: TA14}
+  T0004: {name: Develop Competing Narratives, tactic: TA14}
+  T0022: {name: Leverage Conspiracy Theory Narratives, tactic: TA14}
+  T0022.001: {name: Amplify Existing Conspiracy Theory Narratives, tactic: TA14}
+  T0023: {name: Distort Facts, tactic: TA06}
+  T0068: {name: Respond to Breaking News Event or Active Crisis, tactic: TA14}
+  T0075: {name: Dismiss, tactic: TA02}
+  T0075.001: {name: Discredit Credible Sources, tactic: TA02}
+  T0076: {name: Distort, tactic: TA02}
+  T0078: {name: Dismay, tactic: TA02}
+  T0079: {name: Divide, tactic: TA02}
+  T0083: {name: Integrate Target Audience Vulnerabilities into Narrative, tactic: TA14}
+  T0135.001: {name: Smear, tactic: TA02}

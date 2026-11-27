@@ -304,13 +304,16 @@ export function heatmap(container, { days, rows, format, cell = 14, isOpen }) {
   container.replaceChildren(wrap, scale, tip);
 }
 
-export function sparkline(values, { width = 110, height = 26, color = "var(--gilt)", label = "", openFrom } = {}) {
-  const vals = values.map((v) => (v === null || v === undefined ? 0 : v));
-  const max = Math.max(1e-9, ...vals);
+export function sparkline(values, { width = 110, height = 26, color = "var(--gilt)", label = "", openFrom, gaps = false } = {}) {
+  // gaps: a null value (nothing to measure that day) breaks the line instead of drawing a zero
+  const vals = values.map((v) => (v === null || v === undefined ? (gaps ? null : 0) : v));
+  const max = Math.max(1e-9, ...vals.filter((v) => v !== null));
   const x = (i) => (vals.length === 1 ? width / 2 : 2 + (i / (vals.length - 1)) * (width - 6));
   const y = (v) => height - 3 - (v / max) * (height - 6);
-  const d = vals.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
-  const last = vals.length - 1;
+  const d = vals.map((v, i) => (v === null ? "" : `${i && vals[i - 1] !== null ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`)).join("");
+  let last = vals.length - 1;
+  while (last > 0 && vals[last] === null) last--;
+  if (vals[last] === null) vals[last] = 0;
   const open = openFrom !== undefined && openFrom !== null && last >= openFrom;
   return s("svg", { class: "spark", viewBox: `0 0 ${width} ${height}`, width, height, role: "img", "aria-label": label },
     s("title", {}, label),
@@ -325,4 +328,115 @@ export function barList(container, items, format) {
     it.href ? el("a", { class: "lab", href: it.href }, it.label) : el("span", { class: "lab" }, it.label),
     el("span", { class: "track", "aria-hidden": "true" }, el("span", { class: "fill", style: { width: `${(it.value / max) * 100}%`, ...(it.color ? { background: it.color } : {}) } })),
     el("span", { class: "val" }, format(it.value))))));
+}
+
+// ── Export: a plate's chart as an SVG or PNG file, with its title, legend and source ─────────────────────
+const STYLED = ["fill", "fill-opacity", "stroke", "stroke-width", "stroke-dasharray", "stroke-opacity", "stroke-linecap",
+  "stroke-linejoin", "opacity", "visibility", "font-family", "font-size", "font-weight", "font-style"];
+
+/** Lines of at most `max` characters, broken between words. */
+export function wrapText(text, max) {
+  const lines = [];
+  let cur = "";
+  for (const w of String(text).split(/\s+/).filter(Boolean)) {
+    if (cur && cur.length + 1 + w.length > max) { lines.push(cur); cur = w; } else cur = cur ? `${cur} ${w}` : w;
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+/** The chart in `chartNode` (its one <svg>) as a standalone SVG document: the styles the page gives it written
+ *  in, the plate's title and legend above it, and the source with the day it was made below. */
+export function exportSvg(plate, chartNode, stamp, heading) {
+  const src = chartNode.querySelector("svg");
+  if (!src) return null;
+  const [, , W, H] = (src.getAttribute("viewBox") || `0 0 ${src.width.baseVal.value} ${src.height.baseVal.value}`).split(/\s+/).map(Number);
+  const clone = src.cloneNode(true);
+  const a = [src, ...src.querySelectorAll("*")], b = [clone, ...clone.querySelectorAll("*")];
+  a.forEach((node, i) => {
+    const cs = getComputedStyle(node);
+    b[i].setAttribute("style", STYLED.map((p) => `${p}:${cs.getPropertyValue(p)}`).join(";"));
+    b[i].removeAttribute("class");
+  });
+  for (const n of clone.querySelectorAll("rect[fill=transparent]")) n.remove();
+  const pcs = getComputedStyle(plate);
+  let bg = pcs.backgroundColor;
+  if (!bg || bg === "rgba(0, 0, 0, 0)" || bg === "transparent") bg = getComputedStyle(document.body).backgroundColor;
+  const ink = pcs.color, faint = getComputedStyle(plate.querySelector(".plate-sub") || plate).color;
+  const font = getComputedStyle(document.body).fontFamily.replace(/"/g, "'");
+  const title = heading || plate.querySelector(".plate-title")?.textContent || "";
+  // (its first sentence: the rest tells the reader how to use the chart on the page)
+  const sub = (plate.querySelector(".plate-sub")?.textContent || "").split(/(?<=[.!?])\s+/)[0];
+  const legend = [...(chartNode.previousElementSibling?.classList.contains("legend") ? chartNode.previousElementSibling.querySelectorAll(".item") : [])]
+    .map((it) => ({ color: getComputedStyle(it.querySelector(".key")).backgroundColor, label: it.textContent.trim() }));
+  const pad = 16, width = Math.max(W + pad, 360);   // (room for the last day's label, which may run past W)
+  const titleLines = wrapText(title, Math.floor((width - 2 * pad) / 8.5));
+  const subLines = sub ? wrapText(sub, Math.floor((width - 2 * pad) / 6.5)) : [];
+  let y = pad + 14;
+  const out = s("svg", { width, height: 0 });
+  out.append(s("rect", { width: "100%", height: "100%", fill: bg }));
+  for (const line of titleLines) { out.append(s("text", { x: pad, y, style: `font:600 16px ${font};fill:${ink}` }, line)); y += 20; }
+  for (const line of subLines) { out.append(s("text", { x: pad, y: y - 2, style: `font:12px ${font};fill:${faint}` }, line)); y += 16; }
+  if (legend.length) {
+    let x = pad;
+    y += 4;
+    for (const it of legend) {
+      out.append(s("rect", { x, y: y - 9, width: 14, height: 3, fill: it.color }));
+      out.append(s("text", { x: x + 19, y: y - 4, style: `font:12px ${font};fill:${ink}` }, it.label));
+      x += 30 + it.label.length * 6.5;
+      if (x > width - 120) { x = pad; y += 16; }
+    }
+    y += 10;
+  }
+  clone.setAttribute("x", 0);
+  clone.setAttribute("y", y);
+  clone.setAttribute("width", W);
+  clone.setAttribute("height", H);
+  clone.removeAttribute("tabindex");
+  out.append(clone);
+  y += H + 18;
+  out.append(s("text", { x: pad, y, style: `font:11px ${font};fill:${faint}` }, stamp));
+  y += pad - 4;
+  out.setAttribute("height", y);
+  out.setAttribute("viewBox", `0 0 ${width} ${y}`);
+  return { svg: new XMLSerializer().serializeToString(out), width, height: y };
+}
+
+/** The exported SVG drawn at twice its size, as a PNG. */
+function toPng({ svg, width, height }) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement("canvas");
+      c.width = width * 2; c.height = height * 2;
+      const g = c.getContext("2d");
+      g.scale(2, 2);
+      g.drawImage(img, 0, 0);
+      c.toBlob((b) => (b ? resolve(b) : reject(new Error("png"))), "image/png");
+    };
+    img.onerror = reject;
+    img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  });
+}
+
+/** "Download: SVG · PNG" in a plate's tools, for the chart in `chartNode`. `name` goes into the file names;
+ *  `save(filename, blob)` hands the file over (core.js downloadBlob), `stamp()` is the source line, and
+ *  `heading()`, if given, the title in place of the plate's. */
+export function withExport(plate, chartNode, name, save, stamp, heading) {
+  const tools = plate.querySelector(".plate-tools");
+  if (!tools) return;
+  const day = new Date().toISOString().slice(0, 10);
+  const file = (ext) => `woland-${name}-${day}.${ext}`;
+  const go = async (ext) => {
+    if (chartNode.hidden) return;  // (the table is showing)
+    const x = exportSvg(plate, chartNode, stamp(), heading?.());
+    if (!x) return;
+    save(file(ext), ext === "svg" ? new Blob([x.svg], { type: "image/svg+xml" }) : await toPng(x));
+  };
+  const btn = (ext) => el("button", { class: "linkish", type: "button", "aria-label": t("export.as", { fmt: ext.toUpperCase() }) },
+    ext.toUpperCase());
+  const svgB = btn("svg"), pngB = btn("png");
+  svgB.addEventListener("click", () => go("svg"));
+  pngB.addEventListener("click", () => go("png").catch((e) => console.error(e)));
+  tools.append(el("span", { class: "export" }, `${t("export.label")} `, svgB, " · ", pngB));
 }
