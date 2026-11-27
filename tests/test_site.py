@@ -385,6 +385,26 @@ def test_weekly_brief_covers_completed_weeks(built_site):
     assert [w["week"] for w in trend["weeks"]] == ["2026-W36"] and trend["weeks"][0]["jsd"] == ab["jsd"]
 
 
+def test_disarm_exports(built_site):
+    """The framings' DISARM techniques over the completed days, as Navigator layers and a STIX 2.1 bundle for the
+    completed week; machine-written items are left out, as everywhere else (37 articles, as in the brief)."""
+    from tests.test_disarm import check_stix
+    meta = json.loads((built_site / "data" / "meta.json").read_text(encoding="utf-8"))
+    kr = next(n for n in meta["narratives"] if n["id"] == "kyiv-regime")
+    assert [d["id"] for d in kr["disarm"]] == ["T0135.001", "T0075"]
+    techs = {d["id"] for d in kr["disarm"]}
+    folder = built_site / "exports"
+    lay = json.loads((folder / "disarm-layer-7d.json").read_text(encoding="utf-8"))
+    assert lay["domain"] == "DISARM" and "2026-09-01 – 2026-09-06" in lay["name"]
+    assert {"name": "articles", "value": "37"} in lay["metadata"]
+    assert techs <= {r["techniqueID"] for r in lay["techniques"]}
+    assert (folder / "disarm-layer-30d.json").exists()
+    b = json.loads((folder / "weekly-stix.json").read_text(encoding="utf-8"))
+    by = check_stix(b)
+    assert by["report"]["name"].endswith("week 2026-W36") and by["report"]["x_woland_articles"] == 37   # 6 days × 6, and Tsargrad's own item
+    assert techs <= {c["technique"] for c in by["report"]["x_woland_counts"]}
+
+
 # ── interface strings ─────────────────────────────────────────────────────────
 @pytest.fixture(scope="module")
 def strings():
