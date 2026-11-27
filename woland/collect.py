@@ -17,7 +17,7 @@ from .extract import clean_lead, clean_title, extract, first_paragraph, publishe
 from .lexicon import Lexicon
 from .store import (append_run, drop_urls, fill_day, headline_only, known_urls, load_coverage, load_runs,
                     load_seen, merge_day, read_day, save_coverage, save_seen)
-from .translate import get_translator
+from .translate import MT_VERSION, get_translator
 from .util import (MSK, canonical_url, daterange, fingerprint, iso_msk, iso_utc, msk_day, now_utc, parse_dt,
                    short_hash, today_msk, truncate)
 
@@ -373,7 +373,8 @@ def collect_outlet(o: Outlet, start: date, end: date, lex: Lexicon, known: dict,
 
 def translate_records(records: list[dict]) -> int:
     """Add the English machine translations Russian records lack: of the headline (te), the lead (de) and
-    the snippets of body matches (kbe, by framing). Returns how many records gained one."""
+    the snippets of body matches (kbe, by framing), and which model made them (mt). Returns how many records
+    gained one."""
     jobs = []  # (record, field, framing or None, the Russian)
     for r in records:
         if r.get("t") and not r.get("te"):
@@ -396,6 +397,7 @@ def translate_records(records: list[dict]) -> int:
             r[field] = en
         else:
             r.setdefault("kbe", {})[nid] = en
+        r["mt"] = MT_VERSION
         changed.add(id(r))
     return len(changed)
 
