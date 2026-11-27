@@ -189,3 +189,50 @@ def test_headline_rewrites_seen_by_either_side_are_kept():
     line = lambda r: json.dumps(r, ensure_ascii=False, separators=(",", ":")) + "\n"
     (out,) = [json.loads(x) for x in merge_records(line(base), line(a), line(b)).splitlines()]
     assert [e["t"] for e in out["rv"]] == ["C", "B"] and out["ls"] == {"rss": "", "sitemap": "A!"}
+
+
+@pytest.mark.skipif(not shutil.which("git") or not shutil.which("bash") or sys.platform == "win32",
+                    reason="needs git and bash (and symbolic links)")
+
+
+def test_two_runs_that_push_at_the_same_time_both_keep_their_work(tmp_path):
+    """.github/commit-data.sh, as the workflows run it: the second run's push is refused, it pulls the first
+    run's commit, the data files merge record by record, and its push succeeds."""
+    env = {**os.environ, "PATH": f"{Path(sys.executable).parent}{os.pathsep}{os.environ.get('PATH', '')}",
+           "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.org", "GIT_COMMITTER_NAME": "t",
+           "GIT_COMMITTER_EMAIL": "t@example.org", "GIT_CONFIG_GLOBAL": str(tmp_path / "gitconfig")}
+    (tmp_path / "gitconfig").write_text("[init]\n\tdefaultBranch = main\n[core]\n\tautocrlf = false\n", encoding="utf-8")
+
+    def git(cwd, *args):
+        return subprocess.run(["git", *args], cwd=cwd, env=env, capture_output=True, text=True, check=True).stdout
+
+    def day_file(clone):
+        return clone / "data" / "articles" / "2026" / "09" / "29" / "tass.jsonl"
+
+    origin, seed = tmp_path / "origin.git", tmp_path / "seed"
+    git(tmp_path, "init", "-q", "--bare", str(origin))
+    git(tmp_path, "clone", "-q", str(origin), str(seed))
+    (seed / ".gitattributes").write_text((ROOT / ".gitattributes").read_text(encoding="utf-8"), encoding="utf-8")
+    day_file(seed).parent.mkdir(parents=True)
+    day_file(seed).write_text(jsonl(rec("a")), encoding="utf-8", newline="\n")
+    git(seed, "add", "-A")
+    git(seed, "commit", "-qm", "base")
+    git(seed, "push", "-q", "origin", "main")
+
+    runs = {}
+    for name, records in (("poll", [rec("a"), rec("b", "2026-09-29T11:00:00+03:00")]),
+                          ("nightly", [rec("a", te="translated"), rec("c", "2026-09-29T12:00:00+03:00")])):
+        clone = tmp_path / name
+        git(tmp_path, "clone", "-q", str(origin), str(clone))
+        (clone / "woland").symlink_to(ROOT / "woland", target_is_directory=True)  # the driver runs python -m woland
+        day_file(clone).write_text(jsonl(*records), encoding="utf-8", newline="\n")
+        runs[name] = clone
+    for name, clone in runs.items():  # both started from "base"; the second must merge to push
+        out = subprocess.run(["bash", str(ROOT / ".github" / "commit-data.sh"), name], cwd=clone, env=env,
+                             capture_output=True, text=True)
+        assert out.returncode == 0, out.stdout + out.stderr
+
+    git(seed, "pull", "-q")
+    merged = [json.loads(line) for line in day_file(seed).read_text(encoding="utf-8").splitlines()]
+    assert [r["u"] for r in merged] == ["a", "b", "c"] and merged[0]["te"] == "translated"
+    assert git(seed, "log", "--format=%s").split() == ["nightly", "poll", "base"]

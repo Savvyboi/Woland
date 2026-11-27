@@ -62,6 +62,12 @@ From then on everything is automatic:
 | `test.yml` — Tests | on every push | the test-suite (see *Tests* below) |
 | `check.yml` — Check outlets | Mondays, by hand, and when the check changes | can every outlet still be read from GitHub's servers? A table in the run summary, kept per outlet in `data/state/check.json` (for feed-only outlets also: do their pages, `robots.txt` and sitemap still refuse?); the run fails if an outlet is broken |
 
+Optionally, a dead man's switch: create a check at a monitoring service such as
+[healthchecks.io](https://healthchecks.io) (free) with a daily period, and store its ping URL as the repository
+secret `HEALTHCHECKS_PING_URL` (**Settings → Secrets and variables → Actions**). The nightly run then pings it
+when it ends (`…/fail` if collection or publishing failed), and the service warns you when a night fails or no
+run comes at all. Without the secret nothing is sent.
+
 > GitHub suspends scheduled workflows in repositories with no activity for 60 days. Woland commits data every
 > day, which counts as activity, but if collection ever stops, re-enable the workflows from the Actions tab.
 
@@ -109,6 +115,10 @@ From then on everything is automatic:
 * **The site** (`site/`, `woland/build.py`) — plain HTML, CSS and JavaScript modules; no framework, no build
   tool. Search runs in the browser against a static inverted index sharded by month and by word, so only a
   few small gzip files are downloaded per query. Unchanged months are cached between builds, and within the last two months unchanged days, so the nightly build works out only the week it collected again.
+  The Today page is written with the latest complete day's summary already in it (`woland/prerender.py`), and
+  every page carries a title, description and preview picture (`site/assets/img/og-card.png`, made by
+  `tools/og_card.py`), so that link previews, search engines and web archives see more than "Consulting the
+  archive".
 
 ## Running it on your own computer
 
@@ -195,6 +205,7 @@ own situation.
 | `h` | content fingerprint: first 16 hex digits of SHA-256 over the normalised text |
 | `r` | when Woland retrieved it (UTC) |
 | `kb`, `kbe` | framings found **only** in the body text, each with a snippet of ≤ ~170 characters; the snippets' English machine translations, by framing (Russian outlets) |
+| `mt` | the machine-translation model that made the record's translations (`argos-ru_en-1.9`); records translated before 27 November 2026 lack it (the same model, as far as the repository's history shows) |
 | `via` | `page` (article page read) or `feed` (from the outlet's own feed, sitemap or listing only: for feed-only outlets always; for the others a *headline-only* record, kept when the page could not be read and completed by a later run) |
 | `ar` | only when the page was read from the Internet Archive's copy because the outlet did not answer Woland: the time of that capture, `YYYYMMDDhhmmss` UTC (the copy is at `https://web.archive.org/web/<ar>/<u>`) |
 | `ls`, `rv` | headline rewrites seen in the listings: per listing (`rss`, `sitemap`, `html`) the headline it first showed (`""` where it is `t`), and each rewrite `{at, via, t, te}`, oldest first; `t` stays as first published |
@@ -202,10 +213,18 @@ own situation.
 
 `data/state/coverage.json` records, for every outlet and day, how many articles were stored, how many the
 outlet's own listings announced, how many are still headline only (`h`), and whether the day is complete.
-`data/state/runs.json` keeps the latest run summaries, `data/state/check.json` the latest outlet check. `data/state/urls/<outlet>.txt` lists every URL stored (a
+`data/state/runs.json` keeps the latest run summaries (`rolled_over` lists a polled outlet's feeds none of whose
+articles had been stored before: the feed may have moved past articles published since the last reading, and
+the run shows a warning), `data/state/check.json` the latest outlet check. `data/state/urls/<outlet>.txt` lists every URL stored (a
 key and its day), so that an article is stored once even if its site re-dates it months later. An article is always filed under the Moscow day it was published, even when it turned up
 while another day was being collected. The repository grows by roughly 2–3 MB of compressed history a day; after a year or two,
-consider moving older years to a release archive.
+consider moving older years to a release archive: `python tools/export_quarter.py 2026-Q4` packs a quarter's day
+files, with the lexicon, the glossary and the audit, into a reproducible `.tar.gz` with SHA-256 checksums.
+
+The published site is limited by GitHub Pages to 1 GB, and each month's search index takes about 90–100 MB of it
+(autumn 2026). `python -m woland budget _site` lists what takes the room and how many more months fit; the deploy
+workflow runs it after every build, warns above 700 MB and stops above 920 MB, before Pages would refuse the site.
+`WOLAND_SEARCH_MONTHS` (18 by default) sets how many months stay searchable.
 
 ## Limitations
 
@@ -250,6 +269,31 @@ consider moving older years to a release archive.
 * Machine translations are serviceable, not authoritative.
 
 What is still open — data gaps, planned fixes, reviews that need a person — is listed in [`TODO.md`](TODO.md).
+
+## Citing Woland datasets
+
+Cite an article by its page, with the citation the site gives under *Cite*. Cite a body of data by a **quarterly
+data release**: on the 2nd of January, April, July and October, `.github/workflows/quarterly-release.yml`
+publishes the quarter just over as a GitHub Release tagged `data-YYYY-Q#`, once every one of its days is
+collected in full. The release carries the quarter's day files with the lexicon, glossary and audit they were
+tagged with (`woland-articles-YYYY-Q#.tar.gz`, reproducible byte for byte), its monthly Parquet snapshots, and
+`SHA256SUMS`. A release is never replaced. `python tools/quarterly_release.py 2026-Q4 --site _site` builds the
+same files locally; running the workflow by hand defaults to a dry run that only keeps them as an artifact.
+
+For a DOI, the maintainer switches on Zenodo's GitHub integration once (zenodo.org → Account → GitHub → enable
+Savvyboi/Woland). Zenodo then archives every published release, as the repository stood at its tag, with the
+metadata in `.zenodo.json`, and gives the release a DOI (and the series a concept DOI that always points to
+the latest). Then replace this line with the badge Zenodo offers:
+
+<!-- [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXXX) -->
+
+> Woland: a chronicle of the Russian state press, data release 2026-Q4. https://github.com/Savvyboi/Woland/releases/tag/data-2026-Q4 (or its DOI).
+
+## Reporting a miscount or a mistranslation
+
+Two issue forms take the reports that improve Woland most: **Framing counted wrongly** (an article counted
+under a framing it does not fit, or missed) and **Translation correction** (a name or term the machine
+translation gets wrong, for `config/glossary.yaml`). Open them from the repository's *Issues → New issue*.
 
 ## Legal and ethical notes
 

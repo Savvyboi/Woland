@@ -21,9 +21,10 @@ OUTLETS = {o.id: o for o in load_outlets(include_disabled=True)}
 NARRATIVES = {n.id for n in load_lexicon()}
 HEX16 = re.compile(r"^[0-9a-f]{16}$")
 UTC = re.compile(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
-FIELDS = {"id", "o", "u", "p", "m", "t", "te", "d", "de", "s", "g", "a", "w", "h", "r", "kb", "kbe", "via", "ar",
+FIELDS = {"id", "o", "u", "p", "m", "t", "te", "d", "de", "s", "g", "a", "w", "h", "r", "kb", "kbe", "via", "ar", "mt",
           "ls", "rv", "va", "vs"}
 LISTINGS = ("rss", "sitemap", "html")
+MT = re.compile(r"^[a-z0-9][a-z0-9_.+-]{2,60}$")  # the translation model, e.g. argos-ru_en-1.9
 CAPTURE = re.compile(r"^20\d{12}$")  # an Internet Archive capture time, YYYYMMDDhhmmss
 
 
@@ -84,6 +85,9 @@ def problems_in(path) -> list[str]:
         if not isinstance(kbe, dict) or (kbe and o.lang != "ru") \
                 or any(nid not in (r.get("kb") or {}) or not isinstance(en, str) or not en.strip() for nid, en in kbe.items()):
             out.append(f"{where}: translations of body snippets that do not match them")
+        if "mt" in r and (not isinstance(r["mt"], str) or not MT.match(r["mt"])
+                          or not (r.get("te") or r.get("de") or r.get("kbe"))):
+            out.append(f"{where}: translation model {r['mt']!r} without a translation, or not a model's name")
         if len(r.get("s", "")) > 60 or len(r.get("a", "")) > 120:
             out.append(f"{where}: section or author too long")
         g = r.get("g", [])

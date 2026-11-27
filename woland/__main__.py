@@ -6,6 +6,7 @@
   recheck   ask again for a sample of the last week's pages, to notice articles taken down (vanish.py)
   translate add missing English translations (headlines, leads, snippets of body matches)
   build     build the static website into _site/
+  budget    how big the built site is, against GitHub Pages' 1 GB (fails above 920 MB)
   probe     try one outlet on one day and print what Woland would store
   check     can every outlet still be read? (discovery + a few article pages per outlet)
   mtcheck   what the translation glossary (config/glossary.yaml) corrects, and what it still misses
@@ -72,6 +73,10 @@ def main(argv=None):
     p = sub.add_parser("build")
     p.add_argument("--out", default="_site")
     p.add_argument("--base-url", default="", help="public URL of the site, for citations")
+    p = sub.add_parser("budget")
+    p.add_argument("site", nargs="?", default="_site")
+    p.add_argument("--warn", type=float, default=700, help="warn above this many MB")
+    p.add_argument("--fail", type=float, default=920, help="fail above this many MB")
     p = sub.add_parser("probe")
     p.add_argument("outlet")
     p.add_argument("--date", type=date.fromisoformat)
@@ -98,6 +103,9 @@ def main(argv=None):
     if a.cmd == "merge":
         from .merge import main as merge_main
         return merge_main(a.base, a.ours, a.theirs, a.path)
+    if a.cmd == "budget":
+        from .budget import main as budget_main
+        return budget_main(a.site, a.warn, a.fail)
     if (sys.stdout.encoding or "").lower().replace("-", "") != "utf8":
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Windows, when the output is piped
     logging.basicConfig(level=logging.DEBUG if a.verbose else logging.INFO,

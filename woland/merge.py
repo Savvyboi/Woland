@@ -44,7 +44,7 @@ def _three_way(base: dict, ours: dict, theirs: dict, both, removal_wins: bool = 
 # ── Day files: one record per URL ────────────────────────────────────────────
 # What one version of a record may lend the other (a lead before its translation): a translation only along
 # with the text it translates (store.lends).
-_FILL = ("d", "te", "de", "kbe", "s", "g", "a")
+_FILL = ("d", "te", "de", "kbe", "s", "g", "a", "mt")
 
 
 def _record(o, a: dict, b: dict) -> dict:
