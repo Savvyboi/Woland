@@ -28,6 +28,7 @@ import os
 import pickle
 import re
 import shutil
+import sys
 import time
 from concurrent.futures import ProcessPoolExecutor
 from collections import Counter, defaultdict
@@ -35,7 +36,7 @@ from datetime import date, datetime, timedelta
 from datetime import time as dtime
 from pathlib import Path
 
-from . import analysis, feeds
+from . import analysis, feeds, parquet
 from .config import CONFIG_DIR, ROOT, START_DATE, load_contexts, load_lexicon, load_outlets
 from .glossary import Glossary
 from .lexicon import Lexicon
@@ -261,6 +262,7 @@ class Builder:
         self.olang = {o.id: o.lang for o in self.outlets}
         self.ofetch = {o.id: o.fetch for o in self.outlets}
         self.omachine = {o.id: o for o in self.outlets if o.machine}
+        self.omap = {o.id: o for o in self.outlets}
         self.narratives = load_lexicon()
         self.nidx = {n.id: i for i, n in enumerate(self.narratives)}
         self.lex = Lexicon(self.narratives)
@@ -310,7 +312,8 @@ class Builder:
         if not hasattr(self, "_code_key"):
             h = hashlib.sha1(f"{BUILD_VERSION}|{self.lex_fp}|{self.glossary.fingerprint()}|"
                              f"{[(o.id, o.machine) for o in self.outlets]}".encode())
-            for src in ("build.py", "lexicon.py", "textproc.py", "glossary.py", "analysis.py", "feeds.py"):  # code too
+            for src in ("build.py", "lexicon.py", "textproc.py", "glossary.py", "analysis.py", "feeds.py",
+                        "parquet.py"):  # code too
                 h.update((Path(__file__).parent / src).read_bytes())
             for cfg in ("countries.yaml", "feeds.yaml"):
                 if (CONFIG_DIR / cfg).exists():
@@ -341,11 +344,11 @@ class Builder:
             if oid in self.oidx:
                 recs.extend(self.corrected(r) for r in read_day(d, oid))
         recs.sort(key=lambda r: (r["p"], r["o"], r["u"]))
-        docs, items = DayDocs(), []
-        summary = self.day_aggregates(recs, docs, items)
+        docs, items, rows = DayDocs(), [], []
+        summary = self.day_aggregates(recs, docs, items, rows)
         shown, stats = self.day_stories([r for r in recs if not self.is_machine(r)])
         summary["stories"] = stats
-        return {"summary": summary, "shown": shown, "docs": docs.items, "feed": items}
+        return {"summary": summary, "shown": shown, "docs": docs.items, "feed": items, "rows": rows}
 
     def day_results(self, days: list[date]) -> dict[date, dict]:
         """compute_day for each day, from the day cache where the day has not changed, the rest in parallel."""
@@ -365,7 +368,10 @@ class Builder:
             todo.append(d)
         if todo:
             t0 = time.monotonic()
-            jobs = min(JOBS, len(todo)) if "fork" in multiprocessing.get_all_start_methods() else 1
+            # (not once Arrow has started its threads, as a second build in one process would find: forking
+            # a multi-threaded process can deadlock the children)
+            forkable = "fork" in multiprocessing.get_all_start_methods() and "pyarrow" not in sys.modules
+            jobs = min(JOBS, len(todo)) if forkable else 1
             if jobs > 1:  # (forked, the workers share the loaded lexicon, dictionaries and settings)
                 global _WORKER
                 _WORKER = self
@@ -382,6 +388,33 @@ class Builder:
             out.update(fresh)
         return out
 
+    def write_parquet(self, months: list[str], days: list[date]) -> None:
+        """data/parquet/woland-YYYY-MM.parquet for every month (woland/parquet.py), from the rows each month's
+        build kept, and data/parquet/manifest.json listing them. A month is converted once and then cached."""
+        if not parquet.available():
+            log.warning("pyarrow is not installed: no Parquet snapshots")
+            return
+        out = self.out / "data" / "parquet"
+        snapshots = []
+        for month in months:
+            cdir = CACHE / month
+            info = cdir / "parquet.json"
+            if not info.exists() and (cdir / "rows.pkl.gz").exists():
+                with gzip.open(cdir / "rows.pkl.gz", "rb") as fh:
+                    rows = pickle.load(fh)
+                dump(info, parquet.write_month(rows, cdir / "parquet" / f"woland-{month}.parquet"))
+                (cdir / "rows.pkl.gz").unlink()
+                del rows
+            if info.exists():
+                shutil.copytree(cdir / "parquet", out, dirs_exist_ok=True)
+                with open(info, encoding="utf-8") as fh:
+                    snapshots.append({"month": month, **json.load(fh)})
+        through = self.complete_through(days)
+        dump(out / "manifest.json", {
+            "complete_through": through,
+            "columns": [{"name": n, "type": t, "about": a} for n, t, a in parquet.COLUMNS],
+            "files": [{**s, "open": s["month"] >= (through or "")[:7]} for s in snapshots]}, pretty=True)
+
     def prune_day_cache(self, months: list[str]) -> None:
         keep = set(months[-DAY_CACHE_MONTHS:])
         for path in (CACHE / "days").glob("*.pkl.gz"):
@@ -397,8 +430,10 @@ class Builder:
         idx = MonthIndex()
         summary = {}
         results = self.day_results(days)
+        rows = []
         for d in days:
             res = results.pop(d)
+            rows.extend(res.get("rows") or [])
             idx.day_starts.append([d.isoformat(), len(idx.docs)])
             for doc, oi, terms in res["docs"]:
                 idx.add(doc, oi, terms)
@@ -407,6 +442,11 @@ class Builder:
                 dump_gz(cdir / "feed" / f"{d.isoformat()}.json.gz", res["feed"])
             dump_gz(cdir / "stories" / f"{d.isoformat()}.json.gz", res["shown"])
         idx.write(sdir)
+        # written after every month's days are worked out (write_parquet): Arrow starts threads, and forking
+        # the day workers after that can deadlock them
+        with gzip.open(cdir / "rows.pkl.gz", "wb", compresslevel=1) as fh:
+            pickle.dump(rows, fh, protocol=pickle.HIGHEST_PROTOCOL)
+        del rows
         for d in days:  # digests need the rolling history, including this month's earlier days
             key = d.isoformat()
             history[key] = summary[key]
@@ -421,9 +461,10 @@ class Builder:
                  time.monotonic() - t0)
         return slim
 
-    def day_aggregates(self, recs: list[dict], idx: "MonthIndex", feed: list | None = None) -> dict:
-        """The day's counts for digests, series and analyses; every record goes into the search index, and
-        into `feed` (when given) as a feed item."""
+    def day_aggregates(self, recs: list[dict], idx: "MonthIndex", feed: list | None = None,
+                       rows: list | None = None) -> dict:
+        """The day's counts for digests, series and analyses; every record goes into the search index, into
+        `feed` (when given) as a feed item, and into `rows` (when given) as a Parquet row (woland/parquet.py)."""
         totals = Counter()
         listed = Counter()
         machine = Counter()
@@ -446,6 +487,9 @@ class Builder:
                 machine[o] += 1
                 ks, snips = self.narratives_of(r)
                 self.index_doc(idx, r, ks, snips, machine=True)
+                if rows is not None:
+                    rows.append(self.parquet_row(r, ks, gaz.find(f'{r["t"]} {r.get("d", "")}', lang),
+                                                 analysis.voice(r["t"], lang), machine=True))
                 continue
             totals[o] += 1
             v = analysis.voice(r["t"], lang)
@@ -468,6 +512,8 @@ class Builder:
                 nar[self.narratives[k].id][o] += 1
             if any(self.narratives[k].family == "framing" for k in ks):
                 framed += 1
+            if rows is not None:
+                rows.append(self.parquet_row(r, ks, codes, v))
             kbe = r.get("kbe") or {}
             stems = self.index_doc(idx, r, ks, snips)
             if feed is not None:
@@ -538,6 +584,11 @@ class Builder:
         item["c"] = sorted(codes)
         item["q"] = [s.id for s in self.searches if s.matches(stems)]
         return item
+
+    def parquet_row(self, r: dict, ks: list[int], codes, v, machine: bool = False) -> dict:
+        fam = lambda f: [self.narratives[k].id for k in ks if self.narratives[k].family == f]  # noqa: E731
+        return parquet.row(r, self.omap[r["o"]], fam("framing"), fam("topic"), list(codes),
+                           (v[0], v[1]) if v else None, machine, self.headline_only(r))
 
     def headline_only(self, r: dict) -> int:
         """1 for an outlet whose pages Woland reads, when this article's page has not been read (yet)."""
@@ -843,6 +894,7 @@ class Builder:
             # keep only what later digests need
             keep = sorted(history)[-max(BASELINE_DAYS, RISING_BASELINE, 30) - 1:]
             history = {k: history[k] for k in keep} if month != month_list[-1] else history
+        self.write_parquet(month_list, days)
         cov = load_coverage()
         self.write_series(days, cov)
         self.write_examples(days)

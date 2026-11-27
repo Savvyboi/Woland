@@ -600,3 +600,21 @@ ol.tag-list li { grid-template-columns: minmax(8rem, 15rem) 1fr 4rem 4.5rem; }
 #follow summary { cursor: pointer; font-family: var(--sans); }
 .feed-list { columns: 2 16rem; padding-left: 1.2rem; margin: .5rem 0; }
 .feed-list li { break-inside: avoid; margin: .2rem 0; }
+
+/* ── Query Lab (lab.js) ────────────────────────────────────────────────── */
+.lab-presets { display: flex; flex-wrap: wrap; gap: .45rem; margin: 0 0 1rem; }
+.lab-label { display: block; font: .8rem/1.3 var(--sans); color: var(--text-2); margin-bottom: .3rem; }
+#lab-sql { width: 100%; box-sizing: border-box; font: .85rem/1.5 var(--mono); color: var(--text); background: var(--ink-1);
+  border: 1px solid var(--rule-2); border-radius: 4px; padding: .6rem .7rem; resize: vertical; tab-size: 2; }
+.lab-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin: .6rem 0; }
+.lab-actions small { color: var(--text-3); font: .78rem var(--sans); }
+.lab-dl { display: flex; gap: .45rem; margin-left: auto; }
+.lab-dl[hidden] { display: none; }
+.lab-status { min-height: 1.4em; }
+.lab-out .table-wrap { max-height: 70vh; overflow: auto; }
+.lab-table td { font: .8rem/1.4 var(--sans); white-space: nowrap; max-width: 28rem; overflow: hidden; text-overflow: ellipsis; }
+.lab-table .null { color: var(--text-3); font-style: italic; }
+.lab-files { font: .9rem/1.6 var(--sans); padding-left: 1.1rem; }
+.lab-files small { color: var(--text-3); }
+.lab-files .sha { margin-left: .6rem; font-size: .75rem; color: var(--text-3); }
+.lab-cols td { font-size: .82rem; }
