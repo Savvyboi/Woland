@@ -1,10 +1,10 @@
 // Chapter III: the searchable archive.
 import {
   $, el, t, tl, META, loadMeta, initChrome, fillFooter, fmtInt, fmtPct, fmtDay, outlet, narrative,
-  groupVar, articleCard, showError, addDays, downloadCSV, GROUPS, isOpenDay, recordOf, recordId,
+  groupVar, articleCard, downloadBlob, sourceStamp, showError, addDays, downloadCSV, GROUPS, isOpenDay, recordOf, recordId,
 } from "./core.js";
 import { search, loadDocs } from "./search.js";
-import { columnChart, barList, withTable, tableOf } from "./charts.js";
+import { columnChart, barList, withTable, tableOf, withExport } from "./charts.js";
 import { archiveState, permalinkButton } from "./urlstate.js";
 
 initChrome("archive");
@@ -109,12 +109,14 @@ function renderCharts(res, s) {
   $("#pl1").textContent = `${t("plate")} I`;
   $("#pl2").textContent = `${t("plate")} II`;
   plate.querySelectorAll(".table-wrap").forEach((n) => n.remove());
-  [...plate.querySelectorAll(".plate-tools .linkish")].forEach((n) => n.remove());
+  [...plate.querySelectorAll(".plate-tools .linkish, .plate-tools .export")].forEach((n) => n.remove());
   withTable(plate, box, () => tableOf(days, [
     { label: t("archive.count"), values: counts, fmt: fmtInt },
     { label: t("col.all"), values: totals, fmt: fmtInt },
     { label: t("archive.share"), values: shares, fmt: (v) => fmtPct(v, 1) },
   ], fmtInt, (i) => (isOpenDay(days[i]) ? t("day.open.short") : "")));
+  withExport(plate, box, "archive-timeline", downloadBlob, sourceStamp, () => [scopeLabel(s),
+    t(norm === "count" ? "archive.count" : "archive.share"), `${fmtDay(days[0])} – ${fmtDay(days[days.length - 1])}`].filter(Boolean).join(" · "));
   const by = [...res.byOutlet.entries()].sort((a, b) => b[1] - a[1]).map(([i, v]) => {
     const o = META.outlets[i];
     return { label: o.name, value: v, color: groupVar(o.group), title: t(`group.${o.group}`),
@@ -154,6 +156,12 @@ async function exportCSV() {
   btn.disabled = false;
   exportLabel();
 }
+/** The search in a few words, for the title of an exported chart. */
+function scopeLabel(s) {
+  return [s.q ? `“${s.q}”` : "", s.k ? tl(narrative(s.k)?.label) : "", s.o ? outlet(s.o)?.name : "",
+    s.l ? t(`lang.${s.l}`) : ""].filter(Boolean).join(" · ");
+}
+
 function exportLabel() {
   const n = Math.min(current.total, EXPORT_MAX);
   $("#export").textContent = `${t("archive.export")}${current.total > EXPORT_MAX ? ` (${t("archive.export.note", { n: fmtInt(n) })})` : ""}`;
