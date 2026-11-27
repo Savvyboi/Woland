@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import re
 from datetime import date
+from decimal import ROUND_HALF_UP, Decimal
 from html import escape, unescape
 from math import sqrt
 from pathlib import Path
@@ -44,7 +45,9 @@ def fmt_pct(x: float | None, digits: int | None = None) -> str:
     if x is None:
         return "–"
     d = digits if digits is not None else (2 if x < 0.01 else 1 if x < 0.1 else 0)
-    return f"{x * 100:.{d}f}%"
+    # Intl.NumberFormat rounds the shortest decimal form half away from zero (0.00715 → 0.72%), not the binary value
+    v = (Decimal(repr(x)) * 100).quantize(Decimal(1).scaleb(-d), ROUND_HALF_UP)
+    return f"{v}%"
 
 
 def fmt_day(iso: str, long: bool = False) -> str:
@@ -66,7 +69,8 @@ def rise(r: dict) -> float:
 
 
 def summary(dg: dict, day: str, open_day: bool, labels: dict[str, str], families: dict[str, str],
-            outlets: dict[str, str], s: dict[str, str], examples: dict | None = None) -> dict:
+            outlets: dict[str, str], s: dict[str, str], examples: dict | None = None, enabled: int = 0,
+            missing: list[str] = (), story: dict | None = None) -> dict:
     """The facts both the page and its link preview give: totals, rising framings, top framing, top stories."""
     framings = [r for r in dg["narratives"] if families.get(r["id"]) == "framing"]
     publishing = sum(1 for v in dg["totals"].values() if v > 0)
@@ -90,7 +94,13 @@ def summary(dg: dict, day: str, open_day: bool, labels: dict[str, str], families
                 stories.append({"side": "framing", "words": labels[r["id"]], "n": r["n"], "base": None,
                                 "t": ex["t"], "te": ex.get("te", ""), "u": ex.get("u", ""),
                                 "outlet": outlets.get(ex.get("o", ""), ex.get("o", ""))})
-    return {"day": day, "open": open_day, "total": dg["total"], "framed": dg.get("framed", 0),
+    top_story = None
+    if story and story.get("m"):
+        first, last = story["m"][0], story["m"][-1]
+        minutes = lambda hhmm: int(hhmm[:2]) * 60 + int(hhmm[3:5])
+        top_story = {"t": first.get("te") or first["t"], "en": bool(first.get("te")), "n": story["n"],
+                     "spread": max(0, minutes(last["p"]) - minutes(first["p"])), "o": outlets.get(first["o"], first["o"])}
+    return {"day": day, "open": open_day, "enabled": enabled, "missing": list(missing), "story": top_story, "total": dg["total"], "framed": dg.get("framed", 0),
             "publishing": publishing, "base_days": base_days, "rising": rising,
             "top": top if top and top["n"] else None, "stories": stories, "labels": labels, "s": s}
 
@@ -125,7 +135,7 @@ def today_html(x: dict) -> str:
         tiles.append((s["today.tiles.top"], "today.tiles.top",
                       f'<a href="narratives.html#{escape(top["id"])}">{escape(labels[top["id"]])}</a>',
                       f"{fmt_int(top['n'])} · {fmt_pct(top['share'])}"))
-    out = ['<div class="prerender">',
+    out = ['<div class="prerender">', glance_html(x),
            f'<p class="lede">{escape(lede(x))} <a href="method.html#matching">{escape(s["today.lede.how"])}</a></p>',
            '<div class="tiles">']
     for label, key, value, note in tiles:
@@ -153,6 +163,39 @@ def today_html(x: dict) -> str:
     out.append(f'<noscript><p class="notice" data-i18n="noscript">{escape(s["noscript"])}</p></noscript>')
     out.append("</div>")
     return "\n".join(out)
+
+
+def span(minutes: int, s: dict[str, str]) -> str:
+    return fill(s["stories.min"], n=minutes) if minutes < 60 else fill(s["stories.hours"], h=minutes // 60, m=f"{minutes % 60:02d}")
+
+
+def glance_html(x: dict) -> str:
+    """today.js glance(): the framing that rose most, the story most outlets carried, the day's collection."""
+    s, labels = x["s"], x["labels"]
+
+    def item(key, value, note, href, lang=""):
+        attr = f' lang="{lang}"' if lang else ""
+        return (f'<a class="glance-item" href="{escape(href)}"><span class="label" data-i18n="{key}">{escape(s[key])}</span>'
+                f'<span class="value"{attr}>{escape(value)}</span>' + (f'<span class="note">{escape(note)}</span>' if note else "") + "</a>")
+
+    if x["rising"]:
+        r = x["rising"][0]
+        change = "▲ new" if not r["base"] else f"▲ +{round(100 * (r['share'] / r['base'] - 1))}%"
+        rose = item("glance.rising", labels[r["id"]], f"{change} · " + fill(s["today.lede.item"], n=fmt_int(r["n"]),
+                    share=fmt_pct(r["share"]), base=fmt_pct(r["base"])), f"narratives.html#{r['id']}")
+    else:
+        rose = item("glance.rising", s["glance.rising.later" if x["open"] or x["base_days"] < 7 else "glance.rising.none"],
+                    "", "narratives.html")
+    st = x.get("story")
+    story = item("glance.story", st["t"] if st else "–",
+                 fill(s["glance.story.note"], n=fmt_int(st["n"]), spread=span(st["spread"], s), o=st["o"]) if st else "",
+                 f"analysis.html?r=7&d={x['day']}#stories", "en" if st and st["en"] else "")
+    collected = x["enabled"] - len(x["missing"])
+    health = item("glance.health", fill(s["glance.health.value"], x=fmt_int(collected), y=fmt_int(x["enabled"])),
+                  fill(s["glance.health.missing"], list=", ".join(x["missing"])) if x["missing"] else s["glance.health.all"],
+                  "outlets.html")
+    return (f'<section class="glance" aria-labelledby="glance-h"><h2 id="glance-h" class="sr-only" data-i18n="glance.title">'
+            f'{escape(s["glance.title"])}</h2>{rose}{story}{health}</section>')
 
 
 def description(x: dict) -> str:

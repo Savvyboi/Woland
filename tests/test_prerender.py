@@ -9,6 +9,7 @@ from woland.prerender import en_strings, fmt_day, fmt_int, fmt_pct, fmt_small, n
 def test_numbers_and_days_are_written_as_the_page_writes_them():
     assert fmt_int(7982) == "7,982" and fmt_int(None) == "0"
     assert fmt_pct(0.1129, 0) == "11%" and fmt_pct(0.0368) == "3.7%" and fmt_pct(0.0071) == "0.71%" and fmt_pct(None) == "–"
+    assert fmt_pct(0.00715) == "0.72%" and fmt_pct(0.125, 0) == "13%"  # Intl rounds the decimal form half up
     assert fmt_small(0.4) == "<1" and fmt_small(0) == "0" and fmt_small(1.57) == "2"
     assert fmt_day("2026-11-26", True) == "Thursday 26 November 2026" and fmt_day("2026-11-26") == "26 Nov 2026"
 
