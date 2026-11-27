@@ -1,26 +1,24 @@
 // Chapter II: one narrative at a time — over time, by outlet type, at home and abroad, by outlet.
 import {
   $, el, t, tl, META, loadMeta, getJSON, initChrome, fillFooter, fmtInt, fmtPct, fmtDay, outlet, narrative,
-  groupVar, articleCard, fromExample, archiveSearch, showError, GROUPS, isOpenDay,
+  groupVar, articleCard, textModeToggle, fromExample, archiveSearch, showError, GROUPS, isOpenDay, downloadBlob, sourceStamp,
 } from "./core.js";
-import { lineChart, heatmap, barList, withTable, tableOf } from "./charts.js";
+import { lineChart, heatmap, barList, withTable, tableOf, withExport } from "./charts.js";
+import { feedLink } from "./feeds.js";
+import { oneOf, permalinkButton, setParam } from "./urlstate.js";
 
 initChrome("narratives");
 const side = $("#side");
 const main = $("#narrative");
 let series = null;
 const params = new URLSearchParams(location.search);
-let range = params.get("r") || "30";
+let range = oneOf(params.get("r"), ["7", "30", "90", "all"], "30");
 let includeOpen = params.get("open") === "1";   // days still being collected: left out unless asked for
 let panel = params.get("p") === "same" ? "same" : "all";
+let vs = params.get("vs") || "";   // a second framing or topic, drawn beside the first in Plate I (checked once META is in)
 
 const sum = (arr) => arr.reduce((a, b) => a + b, 0);
 
-function setParam(k, v) {
-  const u = new URL(location.href);
-  if (v === null) u.searchParams.delete(k); else u.searchParams.set(k, v);
-  history.replaceState(null, "", u);
-}
 
 /** The days in view: the chosen period, ending with the last completed day unless open days are included. */
 function windowDays() {
@@ -109,7 +107,18 @@ function seg(label, options, value, onPick) {
   return el("div", { class: "field" }, label, box);
 }
 
-function controls(w, dropped) {
+/** Compare with: another framing or topic, for Plate I. */
+function compareField(current) {
+  const sel = el("select", { id: "vs" },
+    el("option", { value: "" }, t("compare.none")),
+    ["framing", "topic"].map((family) => el("optgroup", { label: t(family === "framing" ? "narratives.framings" : "narratives.topics") },
+      META.narratives.filter((n) => n.family === family && n.id !== current)
+        .map((n) => el("option", { value: n.id, selected: n.id === vs || null }, tl(n.label))))));
+  sel.addEventListener("change", () => { vs = sel.value; setParam("vs", vs || null); route(); });
+  return el("label", { class: "field", for: "vs" }, t("compare.label"), sel);
+}
+
+function controls(w, dropped, current) {
   const openDays = series.days.filter((d) => isOpenDay(d));
   const openBox = el("input", { type: "checkbox", id: "incl-open", checked: includeOpen || null });
   openBox.addEventListener("change", () => { includeOpen = openBox.checked; setParam("open", includeOpen ? "1" : null); route(); });
@@ -118,8 +127,10 @@ function controls(w, dropped) {
       (r) => { range = r; setParam("r", r); route(); }),
     seg(t("panel.label"), [["all", t("panel.all")], ["same", t("panel.same")]], panel,
       (p) => { panel = p; setParam("p", p === "same" ? "same" : null); route(); }),
+    compareField(current),
     openDays.length ? el("label", { class: "field check" }, openBox,
-      t("narratives.includeopen", { days: openDays.map((d) => fmtDay(d)).join(", ") })) : null);
+      t("narratives.includeopen", { days: openDays.map((d) => fmtDay(d)).join(", ") })) : null,
+    permalinkButton(el, t));
   const notes = [t("narratives.through", { from: fmtDay(w.days[0]), to: fmtDay(w.days[w.days.length - 1]) })];
   if (openDays.length && !includeOpen) notes.push(t("narratives.openleftout", { days: openDays.map((d) => fmtDay(d)).join(", ") }));
   if (w.openFrom !== null) notes.push(t("narratives.openshown"));
@@ -149,6 +160,19 @@ function auditLine(n) {
   return el("p", { class: "audit" }, t("narratives.checked", { fit: fmtInt(c.fit), n: fmtInt(c.n), date: fmtDay(c.date) }), " ", link);
 }
 
+// the DISARM techniques a framing is read as (config/disarm.yaml): Woland's reading, not DISARM's, and a pattern
+// match is not evidence of an operation
+function disarmLine(n) {
+  if (!n.disarm?.length) return null;
+  return el("div", { class: "disarm" },
+    el("span", { class: "k" }, "DISARM"),
+    ...n.disarm.map((d) => el("a", {
+      class: `disarm-pill ${d.confidence}`, href: d.url, rel: "noopener",
+      title: t(`disarm.${d.confidence}`, { tactic: `${d.tactic} ${d.tactic_name}` }),
+    }, el("b", {}, d.id), ` ${d.name}`, d.confidence === "partial" ? el("small", {}, ` · ${t("disarm.partial.short")}`) : null)),
+    el("a", { class: "disarm-about", href: "method.html#disarm" }, t("disarm.about")));
+}
+
 async function renderNarrative(id) {
   const n = narrative(id);
   const w = windowDays();
@@ -160,16 +184,28 @@ async function renderNarrative(id) {
   const kids = [];
   kids.push(el("h2", { style: { font: "500 2.1rem/1.15 var(--display)", margin: "0 0 .3rem" } }, tl(n.label)));
   if (n.about) kids.push(el("p", { style: { color: "var(--text-2)", margin: "0 0 .4rem", maxWidth: "46rem" } }, tl(n.about)));
+  const dl = disarmLine(n);
+  if (dl) kids.push(dl);
+  if (n.checked?.n) {
+    // (a button, not a #link: the address's hash names the framing shown)
+    kids.push(el("p", { class: "precision" }, el("button", { type: "button", class: "pill",
+      title: t("precision.title", { n: fmtInt(n.checked.n), date: fmtDay(n.checked.date) }),
+      onclick: () => $("#definition")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
+      t("precision.pill", { pct: fmtPct(n.checked.fit / n.checked.n, 0), fit: fmtInt(n.checked.fit), n: fmtInt(n.checked.n) }))));
+  }
   kids.push(el("p", { class: "syntax" }, t("narratives.total", { n: fmtInt(sum(all.hits)), all: fmtInt(sum(all.totals)) }), " · ",
     el("a", { href: archiveSearch({ k: id, from: days[0], to: days[days.length - 1] }) }, `${t("nav.archive")} →`), " · ",
-    el("a", { href: `feeds/framing/${id}.xml`, type: "application/atom+xml", title: t("brief.follow.about", { n: 40, days: 7 }) }, t("narratives.feed"))));
-  kids.push(...controls(w, dropped));
+    feedLink(n.family === "topic" ? "topic" : "framing", id, t("narratives.feed"), { title: t("feeds.title") })));
+  kids.push(...controls(w, dropped, id));
 
   // Plate I — share over time, with what it is a share of
   const daily = ratio(all.hits, all.totals);
   const avg = rolling(all.hits, all.totals);
+  const m = vs && vs !== id ? narrative(vs) : null;
+  const other = m ? counts(vs, allIds, start, end) : null;
   const c1 = el("div");
-  const p1 = plate("I", t("narratives.share", { name: tl(n.label) }), t("narratives.share.sub"), c1);
+  const p1 = m ? plate("I", t("compare.title", { a: tl(n.label), b: tl(m.label) }), t("compare.sub"), c1)
+    : plate("I", t("narratives.share", { name: tl(n.label) }), t("narratives.share.sub"), c1);
   kids.push(p1);
 
   // Plate II — small multiples by outlet group
@@ -200,7 +236,7 @@ async function renderNarrative(id) {
   kids.push(el("div", { class: "section" }, p4));
 
   // definition
-  kids.push(el("div", { class: "lexicon-card" },
+  kids.push(el("div", { class: "lexicon-card", id: "definition" },
     el("strong", {}, t("narratives.definition")),
     auditLine(n),
     el("p", { class: "pats" }, el("b", {}, `${t("narratives.patterns.ru")}: `), patternList(n, "ru")),
@@ -210,22 +246,42 @@ async function renderNarrative(id) {
 
   // examples from the latest digests
   const exList = el("ul", { class: "articles" });
-  kids.push(el("section", { class: "section" }, el("div", { class: "section-head" }, el("h2", {}, t("narratives.examples"))), exList));
+  kids.push(el("section", { class: "section" }, el("div", { class: "section-head" }, el("h2", {}, t("narratives.examples"))), textModeToggle(), exList));
   main.replaceChildren(...kids);
 
-  lineChart(c1, { days, yFormat: fmt, openFrom,
-    tipExtra: (i) => t("narratives.denominator", { h: fmtInt(all.hits[i]), n: fmtInt(all.totals[i]), k: fmtInt(all.outlets[i]) }),
-    series: [
-      { label: t("series.daily"), color: "var(--gilt-dim)", values: daily, dots: true, line: false, r: 2.5 },
-      { label: t("series.avg7"), color: "var(--gilt)", values: avg, width: 2.5 },
-    ] });
-  withTable(p1, c1, () => tableOf(days, [
-    { label: t("col.matching"), values: all.hits, fmt: fmtInt },
-    { label: t("col.all"), values: all.totals, fmt: fmtInt },
-    { label: t("col.outlets"), values: all.outlets, fmt: fmtInt },
-    { label: t("series.daily"), values: daily },
-    { label: t("series.avg7"), values: avg },
-  ], fmt, openNote));
+  const denom = (c, i) => t("narratives.denominator", { h: fmtInt(c.hits[i]), n: fmtInt(c.totals[i]), k: fmtInt(c.outlets[i]) });
+  if (m) {
+    // two framings on one scale: their 7-day averages, each as a share of the same articles
+    const avgB = rolling(other.hits, other.totals);
+    lineChart(c1, { days, yFormat: fmt, openFrom,
+      tipExtra: (i) => t("compare.tip", { a: fmtInt(all.hits[i]), b: fmtInt(other.hits[i]), n: fmtInt(all.totals[i]), k: fmtInt(all.outlets[i]) }),
+      series: [
+        { label: tl(n.label), color: "var(--s1)", values: avg, width: 2.5 },
+        { label: tl(m.label), color: "var(--s2)", values: avgB, width: 2.5 },
+      ] });
+    withTable(p1, c1, () => tableOf(days, [
+      { label: `${tl(n.label)}: ${t("col.matching")}`, values: all.hits, fmt: fmtInt },
+      { label: `${tl(m.label)}: ${t("col.matching")}`, values: other.hits, fmt: fmtInt },
+      { label: t("col.all"), values: all.totals, fmt: fmtInt },
+      { label: `${tl(n.label)}: ${t("series.avg7")}`, values: avg },
+      { label: `${tl(m.label)}: ${t("series.avg7")}`, values: avgB },
+    ], fmt, openNote));
+  } else {
+    lineChart(c1, { days, yFormat: fmt, openFrom,
+      tipExtra: (i) => denom(all, i),
+      series: [
+        { label: t("series.daily"), color: "var(--gilt-dim)", values: daily, dots: true, line: false, r: 2.5 },
+        { label: t("series.avg7"), color: "var(--gilt)", values: avg, width: 2.5 },
+      ] });
+    withTable(p1, c1, () => tableOf(days, [
+      { label: t("col.matching"), values: all.hits, fmt: fmtInt },
+      { label: t("col.all"), values: all.totals, fmt: fmtInt },
+      { label: t("col.outlets"), values: all.outlets, fmt: fmtInt },
+      { label: t("series.daily"), values: daily },
+      { label: t("series.avg7"), values: avg },
+    ], fmt, openNote));
+  }
+  withExport(p1, c1, m ? `${id}-vs-${vs}` : `${id}-share`, downloadBlob, sourceStamp);
 
   const allAvg = rolling(all.hits, all.totals);
   const groupTables = [];
@@ -257,6 +313,8 @@ async function renderNarrative(id) {
       { label: t("lang.en"), color: "var(--s2)", values: enAvg },
     ] });
   withTable(p3, c3, () => tableOf(days, [{ label: t("lang.ru"), values: ruAvg }, { label: t("lang.en"), values: enAvg }], fmt, openNote));
+  const heading = (p) => () => `${tl(n.label)}: ${p.querySelector(".plate-title").textContent}`;
+  withExport(p3, c3, `${id}-home-abroad`, downloadBlob, sourceStamp, heading(p3));
 
   barList(c5, perOutlet.map((x) => ({ label: outlet(x.o).name, value: x.share, color: groupVar(outlet(x.o).group),
     href: archiveSearch({ k: id, o: x.o, from: days[0], to: days[days.length - 1] }),
@@ -276,6 +334,7 @@ async function renderNarrative(id) {
       sub: days.map((_, i) => `${fmtInt(h[start + i] || 0)} / ${fmtInt(tt[start + i])}`) };
   });
   heatmap(c4, { days, rows, format: fmt, isOpen: isOpenDay });
+  withExport(p4, c4, `${id}-by-outlet-day`, downloadBlob, sourceStamp, heading(p4));
   withTable(p4, c4, () => tableOf(days, rows.map((r) => ({ label: r.label,
     values: r.values.map((v, i) => (r.states[i] === "m" ? "m" : v)),
     fmt: (v) => (v === "m" ? t("cov.m.short") : fmt(v)) })), fmt, openNote));
@@ -309,6 +368,7 @@ async function start() {
     fillFooter();
     if (!META.last) { main.replaceChildren(el("p", { class: "empty" }, t("empty.nodata"))); return; }
     series = await seriesP;
+    vs = oneOf(vs, META.narratives.map((x) => x.id), "");
     window.addEventListener("hashchange", () => { route(); main.scrollIntoView({ block: "start" }); });
     route();
   } catch (e) {

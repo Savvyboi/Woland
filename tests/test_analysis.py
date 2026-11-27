@@ -79,3 +79,19 @@ def test_stories_group_the_same_event_across_languages_and_keep_others_apart():
     assert sorted(fire) == [0, 1, 2, 3]                       # Russian and English versions together, in time order
     assert fire == sorted(fire, key=lambda i: recs[i]["p"])
     assert not any(4 in g for g in groups if 0 in g)
+
+
+def test_country_framing_lift_needs_enough_articles():
+    """Countries × framings: lift = n(c, f) · N / (n(c) · n(f)), given only from CF_MIN shared articles on; a pair
+    seen in no article is absent (0), and the period before is None without one, never 0."""
+    from woland.analysis import country_framing
+    day = {"totals": {"ria": 100}, "countries": {"FI": {"ria": 10}, "SE": {"ria": 4}},
+           "nar": {"russophobia": {"ria": 20}, "a-topic": {"ria": 50}}, "cf": {"FI": {"russophobia": 6}, "SE": {"russophobia": 2}}}
+    before = {"totals": {"ria": 50}, "countries": {"FI": {"ria": 2}}, "nar": {"russophobia": {"ria": 5}},
+              "cf": {"FI": {"russophobia": 1}}}
+    out = country_framing([day], [before], {"russophobia"})
+    assert out["n"] == 100 and out["countries"] == {"FI": 10, "SE": 4} and out["framings"] == {"russophobia": 20}
+    assert out["cells"]["FI"]["russophobia"] == [6, 3.0, 1]           # 6 · 100 / (10 · 20)
+    assert out["cells"]["SE"]["russophobia"] == [2, None, 0]          # too few for a lift; none before
+    assert "a-topic" not in out["framings"]                            # topics are not framings
+    assert country_framing([day], [], {"russophobia"})["cells"]["FI"]["russophobia"][2] is None

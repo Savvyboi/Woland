@@ -146,6 +146,8 @@ def test_english_searches_find_either_spelling_and_corrected_translations(built_
     kyiv, kiev, witkoff = search(built_site, {"q": "kyiv"}, {"q": "kiev"}, {"q": "witkoff"})
     assert kyiv["total"] == kiev["total"] == 16                 # "Kiev" in RT's headline and in the translation
     assert witkoff["total"] == 8 and all(h["te"] == "Witkoff arrived in Moscow" for h in witkoff["hits"])
+    # and say what the glossary changed, for the site to underline it with the model's own words
+    assert all(h["g"]["te"] == [[0, 7, "Whitkoff"]] and h["g"]["de"] == [[14, 21, "Whitkoff"]] for h in witkoff["hits"])
 
 
 @needs_node
@@ -270,9 +272,20 @@ def test_analysis_counts_completed_days_only(built_site):
     countries = json.loads((folder / "countries" / "all.json").read_text(encoding="utf-8"))
     assert countries["countries"]["FI"]["n"] == 7 and countries["countries"]["FI"]["o"] == {"rt": 6, "tsargrad": 1}
     assert countries["countries"]["RU"]["n"] >= 6 and countries["names"]["FI"] == "Finland"
+    assert len(countries["day_totals"]) == 6 and all(countries["day_totals"])
+    assert countries["regions"]["nordic-baltic"] == ["FI", "SE", "NO", "DK", "IS", "EE", "LV", "LT"]
+    cf = countries["framing"]
+    assert cf["min"] == 5 and cf["n"] == sum(countries["day_totals"]) and cf["countries"]["FI"] == 7
+    for code, row in cf["cells"].items():                      # never more than the articles naming the country
+        assert all(0 < k <= cf["countries"][code] for k, _, _ in row.values())
     stories = json.loads((folder / "stories" / "all.json").read_text(encoding="utf-8"))
     assert stories["per_day"] == [0] * 6 and stories["min"] == 4     # two outlets: no story reaches four
     assert json.loads(gzip.decompress((folder / "stories" / "day" / "2026-09-03.json.gz").read_bytes())) == []
+    src = json.loads((folder / "sources" / "all.json").read_text(encoding="utf-8"))
+    assert src["outlets"]["ria"]["n"] == 12 and src["outlets"]["ria"]["anon"] == 0.5   # Лавров and "эксперт"
+    assert sum(src["outlets"]["ria"]["b"].values()) == 12 and "ria" in src["state"] and "kp" not in src["state"]
+    monthly = json.loads((built_site / "data" / "source_laundering.json").read_text(encoding="utf-8"))
+    assert list(monthly["months"]) == ["2026-09"] and monthly["months"]["2026-09"]["outlets"] == src["outlets"]
     tags = json.loads((folder / "tags" / "all.json").read_text(encoding="utf-8"))
     assert tags["outlets"] == {}                                 # the test records carry no tags or sections
 
@@ -326,6 +339,17 @@ def test_feeds_for_framings_outlets_countries_and_saved_searches(built_site):
     assert listing["feeds"]["country"]["FI"] == 8 and listing["countries"]["FI"] == "Finland"
     assert {s["id"] for s in listing["searches"]} >= {"nato", "arctic"}
     assert (feeds_dir / "search" / "nato.xml").exists() and listing["feeds"]["search"]["nato"] == 0
+    nb = atom(feeds_dir / "region" / "nordic-baltic.xml")[1]     # Finland is the only Nordic or Baltic country here
+    assert len(nb) == len(fi) and listing["feeds"]["region"]["nordic-baltic"] == 8
+
+
+@needs_node
+def test_search_by_country(built_site):
+    """The archive's country filter (archive.html?c=FI): articles naming the country in the headline or lead."""
+    fi, fi_framed, nowhere = search(built_site, {"country": "FI"}, {"country": "FI", "narr": 0}, {"country": "IS"})
+    assert fi["total"] == 8 + 1                                  # RT on each of 1–8 September, Tsargrad once
+    assert all("Finland" in h["t"] or "Финск" in h["t"] for h in fi["hits"])
+    assert fi_framed["total"] <= fi["total"] and nowhere["total"] == 0
 
 
 def test_saved_searches_match_every_word_form():
@@ -355,6 +379,54 @@ def test_weekly_brief_covers_completed_weeks(built_site):
     assert b["gaps"]["tass"] == ["2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04", "2026-09-05", "2026-09-06"]
     root, entries, ns = atom(built_site / "feeds" / "brief.xml")
     assert len(entries) == 1 and "37 articles from 3 outlets" in entries[0].find("a:summary", ns).text
+    ab = b["abroad"]                   # at home and abroad: Tsargrad has days not collected that week
+    assert ab["outlets"] == {"domestic": ["ria"], "foreign": ["rt"]} and ab["left_out"] == ["tsargrad"]
+    assert ab["n"] == {"domestic": 24, "foreign": 12} and 0 < ab["jsd"] < 1
+    assert ("country", "FI") in {(g["kind"], g["id"]) for g in ab["gaps"]["foreign"]}
+    trend = json.loads((built_site / "data" / "divergence.json").read_text(encoding="utf-8"))
+    assert [w["week"] for w in trend["weeks"]] == ["2026-W36"] and trend["weeks"][0]["jsd"] == ab["jsd"]
+
+
+def test_disarm_exports(built_site):
+    """The framings' DISARM techniques over the completed days, as Navigator layers and a STIX 2.1 bundle for the
+    completed week; machine-written items are left out, as everywhere else (37 articles, as in the brief)."""
+    from tests.test_disarm import check_stix
+    meta = json.loads((built_site / "data" / "meta.json").read_text(encoding="utf-8"))
+    kr = next(n for n in meta["narratives"] if n["id"] == "kyiv-regime")
+    assert [d["id"] for d in kr["disarm"]] == ["T0135.001", "T0075"]
+    techs = {d["id"] for d in kr["disarm"]}
+    folder = built_site / "exports"
+    lay = json.loads((folder / "disarm-layer-7d.json").read_text(encoding="utf-8"))
+    assert lay["domain"] == "DISARM" and "2026-09-01 – 2026-09-06" in lay["name"]
+    assert {"name": "articles", "value": "37"} in lay["metadata"]
+    assert techs <= {r["techniqueID"] for r in lay["techniques"]}
+    assert (folder / "disarm-layer-30d.json").exists()
+    b = json.loads((folder / "weekly-stix.json").read_text(encoding="utf-8"))
+    by = check_stix(b)
+    assert by["report"]["name"].endswith("week 2026-W36") and by["report"]["x_woland_articles"] == 37   # 6 days × 6, and Tsargrad's own item
+    assert techs <= {c["technique"] for c in by["report"]["x_woland_counts"]}
+
+
+def test_feed_builder_lists_only_feeds_that_exist(built_site):
+    """data/feeds.json, which the feed builder shows, names only Atom files the build wrote, and its OPML lists
+    parse and point at them."""
+    import xml.etree.ElementTree as ET
+    cat = json.loads((built_site / "data" / "feeds.json").read_text(encoding="utf-8"))
+    paths = [f"feeds/{kind}/{key}.xml" for kind, by in cat["feeds"].items() for key in by]
+    assert paths and all((built_site / p).stat().st_size > 0 for p in paths)
+    for p in paths:
+        assert ET.parse(built_site / p).getroot().tag == "{http://www.w3.org/2005/Atom}feed"
+    bundles = {b["id"]: b for b in cat["bundles"]}
+    assert {"all", "framings", "topics", "outlets", "countries", "searches", "outlets-foreign"} <= set(bundles)
+    assert bundles["all"]["n"] == len(paths) and bundles["outlets-foreign"]["group"] == "foreign"
+    assert "nordic-baltic" in bundles                                            # Finland is named in the fixture
+    for b in bundles.values():
+        root = ET.parse(built_site / b["path"]).getroot()
+        assert root.tag == "opml" and root.get("version") == "2.0" and root.find("head/dateCreated").text
+        urls = [o.get("xmlUrl") for o in root.iter("outline") if o.get("xmlUrl")]
+        assert len(urls) == b["n"] and set(urls) <= set(paths), b["id"]
+    nb = ET.parse(built_site / bundles["nordic-baltic"]["path"]).getroot()
+    assert [o.get("xmlUrl") for o in nb.iter("outline") if o.get("xmlUrl")] == ["feeds/country/FI.xml"]
 
 
 def test_parquet_snapshots_hold_every_record(built_site):
@@ -457,3 +529,51 @@ def test_javascript_modules_parse(module, tmp_path):
     copy = tmp_path / module.replace(".js", ".mjs")
     copy.write_text((SITE / "assets" / "js" / module).read_text(encoding="utf-8"), encoding="utf-8")
     subprocess.run([NODE, "--check", str(copy)], check=True, capture_output=True)
+
+
+@needs_node
+def test_a_link_to_a_view_opens_it_with_only_the_filters_that_make_sense():
+    """site/assets/js/urlstate.js: an address is read back with unknown or malformed values left out."""
+    url = (SITE / "assets" / "js" / "urlstate.js").as_uri()
+    meta = {"start": "2026-09-01", "last": "2026-11-27", "outlets": [{"id": "ria"}, {"id": "tass"}],
+            "narratives": [{"id": "kyiv-regime"}]}
+    cases = ["?q=%D0%9A%D0%B8%D0%B5%D0%B2&from=2026-10-01&to=2026-10-15&o=ria&l=ru&k=kyiv-regime&c=fi&order=old",
+             "?from=2026-10-15&to=2026-10-01",                                   # swapped: put right
+             "?from=2026-02-30&to=yesterday&o=bbc&l=de&k=nope&c=FIN&order=random",     # all invalid: defaults
+             "?from=2025-12-31&to=2027-01-01", ""]                               # outside the archive
+    script = (f"const m = await import('{url}');\nconst meta = {json.dumps(meta)};\n"
+              f"console.log(JSON.stringify({json.dumps(cases)}.map((c) => m.archiveState(c, meta))));")
+    out = json.loads(subprocess.run([NODE, "--input-type=module", "-e", script], capture_output=True, text=True,
+                                    encoding="utf-8", check=True).stdout)
+    empty = {"q": "", "from": "", "to": "", "o": "", "l": "", "k": "", "c": "", "order": "new"}
+    assert out[0] == {"q": "Киев", "from": "2026-10-01", "to": "2026-10-15", "o": "ria", "l": "ru", "k": "kyiv-regime",
+                      "c": "FI", "order": "old"}
+    assert out[1] == {**empty, "from": "2026-10-01", "to": "2026-10-15"}
+    assert out[2] == empty and out[3] == empty and out[4] == empty
+
+
+def test_the_today_page_says_what_the_day_held_without_javascript(built_site):
+    """A link preview, a search engine or a web archive reads index.html as built, without running scripts."""
+    html = (built_site / "index.html").read_text(encoding="utf-8")
+    today = html[html.index('<div id="today">'):html.index("</main>")]
+    assert "Consulting the archive" not in today
+    assert "On Sunday 6 September 2026, Woland collected 6 articles from 2 outlets." in today   # complete_through
+    # no rising words yet (a week of history at least): a headline of each of the day's top framings instead
+    assert '<a href="https://ria.ru/20260906/a-1000.html" lang="ru">Киевский режим готовит провокацию в Донбассе</a>' in today
+    assert "The Kiev regime is preparing a provocation in Donbass" in today
+    assert '<a href="narratives.html#' in today and "<noscript>" in today
+    # Today at a glance: no rising framing yet (too little history); outlets not collected are named as such
+    glance = today[today.index('<section class="glance"'):today.index("</section>")]
+    assert "Compared with earlier days once the day is complete" in glance
+    assert "2 of 23 outlets" in glance and "Not collected: TASS," in glance
+    head = html[:html.index("</head>")]
+    assert "<title>Woland — 6 Sep 2026: today in the Russian state press</title>" in head
+    for tag in ('property="og:title"', 'property="og:description"', 'property="og:image"', 'name="twitter:card"',
+                'name="description"'):
+        assert head.count(tag) == 1, tag
+    assert re.search(r'<meta property="og:description" content="6 Sep 2026: 6 articles from 2 Russian', head)
+    # every page: one title and description for previews, the card picture
+    for page in built_site.glob("*.html"):
+        text = page.read_text(encoding="utf-8")
+        assert text.count('property="og:title"') == 1 and 'content="assets/img/og-card.png"' in text, page.name
+    assert (built_site / "assets" / "img" / "og-card.png").stat().st_size > 10_000

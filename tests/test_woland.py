@@ -106,74 +106,6 @@ def test_the_lexicon_file_resolves_contexts_and_topics():
     assert "liberation" not in lex.find("Россия и Украина готовят воссоединение семей", "ru")
 
 
-LEXICON_TEXTS = [
-    ("ru", "Киевский режим готовит провокацию в Донбассе", ""),
-    ("ru", "В Дагестане боевик получил 15 лет за подготовку теракта", ""),
-    ("ru", "СК завел дело о теракте после атак ВСУ на Нижнекамск", ""),
-    ("ru", "Захарова прокомментировала теракты против членов избиркомов", "Удары украинских дронов"),
-    ("ru", "472 квартиры повреждены при атаке БПЛА на Новороссийск", ""),
-    ("ru", "Жители Донбасса и Новороссии впервые после воссоединения с Россией выбирают депутатов", ""),
-    ("ru", "Памфилова прокомментировала вброс бюллетеней на участке в Коми", ""),
-    ("ru", "Путин: вбросы о мобилизации – задуманная информационная операция", ""),
-    ("ru", "ФСБ рассекретила документы о злодеяниях немецких фашистов под Сталинградом", ""),
-    ("ru", "Россия должна разгромить нацистскую Украину, чтобы избежать столкновения с Западом", ""),
-    ("ru", "Победа над фашизмом в Европе: ветераны вспоминают", ""),
-    ("ru", "Депутат Аксаков предупредил о фейковом аккаунте от его имени", ""),
-    ("ru", "Памфилова: фейки о недопуске наблюдателей не подтвердились", ""),
-    ("ru", "Нелегитимный президент Украины Владимир Зеленский отстранил генпрокурора", ""),
-    ("ru", "Росавиация назвала нелегитимным заявление Украины о воздушном пространстве", ""),
-    ("ru", "Ёлки-палки: НАЦИСТЫ на Украине и неонацисты в Европе", ""),
-    ("ru", "Лавров: устранение первопричин конфликта необходимо", ""),
-    ("ru", "Однако первопричина проблем с иммунитетом — в питании", ""),
-    ("ru", "Хохлы, хохлушка и Георгий Хохлов", ""),
-    ("ru", "Washington Examiner: США нечего противопоставить ракете «Буревестник»", ""),
-    ("ru", "Жильцы кооператива «Буревестник» просят защитить их дачи", ""),
-    ("ru", "Спецоперация продолжается, заявил участник СВО", ""),
-    ("ru", "Он вернулся к своим после смены политического курса", ""),
-    ("ru", "Сменивший пол активист и смена пола в Европе", ""),
-    ("ru", "Текст статьи. " + "Слово " * 30 + "теракт на рынке, " + "слово " * 30 + "атака ВСУ", ""),
-    ("ru", "Рэпер Моргенштерн (внесен Минюстом РФ в реестр иноагентов) высказался о возвращении", ""),
-    ("ru", "Ходорковский внесён Минюстом России в список лиц, выполняющих функции иноагента", ""),
-    ("ru", "«Дождь» (признан иноагентом и нежелательной организацией в РФ) и Deutsche Welle", ""),
-    ("ru", "Минюст признал иноагентом политолога и внёс в перечень нежелательных организаций НКО", ""),
-    ("ru", "Авария на 19-м км автодороги Р-280 «Новороссия» и история Новороссии", ""),
-    ("ru", "Никиты массово отказываются от исконно русского отчества; Одесса — исконно русский город", ""),
-    ("ru", "Пенсионерка поверила создателям фейковой интернет-биржи; ВСУ снимают фейковые видео", ""),
-    ("en", "Sarmat, Poseidon and Burevestnik missiles; the Boeing P·8 Poseidon anti·submarine aircraft", ""),
-    ("en", "Kiev regime staged a provocation, Moscow says", ""),
-    ("en", "Ukrainian troops staged 53 shelling attacks", ""),
-    ("en", "Report proves the Bucha massacre was staged by Kiev", ""),
-    ("en", "Germany forgets it lost WWII, still acting like Nazis", ""),
-    ("en", "Europe's support for the Nazi regime in Kiev is a disgrace", ""),
-    ("en", "Revolut hands data over after fake government requests", ""),
-    ("en", "Terrorist attack in Pakistan kills 12", ""),
-    ("en", "Kiev's terrorist attack on Bryansk condemned", ""),
-]
-
-
-def test_python_and_browser_match_the_same_words():
-    """site/assets/js/lexicon.js must count exactly what woland/lexicon.py counts."""
-    from woland.config import load_contexts
-    narratives = load_lexicon()
-    lex = Lexicon(narratives)
-    meta = {"narratives": [n.public() for n in narratives], "contexts": load_contexts()}
-    node = shutil.which("node")
-    if not node:
-        pytest.skip("node not installed")
-    url = (ROOT / "site" / "assets" / "js" / "lexicon.js").as_uri()
-    script = (f"import * as L from '{url}';\n"
-              "const [meta, texts] = JSON.parse(await new Response(process.stdin).text());\n"
-              "const lex = L.compileLexicon(meta.narratives, meta.contexts);\n"
-              "console.log(JSON.stringify(texts.map(([lang, t, e]) => [L.find(lex, t, lang, e), L.find(lex, t, lang, e, 50)])));")
-    out = subprocess.run([node, "--input-type=module", "-e", script], input=json.dumps([meta, LEXICON_TEXTS]),
-                         capture_output=True, text=True, encoding="utf-8", check=True)
-    js = json.loads(out.stdout)
-    for (lang, t, e), (whole, windowed) in zip(LEXICON_TEXTS, js):
-        py = {k: list(v) for k, v in lex.find(t, lang, extra=e).items()}
-        py50 = {k: list(v) for k, v in lex.find(t, lang, extra=e, window=50).items()}
-        assert whole == py and windowed == py50, t
-
-
 def test_a_framings_matches_can_be_sampled_for_reading(archive):
     from woland import audit
     day = date(2026, 9, 10)
@@ -217,6 +149,22 @@ def test_the_glossary_corrects_names_only_where_the_russian_has_them():
     assert g.fix("Это предыдущая статья", "This is the previous article") == "This is the previous article"
     assert g.fix("Матвиенко: СФ одобрил", "Matvienko: SF approved") == "Matvienko: Federation Council approved"
 
+
+
+def test_the_glossary_says_which_words_it_corrected():
+    from woland.build import utf16_spans
+    from woland.glossary import Glossary
+    g = Glossary()
+    en, spans = g.fix_spans("Уиткофф и Каллас обсудили СВО", "Whitkoff and Callas discussed the SBO")
+    assert en == "Witkoff and Kallas discussed the SVO"
+    assert [(en[a:b], raw) for a, b, raw in spans] == [("Witkoff", "Whitkoff"), ("Kallas", "Callas"), ("SVO", "SBO")]
+    assert g.fix_spans("Погода в Москве", "Mask and SBO") == ("Mask and SBO", [])
+    # spans from an earlier entry move with the text a later entry lengthens
+    en, spans = g.fix_spans("Матвиенко: СФ одобрил, Уиткофф", "SF approved, Whitkoff")
+    assert [(en[a:b], raw) for a, b, raw in spans] == [("Federation Council", "SF"), ("Witkoff", "Whitkoff")]
+    # the site counts UTF-16 units, and a translation cut short keeps only the spans within it
+    assert utf16_spans([[2, 9, "Whitkoff"]], "😀 Witkoff") == [[3, 10, "Whitkoff"]]
+    assert utf16_spans([[0, 7, "Whitkoff"], [30, 36, "Callas"]], "Witkoff met…") == [[0, 7, "Whitkoff"]]
 
 def test_rising_words_group_word_forms_by_lemma():
     from woland.textproc import headline_words

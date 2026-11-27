@@ -5,6 +5,7 @@ import {
 } from "./core.js";
 import { lang, LOCALES } from "./i18n.js";
 import { sparkline } from "./charts.js";
+import { feedButton, feedLink } from "./feeds.js";
 
 initChrome("outlets");
 const root = $("#outlets");
@@ -117,7 +118,7 @@ function card(o, series, cov, upto) {
     recent.length > 1 && collected ? sparkline(recent, { width: 220, height: 30, label: sparkLabel }) : null,
     el("div", { class: "facts" }, o.enabled && collected ? [t(`outlets.method.${o.method}`), " · "] : null,
       el("a", { href: o.home, rel: "noopener noreferrer nofollow", target: "_blank" }, o.home.replace(/^https?:\/\//, "")),
-      o.enabled && collected ? [" · ", el("a", { href: `feeds/outlet/${o.id}.xml`, type: "application/atom+xml", title: t("narratives.feed") }, t("outlets.feed"))] : null),
+      o.enabled && collected ? [" · ", feedLink("outlet", o.id, t("outlets.feed"), { title: t("feeds.title") })] : null),
     leans.length ? el("div", { class: "facts" }, el("span", { title: t("outlets.top.hint") }, `${t("outlets.top")}:`),
       ...leans.map((x) => el("a", { class: "tag framing", href: `narratives.html#${x.n.id}` }, `${tl(x.n.label)} ×${fmtRatio(x.r)}`))) : null,
     o.enabled ? coverage(o, series, cov) : null,
@@ -174,7 +175,8 @@ async function main() {
     const kids = [el("p", { class: "lede dropcap" }, t("outlets.lede", { n: META.outlets.filter((o) => o.enabled).length }))];
     kids.push(el("div", { class: "cov-legend" },
       ["c", "p", "f", "m"].map((k) => el("span", { class: `k-${k}` }, t(`cov.${k}`))),
-      el("span", { class: "k-open" }, t("day.open.short"))));
+      el("span", { class: "k-open" }, t("day.open.short")),
+      feedButton(() => (location.hash ? { kind: "outlet", id: location.hash.slice(1) } : { kind: "outlet" }))));
     for (const g of GROUPS) {
       const list = META.outlets.filter((o) => o.group === g);
       if (!list.length) continue;
