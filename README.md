@@ -205,6 +205,7 @@ own situation.
 | `h` | content fingerprint: first 16 hex digits of SHA-256 over the normalised text |
 | `r` | when Woland retrieved it (UTC) |
 | `kb`, `kbe` | framings found **only** in the body text, each with a snippet of ≤ ~170 characters; the snippets' English machine translations, by framing (Russian outlets) |
+| `mt` | the machine-translation model that made the record's translations (`argos-ru_en-1.9`); records translated before 27 November 2026 lack it (the same model, as far as the repository's history shows) |
 | `via` | `page` (article page read) or `feed` (from the outlet's own feed, sitemap or listing only: for feed-only outlets always; for the others a *headline-only* record, kept when the page could not be read and completed by a later run) |
 | `ar` | only when the page was read from the Internet Archive's copy because the outlet did not answer Woland: the time of that capture, `YYYYMMDDhhmmss` UTC (the copy is at `https://web.archive.org/web/<ar>/<u>`) |
 

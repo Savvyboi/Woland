@@ -265,6 +265,22 @@ def test_merge_day_lends_a_translation_only_with_the_text_it_translates(archive)
     assert rec["t"] == "A" and rec["d"] == "Лид" and "te" not in rec and "de" not in rec
 
 
+def test_the_translation_model_goes_with_the_translations_it_made(archive):
+    page = {"id": "t:1", "u": "https://t.ru/a/1", "p": "2026-09-10T10:00:00+03:00", "t": "A", "via": "page"}
+    # a headline-only record translated by a model; its page read later, untranslated: both are kept
+    store.write_day(D, "t", [{**page, "via": "feed", "te": "A!", "mt": "argos-ru_en-1.9"}])
+    store.merge_day(D, "t", [page])
+    (rec,) = store.read_day(D, "t")
+    assert rec["via"] == "page" and rec["te"] == "A!" and rec["mt"] == "argos-ru_en-1.9"
+    # a record translated before models were named is not credited to the model of another version's translation
+    store.write_day(D, "t", [{**page, "te": "A (older)"}])
+    store.merge_day(D, "t", [{**page, "te": "A!", "d": "Лид", "de": "Lead", "mt": "other-model"}])
+    (rec,) = store.read_day(D, "t")
+    assert rec["te"] == "A (older)" and rec["d"] == "Лид" and "mt" not in rec
+    assert store.lends("mt", {"t": "A"}, {"t": "A", "te": "A!", "mt": "m"})          # nothing of its own yet
+    assert store.lends("mt", {"t": "A", "te": "A!"}, {"t": "A", "te": "A!", "mt": "m"})
+
+
 class FakeTranslator:
     """Translates by marking the text, and records what it was asked."""
     def __init__(self):
@@ -284,7 +300,8 @@ def test_headlines_leads_and_snippets_are_translated_once(monkeypatch):
             {"t": "Третий", "te": "Third"}]
     assert collect.translate_records(recs) == 2
     assert recs[0] == {"t": "Заголовок", "te": "EN(Заголовок)", "d": "Лид.", "de": "EN(Лид.)", "kb": {"nazis": "…нацисты…"},
-                       "kbe": {"nazis": "EN(…нацисты…)"}}
+                       "kbe": {"nazis": "EN(…нацисты…)"}, "mt": collect.MT_VERSION}
+    assert recs[1]["mt"] == collect.MT_VERSION and "mt" not in recs[2]   # (the third had nothing to translate)
     assert recs[1]["te"] == "Second" and recs[1]["de"] == "Lead two" and recs[1]["kbe"] == {"nazis": "…x…!", "fakes": "EN(…фейк…)"}
     assert sorted(fake.asked) == sorted(["Заголовок", "Лид.", "…нацисты…", "…фейк…"])
     assert collect.translate_records(recs) == 0

@@ -75,7 +75,10 @@ TRANSLATED = {"te": "t", "de": "d", "kbe": "kb"}
 
 
 def lends(field: str, to: dict, frm: dict) -> bool:
-    """May `frm` give `to` its `field`, which `to` lacks?"""
+    """May `frm` give `to` its `field`, which `to` lacks? The name of the translation model (mt) goes only
+    to a record whose translations are all the same as frm's (so that it names the model that made them)."""
+    if field == "mt":
+        return all(to.get(k) == frm.get(k) for k in TRANSLATED if to.get(k))
     src = TRANSLATED.get(field)
     return src is None or to.get(src) == frm.get(src)
 
@@ -93,6 +96,8 @@ def merge_day(day: date, outlet: str, new: list[dict]) -> int:
             added.append(r["u"])
         elif old.get("via") == "feed" and r.get("via") == "page":
             kept = {k: old[k] for k in ("te", "de") if old.get(k) and not r.get(k) and lends(k, r, old)}
+            if kept and old.get("mt") and lends("mt", {**r, **kept}, old):
+                kept["mt"] = old["mt"]
             existing[r["u"]] = {**r, **kept} if kept else r
         else:
             for k, v in r.items():
@@ -121,7 +126,7 @@ def fill_day(day: date, outlet: str, new: list[dict]) -> int:
             old["w"], old["h"] = r["w"], r["h"]
             if r.get("kb") and not old.get("kb"):
                 old["kb"] = r["kb"]
-        for k in ("d", "s", "g", "a", "de", "kbe"):
+        for k in ("d", "s", "g", "a", "de", "kbe", "mt"):
             if r.get(k) and not old.get(k) and lends(k, old, r):
                 old[k] = r[k]
         changed += old != before
