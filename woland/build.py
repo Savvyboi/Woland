@@ -38,6 +38,7 @@ from pathlib import Path
 from . import analysis, feeds
 from .config import CONFIG_DIR, ROOT, START_DATE, load_contexts, load_lexicon, load_outlets
 from .glossary import Glossary
+from . import prerender
 from .lexicon import Lexicon
 from .store import available_days, day_dir, load_coverage, load_runs, read_day
 from .textproc import STOP_EN, STOP_RU, headline_words, index_terms
@@ -850,6 +851,7 @@ class Builder:
         self.write_brief(days)
         self.write_feeds(days)
         self.write_meta(days, month_list[-SEARCH_MONTHS:], cov)
+        self.prerender(days)
         self.prune_day_cache(month_list)
         log.info("site built in %.1fs → %s", time.monotonic() - t0, self.out)
 
@@ -1052,6 +1054,27 @@ class Builder:
             "searches": [{"id": s.id, "label": s.label} for s in self.searches],
             "countries": {c: cname.get(c, c) for c in listing["country"]}})
 
+    def prerender(self, days: list[date]) -> None:
+        """The Today page's summary of the day it opens on, for readers and robots without JavaScript and for
+        link previews (woland/prerender.py)."""
+        if not days:
+            return
+        through = self.complete_through(days)
+        day = through if through and through >= days[0].isoformat() else days[-1].isoformat()
+        path = self.out / "data" / "days" / f"{day}.json"
+        if not path.exists():
+            return
+        with open(path, encoding="utf-8") as fh:
+            dg = json.load(fh)
+        ex_path = path.with_suffix(".ex.json")
+        examples = json.loads(ex_path.read_text(encoding="utf-8")) if ex_path.exists() else {}
+        x = prerender.summary(dg, day, open_day=bool(through) and day > through,
+                              labels={n.id: n.label["en"] for n in self.narratives},
+                              families={n.id: n.family for n in self.narratives},
+                              outlets={o.id: o.name for o in self.outlets},
+                              s=prerender.en_strings(ROOT / "site" / "assets" / "js" / "i18n.js"), examples=examples)
+        prerender.apply_today(self.out / "index.html", x, self.base_url)
+
     def copy_site(self):
         """Copy site/ to the output, expanding <!-- include:name --> from site/partials/."""
         src = ROOT / "site"
@@ -1064,6 +1087,7 @@ class Builder:
             for name, body in partials.items():
                 html = html.replace(f"<!-- include:{name} -->", body.strip())
             html = html.replace("</head>", preload_links(page.name, html, src) + "</head>", 1)
+            html = prerender.page_tags(html, page.name, self.base_url)
             page.write_text(html, encoding="utf-8", newline="\n")
         (self.out / ".nojekyll").write_text("")
 
