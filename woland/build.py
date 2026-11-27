@@ -46,7 +46,7 @@ from .util import MSK, iso_utc, normalize, parse_dt, today_msk, truncate
 
 log = logging.getLogger("woland.build")
 
-BUILD_VERSION = "8"
+BUILD_VERSION = "9"
 # A search downloads one index shard per month and one block per result it shows (20 at a time, mostly in
 # different blocks): with 256 shards and 25 documents a block, a search for "Finland" over September and
 # October 2026 needed ~160 KB of blocks instead of ~520 KB with 100, at four times as many files.

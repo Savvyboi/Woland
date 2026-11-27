@@ -628,3 +628,34 @@ def test_an_outlet_that_refuses_its_pages_is_read_from_the_archive(monkeypatch):
     asked.clear()
     assert collect._fetch_page(plain, Candidate(url="https://t.ru/a/5", hint=hint), [], local)[1] == "403"
     assert asked == ["https://t.ru/a/5"]
+
+
+# ── feeds that may have rolled over between two readings ─────────────────────
+def test_a_feed_holding_nothing_stored_before_is_reported_as_possibly_rolled_over():
+    def fed(i, *feeds, day=D):
+        c = listed(i, day)
+        c.feeds = list(feeds)
+        return c
+    known = {f"https://t.ru/a/{i}": ("page", "") for i in range(3)}
+    main, extra = "https://t.ru/rss", "https://t.ru/rss/world"
+    # the main feed still holds articles stored at the last reading; the section feed holds only new ones
+    cands = [fed(i, main) for i in range(8)] + [fed(i, extra) for i in range(10, 16)]
+    assert collect.rolled_over(cands, known, D, D) == [extra]
+    # an article in both feeds counts for both: the section feed reaches back to what was stored
+    cands.append(fed(1, main, extra))
+    assert collect.rolled_over(cands, known, D, D) == []
+    # too few articles to say, articles outside the range, an outlet with nothing stored yet
+    assert collect.rolled_over([fed(i, extra) for i in range(10, 14)], known, D, D) == []
+    assert collect.rolled_over([fed(i, extra, day=D - timedelta(days=3)) for i in range(10, 20)], known, D, D) == []
+    assert collect.rolled_over([fed(i, extra) for i in range(10, 20)], {}, D, D) == []
+
+
+def test_discovery_keeps_every_feed_that_announced_an_article(fake):
+    from woland.discover import discover
+    item = '<item><title>Заголовок {i}</title><link>https://t.ru/a/{i}</link><pubDate>Thu, 10 Sep 2026 09:00:00 +0300</pubDate></item>'
+    rss = lambda ids: "<rss><channel>" + "".join(item.format(i=i) for i in ids) + "</channel></rss>"
+    o = outlet(fetch=False, sources=[{"type": "rss", "url": ["https://t.ru/rss", "https://t.ru/rss/world"]}])
+    cands, errors = discover(fake({"https://t.ru/rss": rss([1, 2]), "https://t.ru/rss/world": rss([2, 3])}), o, D, D)
+    assert not errors
+    assert {c.url[-1]: c.feeds for c in cands} == {"1": ["https://t.ru/rss"], "2": ["https://t.ru/rss", "https://t.ru/rss/world"],
+                                                   "3": ["https://t.ru/rss/world"]}
