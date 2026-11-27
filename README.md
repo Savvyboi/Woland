@@ -115,6 +115,10 @@ run comes at all. Without the secret nothing is sent.
 * **The site** (`site/`, `woland/build.py`) — plain HTML, CSS and JavaScript modules; no framework, no build
   tool. Search runs in the browser against a static inverted index sharded by month and by word, so only a
   few small gzip files are downloaded per query. Unchanged months are cached between builds, and within the last two months unchanged days, so the nightly build works out only the week it collected again.
+  The Today page is written with the latest complete day's summary already in it (`woland/prerender.py`), and
+  every page carries a title, description and preview picture (`site/assets/img/og-card.png`, made by
+  `tools/og_card.py`), so that link previews, search engines and web archives see more than "Consulting the
+  archive".
 
 ## Running it on your own computer
 

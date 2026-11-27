@@ -600,3 +600,10 @@ ol.tag-list li { grid-template-columns: minmax(8rem, 15rem) 1fr 4rem 4.5rem; }
 #follow summary { cursor: pointer; font-family: var(--sans); }
 .feed-list { columns: 2 16rem; padding-left: 1.2rem; margin: .5rem 0; }
 .feed-list li { break-inside: avoid; margin: .2rem 0; }
+
+/* The Today page as written by the build (woland/prerender.py), until today.js replaces it */
+.prerender-stories { list-style: none; padding: 0; margin: 1rem 0 0; display: grid; gap: .9rem; }
+.prerender-stories li { font: .95rem/1.45 var(--serif); }
+.prerender-stories b { font-family: var(--sans); color: var(--gilt-text); }
+.prerender-stories .tr, .prerender-stories small { color: var(--text-2); }
+.prerender .tile .value a { font: 1.25rem/1.2 var(--serif); color: var(--text); }

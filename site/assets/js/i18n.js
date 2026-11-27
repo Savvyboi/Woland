@@ -6,6 +6,7 @@ export const LOCALES = { en: "en-GB", fi: "fi-FI", sv: "sv-SE" };
 
 const S = {
   en: {
+    "noscript": "Above: the latest complete day in brief. The charts, the archive search and the other chapters need JavaScript.",
     "brief.follow.ask.link": "Ask for it on GitHub",
     "nav.brief": "Week",
     "title.brief": "The week in the Russian state press",
@@ -359,6 +360,7 @@ const S = {
   },
 
   fi: {
+    "noscript": "Yllä: viimeisin kokonaan kerätty päivä lyhyesti. Kaaviot, arkistohaku ja muut luvut tarvitsevat JavaScriptiä.",
     "brief.follow.ask.link": "Pyydä sitä GitHubissa",
     "nav.brief": "Viikko",
     "title.brief": "Viikko Venäjän valtiollisessa lehdistössä",
@@ -712,6 +714,7 @@ const S = {
   },
 
   sv: {
+    "noscript": "Ovan: den senaste fullständigt insamlade dagen i korthet. Diagrammen, arkivsökningen och de andra kapitlen kräver JavaScript.",
     "brief.follow.ask.link": "Be om det på GitHub",
     "nav.brief": "Veckan",
     "title.brief": "Veckan i den ryska statliga pressen",
