@@ -12,6 +12,7 @@
   mtcheck   what the translation glossary (config/glossary.yaml) corrects, and what it still misses
   reindex   rebuild the index of every URL stored (data/state/urls/) from the day files
   sample    a random sample of the articles counted under a framing, to read by hand (docs/lexicon-audit.md)
+  phrases   rare phrases that several outlets used within hours of each other on a day, to read by hand
   merge     git's merge driver for the data files (see woland/merge.py and .gitattributes)
 """
 from __future__ import annotations
@@ -95,6 +96,10 @@ def main(argv=None):
     p.add_argument("--seed", type=int, default=1, help="a new seed draws a fresh sample")
     p.add_argument("--round", default="", help="written into the round column")
     p.add_argument("--csv", help="write the rows (the columns of docs/lexicon-audit-sample.csv) to this file")
+    p = sub.add_parser("phrases")
+    p.add_argument("--day", help="YYYY-MM-DD (default: yesterday, Moscow time)")
+    p.add_argument("-n", type=int, default=40, help="how many phrases to print")
+    p.add_argument("--json", help="also write the full list to this file")
     p = sub.add_parser("merge")
     for name in ("base", "ours", "theirs", "path"):  # git's %O %A %B %P
         p.add_argument(name)
@@ -181,6 +186,20 @@ def main(argv=None):
     if a.cmd == "sample":
         from .audit import main as sample_main
         return sample_main(a.framing, a.n, a.seed, a.round, a.csv)
+
+    if a.cmd == "phrases":
+        from .phrases import day_report, markdown
+        from .store import read_day
+        day = date.fromisoformat(a.day) if a.day else today_msk() - timedelta(days=1)
+        outlets = [o for o in load_outlets() if o.lang == "ru"]
+        machine = {o.id: o for o in outlets if o.machine}
+        found = day_report(day, [o.id for o in outlets], read_day,
+                           lambda r: bool(machine.get(r["o"]) and machine[r["o"]].is_machine(r)))
+        print(markdown(day, found, {o.id: o.name for o in outlets}, a.n))
+        if a.json:
+            with open(a.json, "w", encoding="utf-8") as fh:
+                json.dump(found, fh, ensure_ascii=False, indent=1)
+        return 0
 
     if a.cmd == "reindex":
         from .store import rebuild_url_index

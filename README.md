@@ -233,6 +233,12 @@ workflow runs it after every build, warns above 700 MB and stops above 920 MB, b
   check of 25 random matches per framing (three rounds, the last on 28 September 2026), 545 of 600 fit the
   definitions, from 14 of 25 ("Western fakes") to 25 of 25 (`docs/lexicon-audit.md`); that check still needs a
   specialist's review. `python -m woland sample <framing>` draws a fresh sample to read.
+* There is no detector of *temniki* (editorial directives) on the site. `python -m woland phrases --day <day>`
+  lists, for a researcher to read, rare phrases (3–5 words, stemmed, unseen in the 30 days before) that four or more
+  Russian outlets used within six hours in articles of three or more stories (`woland/phrases.py`). Tried on
+  October–November 2026 it lists a few hundred a day, nearly all ordinary coverage of one event or one quoted
+  statement ("резиденция «Цилинь Шаньчжуан»", "Путин поблагодарил Си Цзиньпина за организацию"): shared wording
+  is the norm in this press, so it is a place to start reading, not evidence of a directive.
 * The current day, and the previous one until the nightly run has gathered it, are *still being collected*: the
   site leaves them out of comparisons and averages unless asked, and marks them where they are shown.
 * TASS's Russian service is read from its own feeds only and starts on the day hourly reading began (24 September
