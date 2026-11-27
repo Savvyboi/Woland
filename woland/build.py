@@ -192,10 +192,10 @@ class DayDocs:
     """A day's search documents, collected for MonthIndex.add in their order."""
 
     def __init__(self):
-        self.items: list[tuple[list, int, list]] = []
+        self.items: list[tuple[list, int, list, list]] = []
 
-    def add(self, doc: list, outlet_index: int, terms: list[tuple[str, str]]) -> None:
-        self.items.append((doc, outlet_index, terms))
+    def add(self, doc: list, outlet_index: int, terms: list[tuple[str, str]], countries=()) -> None:
+        self.items.append((doc, outlet_index, terms, list(countries)))
 
 
 _WORKER: "Builder | None" = None   # the builder, as the forked worker processes inherit it
@@ -215,8 +215,9 @@ class MonthIndex:
         self.postings: dict[str, list[int]] = defaultdict(list)
         self.forms: dict[str, str] = {}
         self.narr: dict[int, list[int]] = defaultdict(list)
+        self.ctry: dict[str, list[int]] = defaultdict(list)
 
-    def add(self, doc: list, outlet_index: int, terms: list[tuple[str, str]]) -> None:
+    def add(self, doc: list, outlet_index: int, terms: list[tuple[str, str]], countries=()) -> None:
         i = len(self.docs)
         self.docs.append(doc)
         self.codes.append(CODES[outlet_index])
@@ -228,6 +229,8 @@ class MonthIndex:
                 p.append(i)
         for k in doc[6]:
             self.narr[k].append(i)
+        for c in countries:
+            self.ctry[c].append(i)
 
     def write(self, sdir: Path) -> None:
         for b in range(0, len(self.docs), BLOCK):
@@ -240,6 +243,7 @@ class MonthIndex:
         for b, shard in enumerate(shards):
             dump_gz(sdir / "i" / f"{b}.json.gz", shard)
         dump_gz(sdir / "k.json.gz", {str(k): delta_encode(v) for k, v in self.narr.items()})
+        dump_gz(sdir / "c.json.gz", {c: delta_encode(v) for c, v in self.ctry.items()})
         dump_gz(sdir / "m.json.gz", {"n": len(self.docs), "days": self.day_starts, "o": "".join(self.codes)})
 
 
@@ -400,8 +404,8 @@ class Builder:
         for d in days:
             res = results.pop(d)
             idx.day_starts.append([d.isoformat(), len(idx.docs)])
-            for doc, oi, terms in res["docs"]:
-                idx.add(doc, oi, terms)
+            for doc, oi, terms, countries in res["docs"]:
+                idx.add(doc, oi, terms, countries)
             summary[d.isoformat()] = res["summary"]
             if d in self.recent:
                 dump_gz(cdir / "feed" / f"{d.isoformat()}.json.gz", res["feed"])
@@ -437,15 +441,17 @@ class Builder:
         examples = defaultdict(list)
         voices = {"ru": {}, "en": {}}
         countries = defaultdict(Counter)
+        cf = defaultdict(Counter)   # country → framing → articles naming the one and counted under the other
         tags, sections = defaultdict(Counter), defaultdict(Counter)
         gaz = analysis.gazetteer()
         for r in recs:
             o = r["o"]
             lang = self.olang.get(o, "ru")
+            codes = gaz.find(f'{r["t"]} {r.get("d", "")}', lang)
             if self.is_machine(r):  # searchable, marked, and counted apart from everything else
                 machine[o] += 1
                 ks, snips = self.narratives_of(r)
-                self.index_doc(idx, r, ks, snips, machine=True)
+                self.index_doc(idx, r, ks, snips, machine=True, countries=codes)
                 continue
             totals[o] += 1
             v = analysis.voice(r["t"], lang)
@@ -455,7 +461,6 @@ class Builder:
                                             {"y": {}, "f": {}, "o": {}, "v": {}, "ex": self.example(r, None)})
                 for field, val in (("y", kind), ("f", name), ("o", o), ("v", verb)):
                     e[field][val] = e[field].get(val, 0) + 1
-            codes = gaz.find(f'{r["t"]} {r.get("d", "")}', lang)
             for code in codes:
                 countries[code][o] += 1
             for tag in r.get("g") or []:
@@ -468,8 +473,12 @@ class Builder:
                 nar[self.narratives[k].id][o] += 1
             if any(self.narratives[k].family == "framing" for k in ks):
                 framed += 1
+            for code in codes:
+                for k in ks:
+                    if self.narratives[k].family == "framing":
+                        cf[code][self.narratives[k].id] += 1
             kbe = r.get("kbe") or {}
-            stems = self.index_doc(idx, r, ks, snips)
+            stems = self.index_doc(idx, r, ks, snips, countries=codes)
             if feed is not None:
                 feed.append(self.feed_item(r, ks, codes, stems))
             # rising words: in how many of the day's headlines each word (lemma) occurs, and which
@@ -507,10 +516,12 @@ class Builder:
                 "df": {lang: dict(c) for lang, c in df.items()}, "forms": forms,
                 "examples": chosen, "stem_ex": stem_ex, "voices": voices,
                 "countries": {k: dict(v) for k, v in countries.items()},
+                "cf": {k: dict(v) for k, v in cf.items()},
                 "tags": {o: dict(c) for o, c in tags.items()}, "sections": {o: dict(c) for o, c in sections.items()},
                 "posts": {lang: {k: v for k, v in p.items() if len(v) >= RISING_MIN[lang]} for lang, p in posts.items()}}
 
-    def index_doc(self, idx: "MonthIndex", r: dict, ks: list[int], snips: dict[int, str], machine: bool = False):
+    def index_doc(self, idx: "MonthIndex", r: dict, ks: list[int], snips: dict[int, str], machine: bool = False,
+                  countries=()):
         """Add one record to the month's search index."""
         o = r["o"]
         ts = int(parse_dt(r["p"]).timestamp())
@@ -528,7 +539,7 @@ class Builder:
             doc.pop()
         text = " ".join(x for x in (r["t"], lead, r.get("te", ""), r.get("de", "")) if x)
         terms = index_terms(text)
-        idx.add(doc, self.oidx[o], terms)
+        idx.add(doc, self.oidx[o], terms, countries)
         return {st for _, st in terms}
 
     def feed_item(self, r: dict, ks: list[int], codes, stems: set[str]) -> dict:
@@ -685,9 +696,14 @@ class Builder:
                 if code in agg:
                     agg[code]["prev"] += sum(by.values())
         names = analysis.gazetteer().names
+        framings = {n.id for n in self.narratives if n.family == "framing"}
         return {"countries": {code: {"n": sum(a["d"]), "o": dict(a["o"]), "d": a["d"],
                                      "prev": a["prev"] if psums else None} for code, a in agg.items()},
-                "names": {code: names[code] for code in agg if code in names}}
+                "names": {code: names[code] for code in agg if code in names},
+                # all articles of each day, for shares; and countries crossed with framings
+                "day_totals": [sum((s.get("totals") or {}).values()) for s in sums],
+                "framing": analysis.country_framing(sums, psums, framings),
+                "regions": {"nordic-baltic": list(analysis.NORDIC_BALTIC)}}
 
     def tags_of(self, sums: list[dict], psums: list[dict]) -> dict:
         def gather(ss, field):
@@ -1019,7 +1035,8 @@ class Builder:
         counts: dict[tuple[str, str], int] = Counter()
         for it in items:
             keys = [("outlet", it["o"])] + [("framing", k) for k in it.get("k", [])] + \
-                   [("country", c) for c in it.get("c", [])] + [("search", q) for q in it.get("q", [])]
+                   [("country", c) for c in it.get("c", [])] + [("search", q) for q in it.get("q", [])] + \
+                   ([("region", "nordic-baltic")] if set(it.get("c", [])) & set(analysis.NORDIC_BALTIC) else [])
             for key in keys:
                 counts[key] += 1
                 if len(buckets[key]) < FEED_ENTRIES:
@@ -1031,12 +1048,13 @@ class Builder:
         sfirst = {s.id: s.any[0][0] for s in self.searches}
         updated = iso_utc()
         span = f"{recent[0].isoformat()} – {recent[-1].isoformat()}" if recent else ""
-        listing: dict[str, dict] = {"outlet": {}, "framing": {}, "country": {}, "search": {}}
+        listing: dict[str, dict] = {"outlet": {}, "framing": {}, "country": {}, "search": {}, "region": {}}
         targets = (
             [("outlet", o.id, f"outlet: {o.name}", f"outlets.html#{o.id}") for o in self.outlets if o.enabled] +
             [("framing", n.id, f"{n.family}: {nlabel[n.id]}", f"narratives.html#{n.id}") for n in self.narratives] +
-            [("country", c, f"country: {cname.get(c, c)}", f"archive.html?q={cname.get(c, c)}")
+            [("country", c, f"country: {cname.get(c, c)}", f"archive.html?c={c}")
              for (kind, c) in sorted(counts) if kind == "country"] +
+            [("region", "nordic-baltic", "the Nordic and Baltic countries (NB8)", "analysis.html?cr=nordic-baltic#countries")] +
             [("search", s.id, f"saved search: {slabel[s.id]}", f"archive.html?q={sfirst[s.id]}") for s in self.searches])
         for kind, key, title, page in targets:
             path = f"feeds/{kind}/{key}.xml"

@@ -2,6 +2,7 @@
 //   search/<month>/m.json.gz      {n, days: [[date, firstDoc], …], o: outlet code per document}
 //   search/<month>/i/<b>.json.gz  {f: {form: stem}, p: {stem: delta-encoded postings}}
 //   search/<month>/k.json.gz      {narrativeIndex: delta-encoded postings}
+//   search/<month>/c.json.gz      {ISO country code: delta-encoded postings} (countries named in headline or lead)
 //   search/<month>/d/<n>.json.gz  documents, meta.search.block (25) per block
 // The browser never stems: shards map every word form seen in the corpus to its stem.
 import { META, getGz, fromIndex } from "./core.js";
@@ -146,7 +147,7 @@ function monthsBetween(from, to) {
  * Run a query. Returns totals, a per-day timeline (hits and all articles under the same filters),
  * per-outlet counts, and the ordered hit list [{month, i}].
  */
-export async function search({ q, from, to, outlets, lang, narr, order = "new" }) {
+export async function search({ q, from, to, outlets, lang, narr, country, order = "new" }) {
   const clauses = parseQuery(q);
   const positive = clauses.filter((c) => !c.neg);
   const forms = new Set();
@@ -180,6 +181,10 @@ export async function search({ q, from, to, outlets, lang, narr, order = "new" }
     if (narr !== null && narr !== undefined && narr !== "") {
       const k = await getGz(`search/${month}/k.json.gz`);
       set = k && k[narr] ? intersect(set, decode(k[narr])) : new Int32Array(0);
+    }
+    if (country) {
+      const c = await getGz(`search/${month}/c.json.gz`);
+      set = c && c[country] ? intersect(set, decode(c[country])) : new Int32Array(0);
     }
     const hits = [];
     const byDay = new Map(), dayTotals = new Map(), byOutlet = new Map();

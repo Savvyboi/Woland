@@ -304,13 +304,16 @@ export function heatmap(container, { days, rows, format, cell = 14, isOpen }) {
   container.replaceChildren(wrap, scale, tip);
 }
 
-export function sparkline(values, { width = 110, height = 26, color = "var(--gilt)", label = "", openFrom } = {}) {
-  const vals = values.map((v) => (v === null || v === undefined ? 0 : v));
-  const max = Math.max(1e-9, ...vals);
+export function sparkline(values, { width = 110, height = 26, color = "var(--gilt)", label = "", openFrom, gaps = false } = {}) {
+  // gaps: a null value (nothing to measure that day) breaks the line instead of drawing a zero
+  const vals = values.map((v) => (v === null || v === undefined ? (gaps ? null : 0) : v));
+  const max = Math.max(1e-9, ...vals.filter((v) => v !== null));
   const x = (i) => (vals.length === 1 ? width / 2 : 2 + (i / (vals.length - 1)) * (width - 6));
   const y = (v) => height - 3 - (v / max) * (height - 6);
-  const d = vals.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
-  const last = vals.length - 1;
+  const d = vals.map((v, i) => (v === null ? "" : `${i && vals[i - 1] !== null ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`)).join("");
+  let last = vals.length - 1;
+  while (last > 0 && vals[last] === null) last--;
+  if (vals[last] === null) vals[last] = 0;
   const open = openFrom !== undefined && openFrom !== null && last >= openFrom;
   return s("svg", { class: "spark", viewBox: `0 0 ${width} ${height}`, width, height, role: "img", "aria-label": label },
     s("title", {}, label),

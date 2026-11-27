@@ -1,6 +1,6 @@
 // Runs the website's own search code (site/assets/js/search.js) in Node against a built site.
 // usage: node search_harness.mjs <built site dir> '<JSON list of queries>'
-// Each query is an object for search() — {q, from, to, outlets: [ids], lang, narr, order}.
+// Each query is an object for search() — {q, from, to, outlets: [ids], lang, narr, country, order}.
 // Prints, per query, the total and the first hits (outlet, headline, URL).
 import { readFile } from "node:fs/promises";
 import path from "node:path";

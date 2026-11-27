@@ -1,7 +1,7 @@
 // Chapter III: the searchable archive.
 import {
   $, el, t, tl, META, loadMeta, initChrome, fillFooter, fmtInt, fmtPct, fmtDay, outlet, narrative,
-  groupVar, articleCard, showError, addDays, downloadCSV, GROUPS, isOpenDay, recordOf, recordId,
+  groupVar, articleCard, showError, addDays, downloadCSV, GROUPS, isOpenDay, recordOf, recordId, countryName,
 } from "./core.js";
 import { search, loadDocs } from "./search.js";
 import { columnChart, barList, withTable, tableOf } from "./charts.js";
@@ -12,7 +12,7 @@ const status = $("#status");
 const area = $("#results-area");
 const PAGE = 20;
 const EXPORT_MAX = 2000;
-const EMPTY = { q: "", from: "", to: "", o: "", l: "", k: "", order: "new" };
+const EMPTY = { q: "", from: "", to: "", o: "", l: "", k: "", c: "", order: "new" };
 let current = null, shown = 0, norm = "count";
 
 function fillSelects() {
@@ -32,17 +32,17 @@ function fillSelects() {
 function readParams() {
   const p = new URLSearchParams(location.search);
   return { q: p.get("q") || "", from: p.get("from") || "", to: p.get("to") || "", o: p.get("o") || "",
-    l: p.get("l") || "", k: p.get("k") || "", order: p.get("order") || "new" };
+    l: p.get("l") || "", k: p.get("k") || "", c: /^[A-Za-z]{2}$/.test(p.get("c") || "") ? p.get("c").toUpperCase() : "", order: p.get("order") || "new" };
 }
 function writeForm(s) {
   $("#q").value = s.q; $("#from").value = s.from; $("#to").value = s.to; $("#outlet").value = s.o;
-  $("#lang-f").value = s.l; $("#narr").value = s.k; $("#order").value = s.order;
+  $("#lang-f").value = s.l; $("#narr").value = s.k; $("#country").value = s.c || ""; $("#order").value = s.order;
 }
 function readForm() {
   return { q: $("#q").value.trim(), from: $("#from").value, to: $("#to").value, o: $("#outlet").value,
-    l: $("#lang-f").value, k: $("#narr").value, order: $("#order").value };
+    l: $("#lang-f").value, k: $("#narr").value, c: $("#country").value, order: $("#order").value };
 }
-const isEmpty = (s) => !s.q && !s.from && !s.to && !s.o && !s.l && !s.k;
+const isEmpty = (s) => !s.q && !s.from && !s.to && !s.o && !s.l && !s.k && !s.c;
 
 /** What the current search is, as removable chips. */
 function renderChips(s) {
@@ -64,6 +64,7 @@ function renderChips(s) {
   if (s.o) chip(t("archive.outlets"), outlet(s.o).name, "o");
   if (s.l) chip(t("archive.language"), t(`lang.${s.l}`), "l");
   if (s.k) chip(narrative(s.k)?.family === "topic" ? t("col.topic") : t("col.framing"), tl(narrative(s.k)?.label), "k");
+  if (s.c) chip(t("countries.country"), countryName(s.c), "c");
   if (s.order === "old") chip(t("archive.sort"), t("archive.sort.old"), "order");
   box.hidden = !chips.length;
   box.replaceChildren(...chips);
@@ -74,6 +75,7 @@ function scopeNote(s) {
   const notes = [];
   if (s.q) notes.push(t("archive.scope.words"));
   if (s.k) notes.push(t("archive.scope.framing"));
+  if (s.c) notes.push(t("archive.scope.country"));
   if (s.q && s.k) notes.push(t("archive.scope.both"));
   const open = (s.to || META.last) > (META.complete_through || META.last);
   if (open) notes.push(t("archive.scope.open", { day: fmtDay(META.complete_through) }));
@@ -177,7 +179,7 @@ async function go(s, push = true) {
   try {
     const narrIdx = s.k ? narrative(s.k)?.idx : null;
     current = await search({ q: s.q, from: s.from, to: s.to, outlets: s.o ? new Set([s.o]) : null,
-      lang: s.l || null, narr: narrIdx ?? null, order: s.order });
+      lang: s.l || null, narr: narrIdx ?? null, country: s.c || null, order: s.order });
   } catch (e) {
     area.style.opacity = "";
     if (e.code === "minchars") { status.textContent = t("archive.minchars"); area.hidden = true; return; }
