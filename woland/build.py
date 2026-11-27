@@ -36,7 +36,8 @@ from datetime import time as dtime
 from pathlib import Path
 
 from . import analysis, feeds
-from .config import CONFIG_DIR, ROOT, START_DATE, load_contexts, load_lexicon, load_outlets
+from . import disarm as disarm_export
+from .config import CONFIG_DIR, ROOT, START_DATE, load_contexts, load_disarm, load_lexicon, load_outlets
 from .glossary import Glossary
 from .lexicon import Lexicon
 from .store import available_days, day_dir, load_coverage, load_runs, read_day
@@ -265,6 +266,7 @@ class Builder:
         self.nidx = {n.id: i for i, n in enumerate(self.narratives)}
         self.lex = Lexicon(self.narratives)
         self.lex_fp = self.lex.fingerprint()
+        self.techs = disarm_export.techniques_of(self.narratives)   # narrative index → DISARM technique ids
         self.glossary = Glossary()
         self.searches = feeds.load_searches()
         self.recent: set[date] = set()   # the days whose feed items the month builds keep (FEED_DAYS)
@@ -309,7 +311,7 @@ class Builder:
         """What every day's and month's results depend on besides the articles: lexicon, glossary, outlets, code."""
         if not hasattr(self, "_code_key"):
             h = hashlib.sha1(f"{BUILD_VERSION}|{self.lex_fp}|{self.glossary.fingerprint()}|"
-                             f"{[(o.id, o.machine) for o in self.outlets]}".encode())
+                             f"{[(o.id, o.machine) for o in self.outlets]}|{sorted(self.techs.items())}".encode())
             for src in ("build.py", "lexicon.py", "textproc.py", "glossary.py", "analysis.py", "feeds.py"):  # code too
                 h.update((Path(__file__).parent / src).read_bytes())
             for cfg in ("countries.yaml", "feeds.yaml"):
@@ -429,6 +431,7 @@ class Builder:
         machine = Counter()
         framed = 0
         nar = defaultdict(Counter)
+        dis = defaultdict(Counter)   # DISARM technique → outlet → articles that matched a framing mapped to it
         df = {"ru": Counter(), "en": Counter()}
         posts = {"ru": defaultdict(list), "en": defaultdict(list)}   # word → the day's headlines using it
         heads = {"ru": 0, "en": 0}
@@ -466,6 +469,8 @@ class Builder:
             ks, snips = self.narratives_of(r)
             for k in ks:
                 nar[self.narratives[k].id][o] += 1
+            for tid in {tid for k in ks for tid in self.techs.get(k, ())}:  # an article counts once per technique
+                dis[tid][o] += 1
             if any(self.narratives[k].family == "framing" for k in ks):
                 framed += 1
             kbe = r.get("kbe") or {}
@@ -503,7 +508,7 @@ class Builder:
                  for lang, fc in form_counts.items()}
         return {"totals": dict(totals), "listed": {o: v for o, v in listed.items() if v}, "framed": framed,
                 "machine": dict(machine),
-                "nar": {k: dict(v) for k, v in nar.items()},
+                "nar": {k: dict(v) for k, v in nar.items()}, "dis": {k: dict(v) for k, v in dis.items()},
                 "df": {lang: dict(c) for lang, c in df.items()}, "forms": forms,
                 "examples": chosen, "stem_ex": stem_ex, "voices": voices,
                 "countries": {k: dict(v) for k, v in countries.items()},
@@ -849,6 +854,7 @@ class Builder:
         self.write_analysis(days)
         self.write_brief(days)
         self.write_feeds(days)
+        self.write_exports(days)
         self.write_meta(days, month_list[-SEARCH_MONTHS:], cov)
         self.prune_day_cache(month_list)
         log.info("site built in %.1fs → %s", time.monotonic() - t0, self.out)
@@ -1150,6 +1156,30 @@ class Builder:
             if o.enabled or any(totals[o.id]) or any(ch != "m" for ch in row):
                 out[o.id] = "".join(row)
         return out
+
+    def write_exports(self, days: list[date]):
+        """exports/: the DISARM techniques that the framings matched (woland/disarm.py), as DISARM Navigator
+        layers over the last 7 and 30 completed days and as a STIX 2.1 bundle for the latest completed week."""
+        out = self.out / "exports"
+        cfg = load_disarm()
+        through = self.complete_through(days)
+        done = [d for d in days if through and d.isoformat() <= through]
+        for n in (7, 30):
+            wdays = done[-n:]
+            if wdays:
+                t = disarm_export.tally([self._summary_for(d) for d in wdays], self.narratives)
+                dump(out / f"disarm-layer-{n}d.json", disarm_export.navigator_layer(
+                    t, cfg, wdays[0], wdays[-1], self.href("narratives.html")), pretty=True)
+        weeks = self.weeks(days)
+        if weeks:
+            wdays = weeks[-1]
+            y, w, _ = wdays[0].isocalendar()
+            week = f"{y}-W{w:02d}"
+            t = disarm_export.tally([self._summary_for(d) for d in wdays], self.narratives)
+            repo = os.environ.get("GITHUB_REPOSITORY")
+            dump(out / "weekly-stix.json", disarm_export.stix_bundle(
+                t, cfg, week, wdays[0], wdays[-1], self.href(f"brief.html?w={week}"),
+                f"https://github.com/{repo}" if repo else ""), pretty=True)
 
     def complete_through(self, days: list[date]) -> str | None:
         """The last day that a full collection run has gathered after the day was over (Moscow time).

@@ -149,6 +149,19 @@ function auditLine(n) {
   return el("p", { class: "audit" }, t("narratives.checked", { fit: fmtInt(c.fit), n: fmtInt(c.n), date: fmtDay(c.date) }), " ", link);
 }
 
+// the DISARM techniques a framing is read as (config/disarm.yaml): Woland's reading, not DISARM's, and a pattern
+// match is not evidence of an operation
+function disarmLine(n) {
+  if (!n.disarm?.length) return null;
+  return el("div", { class: "disarm" },
+    el("span", { class: "k" }, "DISARM"),
+    ...n.disarm.map((d) => el("a", {
+      class: `disarm-pill ${d.confidence}`, href: d.url, rel: "noopener",
+      title: t(`disarm.${d.confidence}`, { tactic: `${d.tactic} ${d.tactic_name}` }),
+    }, el("b", {}, d.id), ` ${d.name}`, d.confidence === "partial" ? el("small", {}, ` · ${t("disarm.partial.short")}`) : null)),
+    el("a", { class: "disarm-about", href: "method.html#disarm" }, t("disarm.about")));
+}
+
 async function renderNarrative(id) {
   const n = narrative(id);
   const w = windowDays();
@@ -160,6 +173,8 @@ async function renderNarrative(id) {
   const kids = [];
   kids.push(el("h2", { style: { font: "500 2.1rem/1.15 var(--display)", margin: "0 0 .3rem" } }, tl(n.label)));
   if (n.about) kids.push(el("p", { style: { color: "var(--text-2)", margin: "0 0 .4rem", maxWidth: "46rem" } }, tl(n.about)));
+  const dl = disarmLine(n);
+  if (dl) kids.push(dl);
   kids.push(el("p", { class: "syntax" }, t("narratives.total", { n: fmtInt(sum(all.hits)), all: fmtInt(sum(all.totals)) }), " · ",
     el("a", { href: archiveSearch({ k: id, from: days[0], to: days[days.length - 1] }) }, `${t("nav.archive")} →`), " · ",
     el("a", { href: `feeds/framing/${id}.xml`, type: "application/atom+xml", title: t("brief.follow.about", { n: 40, days: 7 }) }, t("narratives.feed"))));

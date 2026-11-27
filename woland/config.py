@@ -151,12 +151,17 @@ class Narrative:
     # {"match": [patterns], "with": [context names], "not": [phrases], "ctx": [the context names' patterns]}
     patterns: dict = field(default_factory=dict)
     checked: dict = field(default_factory=dict)  # a random sample of matches, read: {n, fit, date} (docs/lexicon-audit.md)
+    # the DISARM techniques the framing is read as: [{id, confidence, name, tactic, url}] (config/disarm.yaml)
+    disarm: list = field(default_factory=list)
 
     def public(self) -> dict:
         pats = {lang: [p if isinstance(p, str) else {k: v for k, v in p.items() if k != "ctx"} for p in ps]
                 for lang, ps in self.patterns.items()}
-        return {"id": self.id, "family": self.family, "label": self.label, "about": self.about,
-                "patterns": pats, "checked": self.checked or None}
+        out = {"id": self.id, "family": self.family, "label": self.label, "about": self.about,
+               "patterns": pats, "checked": self.checked or None}
+        if self.disarm:
+            out["disarm"] = self.disarm
+        return out
 
 
 def _as_list(v) -> list:
@@ -177,9 +182,41 @@ def load_contexts(path: Path | None = None) -> dict:
     return out
 
 
-def load_lexicon(path: Path | None = None) -> list[Narrative]:
+DISARM_CONFIDENCE = ("direct", "partial")
+
+
+def load_disarm(path: Path | None = None) -> dict:
+    """config/disarm.yaml: the DISARM techniques framings are mapped to, with their names and tactics."""
+    raw = yaml.safe_load((path or CONFIG_DIR / "disarm.yaml").read_text(encoding="utf-8"))
+    tactics = raw.get("tactics") or {}
+    for tid, t in (raw.get("techniques") or {}).items():
+        if not re.fullmatch(r"T\d{4}(\.\d{3})?", str(tid)) or not t.get("name") or t.get("tactic") not in tactics:
+            raise ValueError(f"disarm.yaml: bad technique {tid!r}: {t!r}")
+    return raw
+
+
+def disarm_refs(entries, disarm: dict, where: str) -> list[dict]:
+    """A framing's `disarm` list, checked against disarm.yaml and given each technique's name, tactic and link."""
+    out = []
+    for e in entries or []:
+        tid, conf = (e or {}).get("id"), (e or {}).get("confidence")
+        t = disarm["techniques"].get(tid)
+        if t is None or conf not in DISARM_CONFIDENCE:
+            raise ValueError(f"lexicon.yaml, {where}: bad disarm entry {e!r} (ids are listed in config/disarm.yaml; "
+                             f"confidence is one of {', '.join(DISARM_CONFIDENCE)})")
+        out.append({"id": tid, "confidence": conf, "name": t["name"], "tactic": t["tactic"],
+                    "tactic_name": disarm["tactics"][t["tactic"]],
+                    "url": disarm["technique_url"].format(id=tid)})
+    if len({e["id"] for e in out}) != len(out):
+        raise ValueError(f"lexicon.yaml, {where}: a DISARM technique is listed twice")
+    return out
+
+
+def load_lexicon(path: Path | None = None, disarm_path: Path | None = None) -> list[Narrative]:
     raw = yaml.safe_load((path or CONFIG_DIR / "lexicon.yaml").read_text(encoding="utf-8"))
     contexts = load_contexts(path)
+    disarm = load_disarm(disarm_path) if any(n.get("disarm") for k in ("framings", "topics")
+                                             for n in raw.get(k, []) or []) else None
     out = []
     for family, key in (("framing", "framings"), ("topic", "topics")):
         for n in raw.get(key, []):
@@ -203,7 +240,8 @@ def load_lexicon(path: Path | None = None) -> list[Narrative]:
                     items.append(group)
                 patterns[lang] = items
             out.append(Narrative(id=n["id"], family=family, label=n["label"], about=n.get("about", {}),
-                                 patterns=patterns, checked=n.get("checked") or {}))
+                                 patterns=patterns, checked=n.get("checked") or {},
+                                 disarm=disarm_refs(n.get("disarm"), disarm, n["id"]) if n.get("disarm") else []))
     ids = [n.id for n in out]
     if len(ids) != len(set(ids)):
         raise ValueError("duplicate narrative ids in lexicon.yaml")

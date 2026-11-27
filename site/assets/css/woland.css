@@ -434,6 +434,17 @@ mark.hit { background: linear-gradient(transparent 55%, rgba(207, 78, 70, .45) 5
 .chip:hover .x { color: var(--crimson-text); }
 .scope { margin: -.6rem 0 1rem; max-width: 52rem; }
 
+/* ── DISARM techniques on a framing's page ─────────────────────────────── */
+.disarm { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin: .2rem 0 .7rem; font: .78rem/1.2 var(--sans); }
+.disarm .k { color: var(--text-3); letter-spacing: .08em; margin-right: .15rem; }
+.disarm-pill { color: var(--text); background: var(--ink-2); border: 1px solid var(--rule-2); border-radius: 999px;
+  padding: .25rem .6rem; text-decoration: none; }
+.disarm-pill b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.disarm-pill.partial { border-style: dashed; color: var(--text-2); }
+.disarm-pill small { color: var(--text-3); }
+.disarm-pill:hover { border-color: var(--gilt-dim); }
+.disarm-about { color: var(--text-3); margin-left: .2rem; }
+
 /* ── Charts: days still being collected, and what a share is a share of ─── */
 .chart .line.open { stroke-dasharray: 3 3; opacity: .75; }
 .chart .dot.open { fill: var(--ink-1); stroke-width: 1.5; }

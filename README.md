@@ -95,6 +95,15 @@ From then on everything is automatic:
   the whole archive; full-text matches are recorded when an article is collected, with a short snippet as
   evidence. `site/assets/js/lexicon.js` applies the same rules in the browser to show which words matched. A
   random sample of each framing's matches was read in September 2026: [`docs/lexicon-audit.md`](docs/lexicon-audit.md).
+* **DISARM** (`config/disarm.yaml`, `woland/disarm.py`) — each framing is mapped (`disarm` in the lexicon) to the
+  [DISARM](https://www.disarm.foundation/) Red Framework techniques Woland reads it as, *direct* or *partial*; the
+  names and tactics are kept once, in `config/disarm.yaml`, with the date and a fingerprint of the DISARM index
+  they were read from. The mapping is Woland's analytical reading, not DISARM's. Framing pages show the
+  techniques, and every build writes `exports/disarm-layer-7d.json` and `-30d.json` (DISARM Navigator layers,
+  domain `DISARM`, scored by the percentage of the period's articles that matched a framing mapped to each
+  technique) and `exports/weekly-stix.json` (a STIX 2.1 bundle for the latest completed week: Woland as an
+  identity, one attack-pattern per technique seen, and a report carrying the counts; UUIDv5 ids, so rebuilds give
+  the same file). Counts are pattern matches, not evidence of an operation.
 * **Translation** (`woland/translate.py`, `woland/glossary.py`) — Russian headlines, leads and the snippets of
   body matches are translated to English offline, sentence by sentence, with the open Argos Translate / OPUS-MT
   model through CTranslate2. No API keys, no cost. Names and terms the model gets wrong (Witkoff, Kallas, the SVO)

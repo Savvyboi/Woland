@@ -23,6 +23,11 @@
 # record how many of a random sample of 25 matches fit the definition when they were read (who read them,
 # and how: docs/lexicon-audit.md); re-check a fresh sample after changing a framing's patterns.
 #
+# disarm (framings only, optional): the DISARM Red Framework techniques the framing serves, as Woland reads it
+#   (config/disarm.yaml lists them): confidence direct = the framing is a textbook case of the technique;
+#   partial = it serves the technique among other things. An analytical reading, not part of DISARM; a framing
+#   without a clear equivalent has none.
+#
 # Editing this file changes the whole archive at the next build for headlines and leads. Full-text
 # matches are recorded when an article is collected; see README → "Configuration".
 
@@ -76,6 +81,7 @@ framings:
       en: The official euphemism for the full-scale war against Ukraine.
       fi: Virallinen kiertoilmaus Ukrainaa vastaan käytävälle täysimittaiselle sodalle.
       sv: Den officiella eufemismen för det fullskaliga kriget mot Ukraina.
+    disarm: [{id: T0076, confidence: direct}, {id: T0002, confidence: partial}]
     checked: {n: 25, fit: 25, date: '2026-09-27'}
     ru: ['специальн* военн* операц*', 'сво', 'спецоперац*']
     en: ['special military operation*', 'special operation']
@@ -86,6 +92,7 @@ framings:
       en: Casting Ukraine, its army or its allies as Nazis or fascists; the stated war aim of 'denazification'.
       fi: Ukrainan, sen armeijan tai liittolaisten kuvaaminen natseina tai fasisteina; sodan julistettu tavoite ”denatsifikaatio”.
       sv: Att framställa Ukraina, dess armé eller allierade som nazister eller fascister; krigets uttalade mål ”denazifiering”.
+    disarm: [{id: T0135.001, confidence: direct}, {id: T0003, confidence: partial}]
     checked: {n: 25, fit: 22, date: '2026-09-27'}
     # The plain words also describe the Second World War, which the Russian press recalls almost daily:
     # they count only next to Ukraine, the war or the West, and not in the stock phrases of war memory.
@@ -120,6 +127,7 @@ framings:
       en: "Refusing to call Ukraine's government a government: 'Kyiv regime', 'Zelensky regime', 'junta'."
       fi: Ukrainan hallituksen kutsuminen ”hallinnoksi” tai ”juntaksi” – ”Kiovan hallinto”, ”Zelenskyin hallinto”.
       sv: Att vägra kalla Ukrainas regering för regering – ”Kievregimen”, ”Zelenskyjregimen”, ”juntan”.
+    disarm: [{id: T0135.001, confidence: direct}, {id: T0075, confidence: partial}]
     checked: {n: 25, fit: 25, date: '2026-09-27'}
     ru:
       - 'киевск* режим*'
@@ -142,6 +150,7 @@ framings:
       en: Claims that Ukraine's president lost his legitimacy when elections were postponed under martial law.
       fi: Väitteet, että Ukrainan presidentti menetti legitimiteettinsä, kun vaalit siirrettiin sotatilan vuoksi.
       sv: Påståenden om att Ukrainas president förlorade sin legitimitet när valen sköts upp under krigslagar.
+    disarm: [{id: T0075, confidence: partial}, {id: T0023, confidence: partial}]
     checked: {n: 25, fit: 25, date: '2026-09-27'}
     # "Illegitimate" is also said of sanctions, elections and airspace notices: only next to Ukraine's
     # president or government. ("Former president of Ukraine" found Kuchma, Yanukovych and Poroshenko.)
@@ -159,6 +168,7 @@ framings:
       en: The West as one hostile bloc steering events; the 'Anglo-Saxons' as puppet-masters.
       fi: Länsi yhtenä vihamielisenä blokkina, joka ohjailee tapahtumia; ”anglosaksit” nukkemestareina.
       sv: Väst som ett enda fientligt block som styr händelserna; ”anglosaxarna” som marionettmästare.
+    disarm: [{id: T0079, confidence: partial}, {id: T0003, confidence: partial}]
     checked: {n: 25, fit: 25, date: '2026-09-27'}
     ru:
       - 'коллективн* запад*'
@@ -180,6 +190,7 @@ framings:
       en: Criticism of Russia recast as irrational hatred of Russians, including 'cancelling Russian culture'.
       fi: Venäjän arvostelu esitetään järjettömänä vihana venäläisiä kohtaan, myös ”venäläisen kulttuurin kanselointina”.
       sv: Kritik mot Ryssland omtolkas som irrationellt hat mot ryssar, inklusive att ”cancellera rysk kultur”.
+    disarm: [{id: T0075, confidence: direct}, {id: T0004, confidence: partial}]
     checked: {n: 25, fit: 25, date: '2026-09-27'}
     ru: ['русофоб*', 'антироссийск* истери*', 'отмен* русск* культур*', 'культур* отмен*', 'дискриминац* русск*', 'дискриминац* русскоязычн*']
     en: ['russophob*', 'anti-russian hysteria', 'cancel* russian culture', 'discrimination against russian*']
@@ -190,6 +201,7 @@ framings:
       en: Claims, often in advance, that incidents are staged provocations or false-flag operations.
       fi: Usein ennakoivat väitteet, että tapahtumat ovat lavastettuja provokaatioita tai false flag -operaatioita.
       sv: Ofta förebyggande påståenden om att händelser är iscensatta provokationer eller false flag-operationer.
+    disarm: [{id: T0004, confidence: direct}, {id: T0068, confidence: partial}]
     checked: {n: 25, fit: 22, date: '2026-09-27'}
     # "Staged" is also a staged robbery or a stage adaptation (инсценировка), and TASS English "stages"
     # shelling attacks: only next to Ukraine, the war or the West.
@@ -220,6 +232,7 @@ framings:
       en: Dismissing reports as Western 'fakes' or 'information war'; independent media as an enemy weapon.
       fi: Uutisten kuittaaminen lännen ”valeuutisina” tai ”informaatiosotana”; riippumaton media vihollisen aseena.
       sv: Att avfärda rapporter som västliga ”fejknyheter” eller ”informationskrig”; oberoende medier som fiendens vapen.
+    disarm: [{id: T0075.001, confidence: direct}]
     checked: {n: 25, fit: 14, date: '2026-09-28'}
     # Not counted: fake accounts, letters, exchanges, notices and giveaways used by fraudsters, ballot
     # stuffing and hockey face-offs (вброс),
@@ -249,6 +262,7 @@ framings:
       en: Labelling Ukrainian military action as terrorism and Ukraine as a terrorist state.
       fi: Ukrainan sotilaallisten toimien leimaaminen terrorismiksi ja Ukrainan terroristivaltioksi.
       sv: Att stämpla ukrainska militära handlingar som terrorism och Ukraina som en terroriststat.
+    disarm: [{id: T0135.001, confidence: direct}]
     checked: {n: 25, fit: 23, date: '2026-09-27'}
     # A terrorist attack in Dagestan, Pakistan or on 11 September is not this framing: "terrorist act" and
     # "terrorist state" count only next to Ukraine, its army, drones or the war.
@@ -268,6 +282,7 @@ framings:
       en: Presenting foreign volunteers and Western involvement as mercenaries fighting for Kyiv.
       fi: Ulkomaisten vapaaehtoisten ja lännen osallistumisen esittäminen Kiovan palkkasotureina.
       sv: Att framställa utländska frivilliga och västligt engagemang som legosoldater i Kievs tjänst.
+    disarm: [{id: T0023, confidence: partial}]
     checked: {n: 25, fit: 21, date: '2026-09-27'}
     ru:
       - 'наемник*'
@@ -288,6 +303,7 @@ framings:
       en: The long-running claim of secret US military biological laboratories in Ukraine and elsewhere.
       fi: Pitkäikäinen väite Yhdysvaltain salaisista sotilaallisista biolaboratorioista Ukrainassa ja muualla.
       sv: Det långlivade påståendet om hemliga amerikanska militära biolaboratorier i Ukraina och på andra håll.
+    disarm: [{id: T0022, confidence: direct}, {id: T0022.001, confidence: partial}]
     checked: {n: 25, fit: 24, date: '2026-09-27'}
     # A biolab is also an AI company's drug laboratory, and "biological weapons" were mostly North Korea's
     # law and Baltic insurance policies: laboratories only next to Ukraine or the West, weapons not at all.
@@ -304,6 +320,7 @@ framings:
       en: Nuclear sabre-rattling, 'dirty bomb' claims and the celebration of new strategic weapons.
       fi: Ydinaseilla uhkailu, ”likaisen pommin” väitteet ja uusien strategisten aseiden ylistys.
       sv: Kärnvapenskrammel, påståenden om ”smutsiga bomber” och hyllningar av nya strategiska vapen.
+    disarm: [{id: T0078, confidence: direct}]
     checked: {n: 25, fit: 22, date: '2026-09-28'}
     # Nuclear weapons, deterrence and tests in general (Iran, the test-ban treaty, France's deterrent) are
     # the topic "Nuclear weapons" below. A Burevestnik is also a drone regiment and a dacha cooperative,
@@ -333,6 +350,7 @@ framings:
       en: Claims of genocide against Russians, Russian speakers, Donbas or 'the Soviet people', used to justify the war.
       fi: Väitteet kansanmurhasta venäläisiä, venäjänkielisiä, Donbasia tai ”neuvostokansaa” vastaan – sodan oikeutus.
       sv: Påståenden om folkmord på ryssar, rysktalande, Donbas eller ”det sovjetiska folket”, som rättfärdigar kriget.
+    disarm: [{id: T0023, confidence: partial}, {id: T0003, confidence: partial}]
     checked: {n: 25, fit: 24, date: '2026-09-27'}
     ru: ['геноцид* донбасс*', 'геноцид* русск*', 'геноцид* русскоязычн*', 'геноцид* жител* донбасс*', 'геноцид* мирн*', 'геноцид* советск* народ*']
     en: ['genocide in donbas*', 'genocide of russians', 'genocide against russian*', 'genocide of the russian*', 'genocide of russian-speak*', 'genocide of the soviet people']
@@ -343,6 +361,7 @@ framings:
       en: Russia as guardian of 'traditional values' against a morally corrupt West.
       fi: Venäjä ”perinteisten arvojen” puolustajana moraalisesti rappeutunutta länttä vastaan.
       sv: Ryssland som väktare av ”traditionella värderingar” mot ett moraliskt fördärvat väst.
+    disarm: [{id: T0003, confidence: partial}, {id: T0083, confidence: partial}]
     checked: {n: 25, fit: 24, date: '2026-09-27'}
     ru: ['традиционн* ценност*', 'традиционн* семейн* ценност*', 'духовно-нравственн*', 'деструктивн* идеолог*']
     en: ['traditional values', 'family values', 'spiritual and moral', 'destructive ideolog*']
@@ -353,6 +372,7 @@ framings:
       en: The West as satanic and decadent; LGBT people as an extremist threat (Russia has banned the 'LGBT movement' as extremist).
       fi: Länsi saatanallisena ja rappeutuneena; LGBT-ihmiset ääriliikkeen uhkana (Venäjä on kieltänyt ”LGBT-liikkeen” ääriliikkeenä).
       sv: Väst som sataniskt och dekadent; hbtq-personer som ett extremistiskt hot (Ryssland har förbjudit ”hbtq-rörelsen” som extremistisk).
+    disarm: [{id: T0135.001, confidence: partial}, {id: T0079, confidence: partial}]
     checked: {n: 25, fit: 20, date: '2026-09-27'}
     # "Satanic" is mostly crime news (sects, symbols on a blogger): only next to the West or Ukraine. The note
     # that Russian law requires wherever LGBT people are mentioned ("the LGBT movement is recognised as
@@ -384,6 +404,7 @@ framings:
       en: Irredentist framing of Ukrainian land as historically Russian; the 'Russian world' doctrine.
       fi: Irredentistinen kehys, jossa Ukrainan maat esitetään historiallisesti venäläisinä; ”venäläisen maailman” oppi.
       sv: Irredentistisk inramning av ukrainsk mark som historiskt rysk; doktrinen om ”den ryska världen”.
+    disarm: [{id: T0003, confidence: direct}]
     checked: {n: 25, fit: 25, date: '2026-09-28'}
     # Новороссия, not the port city of Новороссийск, nor the R-280 highway "Новороссия". "Исконно русский"
     # only of land: it is also said of words, dishes, names and inventions.
@@ -410,6 +431,7 @@ framings:
       en: Russia as leader of a 'global majority' resisting US-led hegemony and 'neo-colonialism'.
       fi: Venäjä ”globaalin enemmistön” johtajana Yhdysvaltain johtamaa hegemoniaa ja ”uuskolonialismia” vastaan.
       sv: Ryssland som ledare för en ”global majoritet” mot USA-ledd hegemoni och ”nykolonialism”.
+    disarm: [{id: T0003, confidence: partial}, {id: T0079, confidence: partial}]
     checked: {n: 25, fit: 23, date: '2026-09-27'}
     ru: ['многополярн*', 'однополярн*', 'гегемони*', 'неоколониал*', 'неоколониз*', 'миров* большинств*', 'глобальн* юг*', 'глобальн* большинств*']
     en: ['multipolar*', 'unipolar*', 'hegemon*', 'neocolonial*', 'neo-colonial*', 'global majority', 'global south']
@@ -420,6 +442,7 @@ framings:
       en: Stories of European deindustrialisation and collapse, freezing homes and the end of the dollar.
       fi: Tarinoita Euroopan teollisuuden alasajosta ja romahduksesta, kylmistä kodeista ja dollarin lopusta.
       sv: Berättelser om Europas avindustrialisering och kollaps, frysande hem och dollarns slut.
+    disarm: [{id: T0078, confidence: partial}]
     checked: {n: 25, fit: 21, date: '2026-09-27'}
     ru: ['деиндустриализ*', 'закат* европ*', 'закат* запад*', 'упад* запад*', 'крах* доллар*', 'крах* евро*', 'дедолларизац*', 'замерза* европ*', 'европ* замерз*']
     en: ['deindustriali*', 'decline of the west', 'decline of europe', 'collapse of the dollar', 'dedollari*', 'de-dollari*', 'death of the dollar', 'freezing europe']
@@ -430,6 +453,7 @@ framings:
       en: Branding critics, émigrés and independent media as 'foreign agents', 'undesirable', 'extremist' or a 'fifth column'.
       fi: Kriitikoiden, emigranttien ja riippumattoman median leimaaminen ”ulkomaisiksi agenteiksi”, ”epätoivotuiksi”, ”ääriliikkeiksi” tai ”viidenneksi kolonnaksi”.
       sv: Att stämpla kritiker, emigranter och oberoende medier som ”utländska agenter”, ”oönskade”, ”extremister” eller en ”femte kolonn”.
+    disarm: [{id: T0135.001, confidence: direct}]
     checked: {n: 25, fit: 19, date: '2026-09-28'}
     # "extremist organisation" is left out on purpose: Russian law makes outlets add it to every
     # mention of Meta, Instagram or Facebook, which would drown the signal. "Traitor" on its own is a
@@ -475,6 +499,7 @@ framings:
       en: Kyiv 'incapable of negotiating', the West as the 'party of war', the lost 'Istanbul agreements' and 'root causes'.
       fi: Kiova ”kyvytön neuvottelemaan”, länsi ”sodan puolueena”, menetetyt ”Istanbulin sopimukset” ja ”perimmäiset syyt”.
       sv: Kiev ”oförmöget att förhandla”, väst som ”krigspartiet”, de förlorade ”Istanbulavtalen” och ”grundorsakerna”.
+    disarm: [{id: T0004, confidence: partial}, {id: T0079, confidence: partial}]
     checked: {n: 25, fit: 24, date: '2026-09-27'}
     # Iran and the United States also break off talks, global warming has root causes too, and a partisan
     # war (партизанская война) is not the party of war.
@@ -504,6 +529,7 @@ framings:
       en: Western aid to Ukraine portrayed as stolen, embezzled or resold on the black market.
       fi: Länsimaiden apu Ukrainalle esitetään varastettuna, kavallettuna tai pimeillä markkinoilla myytynä.
       sv: Västligt bistånd till Ukraina framställs som stulet, förskingrat eller sålt på svarta marknaden.
+    disarm: [{id: T0079, confidence: partial}, {id: T0083, confidence: partial}]
     checked: {n: 25, fit: 19, date: '2026-09-27'}
     # Resale was concert tickets and flats, "распил" sawn safes and timber: only resold arms or aid, and a
     # budget "sawn up"; black markets and embezzlement only next to Ukraine or the West; corruption in
@@ -536,6 +562,7 @@ framings:
       en: Stories of Ukrainian men seized for the army ('busification'), meant to demoralise and discredit.
       fi: Tarinoita ukrainalaismiesten väkivaltaisesta kutsunnasta armeijaan (”bussifikaatio”), joiden tarkoitus on lannistaa ja mustamaalata.
       sv: Berättelser om ukrainska män som tas med våld till armén (”bussifiering”), avsedda att demoralisera och misskreditera.
+    disarm: [{id: T0078, confidence: partial}]
     checked: {n: 25, fit: 25, date: '2026-09-27'}
     ru: ['принудительн* мобилизац*', 'насильственн* мобилизац*', 'бусификац*', 'бусифицир*', 'людолов*', 'тцк', 'отлов* мужчин*']
     en:
@@ -553,6 +580,7 @@ framings:
       en: Occupation described as 'liberation'; annexed Ukrainian land as Russia's 'new regions'.
       fi: Miehitys kuvataan ”vapauttamisena”; liitetyt Ukrainan alueet Venäjän ”uusina alueina”.
       sv: Ockupation beskrivs som ”befrielse”; annekterad ukrainsk mark som Rysslands ”nya regioner”.
+    disarm: [{id: T0076, confidence: direct}]
     checked: {n: 25, fit: 23, date: '2026-09-27'}
     # "New regions" but not "a new regional format"; "reunification" of Crimea and Donbas with Russia,
     # not of families or of Ireland.
@@ -589,6 +617,7 @@ framings:
       en: Slurs and dehumanising labels for Ukrainians and their soldiers ('militants'), commonest in hardline outlets.
       fi: Ukrainalaisista ja heidän sotilaistaan (”taistelijat”) käytetyt herjat ja epäinhimillistävät nimitykset, yleisimpiä kovan linjan medioissa.
       sv: Skällsord och avhumaniserande benämningar på ukrainare och deras soldater (”militanter”), vanligast i hårdföra kanaler.
+    disarm: [{id: T0135.001, confidence: partial}]
     checked: {n: 25, fit: 25, date: '2026-09-27'}
     # The slur's forms, not the surname Хохлов or Khokhloma painting.
     ru: ['хохол', 'хохла', 'хохлу', 'хохлы', 'хохлам', 'хохлами', 'хохлах', 'хохлушк*', 'хохляцк*', 'хохлятск*', 'свидомит*', 'всушник*', 'укробоевик*', 'укровоенн*', 'укры', 'укров', 'укропы', 'укропов', 'нацики', 'украинск* боевик*', 'боевик* всу']
